@@ -1,26 +1,20 @@
 import { Tabs } from 'expo-router';
 import { Gift, Layers, ScanLine, User } from 'lucide-react-native';
-import { StyleSheet } from 'react-native';
 
-import { colors } from '@/theme/colors';
-import { type as typeRoles } from '@/theme/typography';
+import { TabBar } from '@/components/navigation/tab-bar';
 
 /**
  * Four tabs, in the order the experience loop runs: what you have, how you get more, what it
  * earns you, who you are. Scan sits in the middle because it is the only one a customer opens the
  * app specifically to do.
+ *
+ * The bar itself is ours — see `TabBar`. It floats over the content as glass, so the navigator's
+ * own bar is switched off entirely rather than restyled: `tabBarStyle` cannot express a surface
+ * that the page scrolls underneath.
  */
 export default function TabsLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.text,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: styles.bar,
-        tabBarLabelStyle: typeRoles.caption,
-      }}
-    >
+    <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
       <Tabs.Screen
         name="index"
         options={{ title: '컬렉션', tabBarIcon: ({ color }) => <Layers size={22} color={color} /> }}
@@ -40,11 +34,3 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  bar: {
-    backgroundColor: colors.background,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderSubtle,
-  },
-});

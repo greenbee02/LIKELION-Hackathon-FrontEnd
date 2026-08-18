@@ -3,12 +3,17 @@ import type { Brand, Card, Reward } from '../types';
 /**
  * Stand-in data until the backend exposes `brand` and the product detail fields.
  *
- * Two houses on purpose: this is a multi-brand platform, and a collection that only ever shows
- * one brand hides every layout problem the second one causes.
+ * `imageUrl` is null throughout on purpose: it mirrors the DTO, and the DTO has no image yet. The
+ * artwork these cards actually show is bundled, in `mock/card-art.ts`, and `cardArtSource` is
+ * what picks between the two.
+ *
+ * One house at the moment, which is a gap rather than a decision. This is a multi-brand platform,
+ * and a mock that only ever shows one brand hides every layout problem the second one causes —
+ * and leaves the collection screen's brand filter with nothing to choose, so it stays hidden. A
+ * second house comes back as soon as there is artwork for one.
  */
 export const BRANDS: Record<string, Brand> = {
-  mcm: { id: 'mcm', name: 'MCM', accent: '#7B5E3B' },
-  atelier: { id: 'atelier', name: 'Atelier Rouge', accent: '#8E2A3A' },
+  mcm: { id: 'mcm', name: 'MCM', accent: '#7B5E3B', logoUrl: null },
 };
 
 export const MOCK_CARDS: Card[] = [
@@ -22,8 +27,8 @@ export const MOCK_CARDS: Card[] = [
     brand: BRANDS.mcm,
     product: {
       id: 'p1',
-      name: 'Visetos Seoul Exclusive Backpack',
-      category: 'Backpack',
+      name: 'Visetos Original Cabin Trolley',
+      category: 'Trolley',
       imageUrl: null,
       limited: true,
       material: 'Coated canvas, leather trim',
@@ -40,15 +45,15 @@ export const MOCK_CARDS: Card[] = [
     status: 'ACTIVE',
     purchaseDate: '2026-06-02T09:05:00Z',
     issuedAt: '2026-06-02T09:06:40Z',
-    serialNumber: 'MCM-TT-0117',
+    serialNumber: 'MCM-DS-0117',
     brand: BRANDS.mcm,
     product: {
       id: 'p2',
-      name: 'Tracery Card Wallet',
-      category: 'Wallet',
+      name: 'Dessau Drawstring Bag',
+      category: 'Shoulder bag',
       imageUrl: null,
       limited: false,
-      material: 'Calf leather',
+      material: 'Embossed calf leather',
       origin: 'Korea',
       warrantyMonths: 12,
       careInfo: 'Store in the dust bag when unused.',
@@ -62,21 +67,43 @@ export const MOCK_CARDS: Card[] = [
     status: 'ACTIVE',
     purchaseDate: '2026-04-21T02:40:00Z',
     issuedAt: '2026-04-21T02:41:03Z',
-    serialNumber: 'ATR-SC-0009',
-    brand: BRANDS.atelier,
+    serialNumber: 'MCM-KN-0231',
+    brand: BRANDS.mcm,
     product: {
       id: 'p3',
-      name: 'Soie Carré Scarf',
-      category: 'Scarf',
+      name: 'Chevron Intarsia Wool Cardigan',
+      category: 'Knitwear',
       imageUrl: null,
       limited: false,
-      material: 'Silk twill',
-      origin: 'France',
+      material: 'Wool blend',
+      origin: 'Italy',
       warrantyMonths: 12,
-      careInfo: 'Dry clean only.',
+      careInfo: 'Dry clean only. Store folded, never on a hanger.',
       season: '25AW',
     },
-    store: { id: 's3', name: 'Busan Shinsegae', country: 'KR', city: 'Busan' },
+    store: { id: 's3', name: 'Galeries Lafayette Paris', country: 'FR', city: 'Paris' },
+  },
+  {
+    id: 'c4',
+    cardType: 'BASIC',
+    status: 'ACTIVE',
+    purchaseDate: '2026-03-08T11:15:00Z',
+    issuedAt: '2026-03-08T11:16:22Z',
+    serialNumber: 'MCM-BZ-0088',
+    brand: BRANDS.mcm,
+    product: {
+      id: 'p4',
+      name: 'Bouclé Trim Wool Blazer',
+      category: 'Outerwear',
+      imageUrl: null,
+      limited: false,
+      material: 'Wool bouclé, gold-tone hardware',
+      origin: 'Italy',
+      warrantyMonths: 12,
+      careInfo: 'Dry clean only. Brush along the grain after wear.',
+      season: '26SS',
+    },
+    store: { id: 's4', name: 'MCM Champs-Élysées', country: 'FR', city: 'Paris' },
   },
 ];
 
@@ -98,14 +125,5 @@ export const MOCK_REWARDS: Reward[] = [
     collection: 'MCM Icons',
     progress: 1,
     total: 5,
-  },
-  {
-    id: 'r3',
-    brandId: 'atelier',
-    kind: 'EVENT',
-    title: 'Atelier Private Preview',
-    collection: 'Global Travel Collection',
-    progress: 1,
-    total: 3,
   },
 ];

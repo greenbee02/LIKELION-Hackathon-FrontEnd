@@ -5,6 +5,7 @@ import { Zap, ZapOff } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { useTabBarSpace } from '@/components/navigation/tab-bar';
 import { BackButton } from '@/components/ui/back-button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
@@ -34,6 +35,8 @@ export default function ScanScreen() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
+  // The tab bar floats over the page, so this screen pays for the overlap itself.
+  const tabBarSpace = useTabBarSpace();
 
   /**
    * Asked for on arrival rather than behind a button: the customer pressed a tab called 스캔 to
@@ -125,9 +128,9 @@ export default function ScanScreen() {
         ) : null}
       </View>
 
-      <View style={styles.guide}>
+      <View style={[styles.guide, { paddingBottom: tabBarSpace }]}>
         <Text variant="caption" tone="muted" style={styles.guideText}>
-          영수증의 QR 코드를 화면 중앙에 비추면 카드가 발급됩니다
+          QR 코드를 화면 중앙에 스캔하면 카드가 발급됩니다
         </Text>
       </View>
     </Screen>

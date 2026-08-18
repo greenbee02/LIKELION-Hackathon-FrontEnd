@@ -4,12 +4,13 @@ import type { ComponentType } from 'react';
 import { useEffect } from 'react';
 import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 
-import { CardPlaceholder } from '@/components/issue/card-placeholder';
+import { IssueCard } from '@/components/issue/issue-card';
 import { ResourceChecklist } from '@/components/issue/resource-checklist';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import type { IssueErrorCode } from '@/lib/api/registrations';
+import { formatPurchaseDate } from '@/lib/format';
 import { useIssue } from '@/lib/issue-flow';
 import type { Card } from '@/lib/types';
 import { colors } from '@/theme/colors';
@@ -65,7 +66,7 @@ export default function IssueScreen() {
 function IssueRegistering() {
   return (
     <View style={styles.body}>
-      <CardPlaceholder card={null} state="skeleton" />
+      <IssueCard card={null} />
       <Text variant="title" style={styles.headline}>
         카드를 발급하는 중입니다
       </Text>
@@ -91,7 +92,7 @@ function IssueGenerating({
   return (
     <View style={styles.page}>
       <View style={styles.body}>
-        <CardPlaceholder card={card} state="generating" />
+        <IssueCard card={card} />
         <Text variant="title" style={styles.headline}>
           카드 디자인을 만드는 중입니다
         </Text>
@@ -126,13 +127,13 @@ function IssueReady({ card, incomplete }: { card: Card; incomplete: boolean }) {
   return (
     <View style={styles.page}>
       <View style={styles.body}>
-        <CardPlaceholder card={card} state="ready" />
+        <IssueCard card={card} />
         {/* The one display-sized line in the app: this is the moment the product exists for. */}
         <Text variant="display" style={styles.headline}>
           발급 완료
         </Text>
         <Text variant="body" tone="muted" style={styles.support}>
-          {`${card.store.name} · ${formatDate(card.purchaseDate)}`}
+          {`${card.store.name} · ${formatPurchaseDate(card.purchaseDate)}`}
         </Text>
         {incomplete ? (
           <Text variant="caption" tone="muted" style={styles.note}>
@@ -244,12 +245,6 @@ function IssueError({ code, onRetry }: { code: IssueErrorCode; onRetry: () => vo
       </View>
     </View>
   );
-}
-
-/** Local, not `Intl` — Hermes ships a locale table this app does not need to depend on. */
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`;
 }
 
 const styles = StyleSheet.create({

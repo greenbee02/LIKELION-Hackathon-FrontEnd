@@ -1,4 +1,4 @@
-import { gray, grayA } from '@radix-ui/colors';
+import { gray, grayA, whiteA } from '@radix-ui/colors';
 
 /**
  * Colour comes from Radix Colors' 12-step gray scale. Each step has one job, and the step number
@@ -22,6 +22,9 @@ export const scale = gray;
 
 /** Translucent gray, for edges and scrims that sit over unknown content (photos, glass). */
 export const scaleAlpha = grayA;
+
+/** Translucent white, the only non-gray in the file. It exists for glass — see `colors.glass`. */
+export const scaleAlphaLight = whiteA;
 
 export const colors = {
   /** 1 — the app background. */
@@ -68,6 +71,32 @@ export const colors = {
   textMuted: gray.gray11,
   /** 12 — primary text. 15.88:1 on `background`. */
   text: gray.gray12,
+
+  /**
+   * Glass — a surface that floats over content rather than sitting in the page.
+   *
+   * These three are the only entries here that are not a step on the gray scale, because glass is
+   * not a colour: it is a blur, a veil over it, and an edge. The veil is white at 70% rather than
+   * a gray step, since a step would be opaque and the whole point is that what is underneath
+   * still shows. `glassEdge` is translucent for the same reason — a solid step-7 hairline over a
+   * photograph reads as a drawn line, and over a white page it disappears.
+   *
+   * Only `GlassSurface` should read these. A component reaching for them directly is a component
+   * about to reinvent it slightly differently.
+   */
+  glassFill: whiteA.whiteA9,
+  glassEdge: grayA.grayA4,
+  /** What a floating surface casts. gray 12, dropped at low opacity by the surface itself. */
+  glassShadow: gray.gray12,
+
+  /**
+   * 12 — the ink a scrim is made of, over artwork the app did not choose.
+   *
+   * Only the colour lives here; how dark the scrim gets is the scrim's own business, since that
+   * depends on what it has to keep readable. Gray 12 rather than pure black because the palette
+   * has no pure black and a scrim is not the place to introduce one.
+   */
+  scrimInk: gray.gray12,
 } as const;
 
 export type ColorToken = keyof typeof colors;

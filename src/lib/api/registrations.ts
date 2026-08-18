@@ -77,7 +77,7 @@ export function toCard(res: CardResponse): Card {
     purchaseDate: res.purchaseDate,
     issuedAt: res.issuedAt,
     serialNumber: res.serialNumber,
-    brand: { id: code.toLowerCase(), name: code, accent: colors.solid },
+    brand: { id: code.toLowerCase(), name: code, accent: colors.solid, logoUrl: null },
     product: {
       id: res.product.id,
       name: res.product.name,
