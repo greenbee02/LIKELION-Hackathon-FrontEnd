@@ -8,6 +8,18 @@ export type Brand = {
   name: string;
   /** The brand's accent, carried as data. The app's own chrome never uses it. */
   accent: string;
+  /**
+   * The house's own mark, as a URL — a transparent PNG or SVG of the wordmark or monogram.
+   *
+   * Carried as data for the same reason the accent is: onboarding a house must be a row in a
+   * table, never a component in this repo. The card face tints it to white and falls back to the
+   * name set in type when it is null, so a brand without a mark is a supported state and not a
+   * hole in the design.
+   *
+   * The backend does not expose this yet — see `dev/active/scope-vs-backend.md` §5-1, which is
+   * already waiting on `CardResponse.brand` at all.
+   */
+  logoUrl: string | null;
 };
 
 export type Product = {
