@@ -6,6 +6,7 @@ import { Image as ImageIcon, Zap, ZapOff } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { BackButton } from '@/components/ui/back-button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { useToast } from '@/components/ui/toast';
@@ -92,9 +93,14 @@ export default function ScanScreen() {
 
   return (
     <Screen gutter={false}>
-      {/* The same top rhythm the collection header sits on, so the two tabs start on one line. */}
+      {/* Gutter by hand: the screen drops it so the camera can run edge to edge, and the two
+          text blocks put it back. The back arrow falls through to the collection rather than a
+          fixed route — at a tab's root there is no history to return to. */}
       <View style={styles.header}>
-        <Text variant="title">스캔</Text>
+        <BackButton fallback="/" />
+        <Text variant="title" style={styles.title}>
+          스캔
+        </Text>
       </View>
 
       <View style={styles.stage}>
@@ -176,6 +182,7 @@ const ARM = 14;
 
 const styles = StyleSheet.create({
   header: { paddingTop: space[2], paddingHorizontal: space[4] },
+  title: { marginTop: space[4] },
   /** Surface fill, so the frame is a shape on the page even before a preview arrives — or when
       one never does, on a device without a camera. */
   stage: { flex: 1, marginTop: space[5], backgroundColor: colors.surface, overflow: 'hidden' },
