@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
+import { allowPressOverflow } from './press-scale';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/spacing';
 
@@ -39,13 +40,15 @@ export function Screen({
       {scroll ? (
         <ScrollView
           style={styles.fill}
-          contentContainerStyle={[padding, contentContainerStyle]}
+          contentContainerStyle={[allowPressOverflow, padding, contentContainerStyle]}
           keyboardShouldPersistTaps="handled"
         >
           {children}
         </ScrollView>
       ) : (
-        <View style={[styles.fill, padding, contentContainerStyle]}>{children}</View>
+        <View style={[styles.fill, allowPressOverflow, padding, contentContainerStyle]}>
+          {children}
+        </View>
       )}
     </SafeAreaView>
   );
