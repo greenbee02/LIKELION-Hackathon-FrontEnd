@@ -53,6 +53,11 @@ export const colors = {
    * a solid control that must dominate uses 12 and flips its label to `textInverted`.
    */
   solidStrong: gray.gray12,
+  /**
+   * 11 — `solidStrong` under the finger. Lighter rather than darker, because 12 is already the
+   * darkest step on the scale and a press has to move somewhere.
+   */
+  solidStrongHover: gray.gray11,
   /** 1 — a label sitting on `solidStrong`. */
   textInverted: gray.gray1,
 

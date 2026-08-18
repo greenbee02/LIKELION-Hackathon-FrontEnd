@@ -8,8 +8,14 @@
  * `full` is not a larger step on the same scale — it is a different shape. A number cannot express
  * "half of whatever this element's height turns out to be", so pills and circles get their own
  * token rather than a big number sprinkled at call sites.
+ *
+ * `small` exists because 12 is not a proportion, it is a length: on a 52pt button it softens a
+ * corner, and on a 22pt checkbox it rounds the element into a circle. Anything under roughly 28pt
+ * needs its own value to read as the same shape family, and 4 is that value.
  */
 export const radius = {
+  /** 4 — elements too small for `base`, where 12 would round them into circles: checkboxes, badges. */
+  small: 4,
   /** The default: buttons, inputs, cards, panels, list rows. */
   base: 12,
   /** A pill or a circle — search fields, icon-only buttons, tags. */

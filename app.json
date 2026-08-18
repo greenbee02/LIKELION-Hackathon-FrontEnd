@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Luxury Cards",
-    "slug": "luxury-cards",
+    "name": "Curio",
+    "slug": "curio",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "luxurycards",
+    "scheme": "curio",
     "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/expo.icon"
