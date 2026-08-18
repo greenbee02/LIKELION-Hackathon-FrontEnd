@@ -35,6 +35,13 @@ type IconButtonProps = {
  *
  * The scale sits outside the glass rather than inside it: growing the icon within a fixed box
  * would push it against the clip, so the whole box grows instead.
+ *
+ * The `Pressable` carries the control's size explicitly. Without it a flex parent stretches the
+ * touch target across its whole cross axis — a bare arrow in a header ends up owning the entire
+ * header row — and, worse, the growing `Animated.View` inherits that width and scales about the
+ * middle of it, throwing the 40pt box a sixth of the row's width to the left while held. A
+ * control that moves off screen under the finger is the same bug as a control you cannot aim at,
+ * and both are this one line.
  */
 export function IconButton({
   icon: Icon,
@@ -51,7 +58,7 @@ export function IconButton({
       accessibilityLabel={accessibilityLabel}
       {...press.handlers}
       hitSlop={4}
-      style={allowPressOverflow}
+      style={[styles.control, allowPressOverflow]}
     >
       {({ pressed }) => (
         <Animated.View style={press.style}>
@@ -87,4 +94,6 @@ const styles = StyleSheet.create({
   /** Over glass the press has to be translucent, or it punches an opaque hole in the material. */
   pressedOnGlass: { backgroundColor: scaleAlpha.grayA3 },
   box: { width: SIZE, height: SIZE },
+  /** The touch target is the control, never the space around it. */
+  control: { width: SIZE, height: SIZE },
 });
