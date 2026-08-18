@@ -1,29 +1,23 @@
 import { BlurView } from 'expo-blur';
-import { CameraView, scanFromURLAsync, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useFocusEffect, useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import { Image as ImageIcon, Zap, ZapOff } from 'lucide-react-native';
+import { Zap, ZapOff } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { BackButton } from '@/components/ui/back-button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
-import { useToast } from '@/components/ui/toast';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
 /**
- * The scan tab: a title, the camera, and a line saying what to do with it.
+ * The scan tab: a bar, the camera, and a line saying what to do with it.
  *
  * The camera runs full width between the two, which is the only element in the app allowed past
  * the gutter — it is a window onto the room rather than a picture placed on the page, and a 16pt
  * margin around a live scene reads as a photograph of one.
- *
- * Two ways in, because a receipt is not always in the hand: the camera reads a code in front of
- * it, and 앨범 reads one out of a screenshot. The second is also the only path that works on the
- * web, where there is no camera but `scanFromURLAsync` still runs.
  *
  * This screen never judges a token. Whatever it reads goes straight to `/issue/[token]`, which
  * owns the round trip and every way it can end — a scanner that reported "invalid code" would
@@ -33,7 +27,6 @@ const CAMERA_AVAILABLE = Platform.OS !== 'web';
 
 export default function ScanScreen() {
   const router = useRouter();
-  const toast = useToast();
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
 
@@ -60,47 +53,18 @@ export default function ScanScreen() {
     }, []),
   );
 
-  const issue = useCallback(
-    (raw: string) => {
-      const token = raw.trim().toUpperCase();
-      if (!token) return;
-      router.push({ pathname: '/issue/[token]', params: { token } });
-    },
-    [router],
-  );
-
-  const pickFromLibrary = useCallback(async () => {
-    const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images' });
-    if (picked.canceled) return;
-
-    const uri = picked.assets[0]?.uri;
-    if (!uri) return;
-
-    try {
-      const [found] = await scanFromURLAsync(uri, ['qr']);
-      if (!found) {
-        toast('이미지에서 QR 코드를 찾지 못했습니다');
-        return;
-      }
-      handled.current = true;
-      issue(found.data);
-    } catch {
-      toast('이미지를 읽지 못했습니다');
-    }
-  }, [issue, toast]);
-
   const live = CAMERA_AVAILABLE && Boolean(permission?.granted);
 
   return (
     <Screen gutter={false}>
-      {/* Gutter by hand: the screen drops it so the camera can run edge to edge, and the two
-          text blocks put it back. The back arrow falls through to the collection rather than a
-          fixed route — at a tab's root there is no history to return to. */}
-      <View style={styles.header}>
-        <BackButton fallback="/" />
-        <Text variant="title" style={styles.title}>
-          스캔
-        </Text>
+      {/* A nav bar, not a screen header: the title is centred on the window rather than on the
+          space left over beside the arrow, so it stays put whatever sits to its left. That is why
+          the arrow is positioned rather than laid out in a row. */}
+      <View style={styles.bar}>
+        <View style={styles.barBack}>
+          <BackButton fallback="/" />
+        </View>
+        <Text variant="heading">코드 스캔</Text>
       </View>
 
       <View style={styles.stage}>
@@ -113,7 +77,9 @@ export default function ScanScreen() {
             onBarcodeScanned={({ data }) => {
               if (handled.current) return;
               handled.current = true;
-              issue(data);
+              const token = data.trim().toUpperCase();
+              if (!token) return;
+              router.push({ pathname: '/issue/[token]', params: { token } });
             }}
           />
         ) : null}
@@ -133,13 +99,15 @@ export default function ScanScreen() {
           </View>
         ) : null}
 
+        {/* Glass, per the convention for anything floating over content: near-white and crisp, so
+            the icon on it reads at step 12 like everywhere else in the app. */}
         {live ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={torch ? '플래시 끄기' : '플래시 켜기'}
             accessibilityState={{ selected: torch }}
             onPress={() => setTorch((on) => !on)}
-            style={styles.torch}
+            style={({ pressed }) => [styles.torch, pressed && styles.torchPressed]}
           >
             <BlurView intensity={40} tint="light" style={styles.torchInner}>
               {torch ? (
@@ -150,26 +118,11 @@ export default function ScanScreen() {
             </BlurView>
           </Pressable>
         ) : null}
-
-        {/* Glass, per the convention for anything floating over content: near-white and crisp,
-            edged by a hairline, so its label reads at step 12 like everywhere else in the app. */}
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => void pickFromLibrary()}
-          style={({ pressed }) => [styles.album, pressed && styles.albumPressed]}
-        >
-          <BlurView intensity={40} tint="light" style={styles.albumInner}>
-            <ImageIcon size={18} color={colors.text} />
-            <Text variant="label" style={styles.albumLabel}>
-              앨범
-            </Text>
-          </BlurView>
-        </Pressable>
       </View>
 
       <View style={styles.guide}>
         <Text variant="caption" tone="muted" style={styles.guideText}>
-          영수증의 QR 코드를 스캔하거나 앨범에서 QR 이미지를 올려보세요
+          영수증의 QR 코드를 화면 중앙에 비추면 카드가 발급됩니다
         </Text>
       </View>
     </Screen>
@@ -181,11 +134,16 @@ const RETICLE = 56;
 const ARM = 14;
 
 const styles = StyleSheet.create({
-  header: { paddingTop: space[2], paddingHorizontal: space[4] },
-  title: { marginTop: space[4] },
+  bar: {
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space[4],
+  },
+  barBack: { position: 'absolute', left: space[4] },
   /** Surface fill, so the frame is a shape on the page even before a preview arrives — or when
       one never does, on a device without a camera. */
-  stage: { flex: 1, marginTop: space[5], backgroundColor: colors.surface, overflow: 'hidden' },
+  stage: { flex: 1, backgroundColor: colors.surface, overflow: 'hidden' },
 
   reticle: {
     position: 'absolute',
@@ -203,23 +161,8 @@ const styles = StyleSheet.create({
   cornerBottomRight: { bottom: 0, right: 0, borderBottomWidth: 2, borderRightWidth: 2, borderBottomRightRadius: radius.small },
 
   torch: { position: 'absolute', top: space[4], right: space[4], borderRadius: radius.full, overflow: 'hidden' },
+  torchPressed: { opacity: 0.7 },
   torchInner: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-
-  album: {
-    position: 'absolute',
-    bottom: space[5],
-    alignSelf: 'center',
-    borderRadius: radius.full,
-    overflow: 'hidden',
-  },
-  albumPressed: { opacity: 0.7 },
-  albumInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: space[3],
-    paddingHorizontal: space[4],
-  },
-  albumLabel: { marginLeft: space[2] },
 
   guide: { paddingHorizontal: space[4], paddingVertical: space[4] },
   guideText: { textAlign: 'center' },
