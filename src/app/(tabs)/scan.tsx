@@ -14,15 +14,14 @@ import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
 /**
- * The scan tab.
+ * The scan tab: a title, the camera, and a line saying what to do with it.
  *
- * A viewfinder is one of the few screens in this app that is dark, and that is not a theme — it is
- * the surround of a live camera, filled with `solidStrong` the same way a solid button is. Light
- * chrome around a moving image reads as a bright frame the eye keeps returning to, and the one
- * thing that should hold attention here is the scene the customer is aiming at.
+ * The camera runs full width between the two, which is the only element in the app allowed past
+ * the gutter — it is a window onto the room rather than a picture placed on the page, and a 16pt
+ * margin around a live scene reads as a photograph of one.
  *
  * Two ways in, because a receipt is not always in the hand: the camera reads a code in front of
- * it, and 앨범 reads one out of a screenshot. The second is also the only way this works on the
+ * it, and 앨범 reads one out of a screenshot. The second is also the only path that works on the
  * web, where there is no camera but `scanFromURLAsync` still runs.
  *
  * This screen never judges a token. Whatever it reads goes straight to `/issue/[token]`, which
@@ -92,11 +91,10 @@ export default function ScanScreen() {
   const live = CAMERA_AVAILABLE && Boolean(permission?.granted);
 
   return (
-    <Screen gutter={false} style={styles.screen}>
+    <Screen gutter={false}>
+      {/* The same top rhythm the collection header sits on, so the two tabs start on one line. */}
       <View style={styles.header}>
-        <Text variant="heading" tone="inverted">
-          코드 스캔
-        </Text>
+        <Text variant="title">스캔</Text>
       </View>
 
       <View style={styles.stage}>
@@ -115,8 +113,11 @@ export default function ScanScreen() {
         ) : null}
 
         {/* Small, and centred: it marks where to aim rather than boxing off a region the scanner
-            actually enforces — the decoder reads the whole frame, and a large bracket that
-            suggests otherwise makes people hold the receipt further away than they need to. */}
+            enforces — the decoder reads the whole frame, and a large bracket that suggests
+            otherwise makes people hold the receipt further away than they need to.
+
+            Gray 1 is the one value that holds over a scene nobody has seen yet, which is the same
+            reason the alpha scale exists for edges over photographs. */}
         {live ? (
           <View style={styles.reticle} pointerEvents="none">
             <View style={[styles.corner, styles.cornerTopLeft]} />
@@ -134,27 +135,26 @@ export default function ScanScreen() {
             onPress={() => setTorch((on) => !on)}
             style={styles.torch}
           >
-            <BlurView intensity={30} tint="dark" style={styles.torchInner}>
+            <BlurView intensity={40} tint="light" style={styles.torchInner}>
               {torch ? (
-                <Zap size={20} color={colors.textInverted} />
+                <Zap size={20} color={colors.text} />
               ) : (
-                <ZapOff size={20} color={colors.textInverted} />
+                <ZapOff size={20} color={colors.text} />
               )}
             </BlurView>
           </Pressable>
         ) : null}
 
-        {/* Glass, but dark — the convention says a floating surface is near-white, and that holds
-            over the app's own light content. Over a live scene a near-white bar blows out the
-            thing it floats on, so here the same glass is tinted the other way. */}
+        {/* Glass, per the convention for anything floating over content: near-white and crisp,
+            edged by a hairline, so its label reads at step 12 like everywhere else in the app. */}
         <Pressable
           accessibilityRole="button"
           onPress={() => void pickFromLibrary()}
           style={({ pressed }) => [styles.album, pressed && styles.albumPressed]}
         >
-          <BlurView intensity={30} tint="dark" style={styles.albumInner}>
-            <ImageIcon size={18} color={colors.textInverted} />
-            <Text variant="label" tone="inverted" style={styles.albumLabel}>
+          <BlurView intensity={40} tint="light" style={styles.albumInner}>
+            <ImageIcon size={18} color={colors.text} />
+            <Text variant="label" style={styles.albumLabel}>
               앨범
             </Text>
           </BlurView>
@@ -162,7 +162,7 @@ export default function ScanScreen() {
       </View>
 
       <View style={styles.guide}>
-        <Text variant="caption" tone="inverted" style={styles.guideText}>
+        <Text variant="caption" tone="muted" style={styles.guideText}>
           영수증의 QR 코드를 스캔하거나 앨범에서 QR 이미지를 올려보세요
         </Text>
       </View>
@@ -175,15 +175,10 @@ const RETICLE = 56;
 const ARM = 14;
 
 const styles = StyleSheet.create({
-  /** Gray 12 as a fill — the role a solid surface uses, not a second theme. */
-  screen: { backgroundColor: colors.solidStrong },
-  header: {
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space[4],
-  },
-  stage: { flex: 1, overflow: 'hidden' },
+  header: { paddingTop: space[2], paddingHorizontal: space[4] },
+  /** Surface fill, so the frame is a shape on the page even before a preview arrives — or when
+      one never does, on a device without a camera. */
+  stage: { flex: 1, marginTop: space[5], backgroundColor: colors.surface, overflow: 'hidden' },
 
   reticle: {
     position: 'absolute',
@@ -219,6 +214,6 @@ const styles = StyleSheet.create({
   },
   albumLabel: { marginLeft: space[2] },
 
-  guide: { paddingHorizontal: space[4], paddingVertical: space[5] },
+  guide: { paddingHorizontal: space[4], paddingVertical: space[4] },
   guideText: { textAlign: 'center' },
 });
