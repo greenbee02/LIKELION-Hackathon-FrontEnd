@@ -3,7 +3,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Zap, ZapOff } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { BackButton } from '@/components/ui/back-button';
 import { Screen } from '@/components/ui/screen';
@@ -22,8 +22,13 @@ import { space } from '@/theme/spacing';
  * This screen never judges a token. Whatever it reads goes straight to `/issue/[token]`, which
  * owns the round trip and every way it can end — a scanner that reported "invalid code" would
  * need its own copy of four error branches, and two copies drift.
+ *
+ * **There is no web branch.** `expo-camera` depends on `barcode-detector`, a wasm ponyfill it
+ * falls back to wherever the browser has no `BarcodeDetector` of its own, so the same code reads
+ * a QR code in Chrome as it does on a phone. The one thing the browser insists on is a secure
+ * context — `localhost` qualifies, a LAN address over plain http does not, so a phone browser
+ * pointed at the dev server is the one place the preview stays dark.
  */
-const CAMERA_AVAILABLE = Platform.OS !== 'web';
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -36,7 +41,7 @@ export default function ScanScreen() {
    * `canAskAgain` going false is what stops this repeating.
    */
   useEffect(() => {
-    if (!CAMERA_AVAILABLE || !permission) return;
+    if (!permission) return;
     if (!permission.granted && permission.canAskAgain) void requestPermission();
   }, [permission, requestPermission]);
 
@@ -53,7 +58,7 @@ export default function ScanScreen() {
     }, []),
   );
 
-  const live = CAMERA_AVAILABLE && Boolean(permission?.granted);
+  const live = Boolean(permission?.granted);
 
   return (
     <Screen gutter={false}>
