@@ -1,5 +1,6 @@
 # 구현 범위 — 기획서 × 백엔드 대조
 
+제품명: **Curio** (2026-08-19 확정)
 기준일: 2026-08-19
 백엔드: `greenbee02/LIKELION-Hackathon-BackEnd` @ main (마지막 푸시 2026-08-18)
 Base URL: `/api/v1` · 인증 `Authorization: Bearer {accessToken}` · 성공 `{"data":…}` / 오류 `{"code","message"}`
@@ -156,8 +157,8 @@ selectedCustomization { id, status, generatedFrontImageUrl, generatedBackImageUr
 
 ## 6. 화면 범위
 
-> **현재 리포에는 화면이 하나도 없다.** Next.js 스캐폴드가 삭제되고 Expo 로 갈아엎히면서
-> `src/app/` 에 남은 것은 `_layout.tsx` 와 반경 실험용 `index.tsx`(RadiusPlayground) 뿐이다.
+> **현재 리포에는 화면이 하나도 없다.** `src/app/` 에 남은 것은 `_layout.tsx` 뿐이고,
+> 반경 실험용 `index.tsx`(RadiusPlayground)도 이미 지워졌다 — 즉 앱을 켜면 뜰 화면조차 없다.
 > 아래 표의 화면은 전부 신규 구현이다.
 
 ### Tier 1 — 백엔드가 있어 실제로 붙일 수 있는 화면

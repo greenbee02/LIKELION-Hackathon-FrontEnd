@@ -1,12 +1,17 @@
-# Product Brief
+# Product Brief — Curio
+
+> **Name (2026-08-19): the product is Curio.** A curio is a small object kept because it is worth
+> keeping, and a curio cabinet is where a collection is displayed — which is what this product is.
+> The name belongs to the platform, never to a brand on it: Curio issues the cards, each house
+> signs them.
 
 ## 1. Definition
 
-A service that records the luxury purchase experience as digital cards, making the act of collecting cards itself an ongoing brand experience.
+Curio records the luxury purchase experience as digital cards, making the act of collecting cards itself an ongoing brand experience.
 
 Every purchase issues a **digital card**; repeat purchases build the customer's own Luxury Collection. The digital card is issued by scanning the receipt QR code after purchase. A card is not merely proof of purchase — it is the core medium connecting purchase records, product information, authenticity, ownership, sharing, and rewards.
 
-**The service is a multi-brand platform, not one brand's own app.** Any participating luxury house issues cards through it, and a customer's collection holds cards from several houses side by side. The platform supplies the shell — issuing, collecting, passport, rewards — while each brand supplies its own identity: name, colours, monogram, artwork, and the rewards it hosts. Onboarding a brand is a matter of adding its data, never of rebuilding the product. MCM is the demo brand used throughout this document; read every "brand" below as "any brand on the platform".
+**Curio is a multi-brand platform, not one brand's own app.** Any participating luxury house issues cards through it, and a customer's collection holds cards from several houses side by side. Curio supplies the shell — issuing, collecting, passport, rewards — while each brand supplies its own identity: name, colours, monogram, artwork, and the rewards it hosts. Onboarding a brand is a matter of adding its data, never of rebuilding the product. MCM is the demo brand used throughout this document; read every "brand" below as "any brand on the platform".
 
 ## 2. Target
 
@@ -20,7 +25,7 @@ Luxury customers want the brand relationship to continue after purchase, but the
 
 ## 4. Core Feature — Digital Card
 
-The service centers on a single object: the card. One is issued per purchase; customers keep and collect them, accumulating their brand history.
+Curio centers on a single object: the card. One is issued per purchase; customers keep and collect them, accumulating their brand history.
 
 A card carries brand, product image, product name, collection, purchase date, purchase region, store, product number, and serial. Its detail view extends to material, country of origin, warranty period, care instructions, and repair/care service links.
 
@@ -74,7 +79,7 @@ No stamps. **Cards held** are the unit of customer activity.
 
 Reaching a card count or completing a specific collection unlocks non-retail items, limited rewards, or brand events (e.g. a non-retail item at 5 cards; a limited perk for completing a season collection).
 
-**Rewards belong to a brand, not to the platform.** Each house sets its own thresholds and hosts its own pickup, so progress is counted per brand — a card from one house does not advance another's reward.
+**Rewards belong to a brand, not to Curio.** Each house sets its own thresholds and hosts its own pickup, so progress is counted per brand — a card from one house does not advance another's reward.
 
 Rewards are designed for in-store pickup where possible, so the reward itself becomes a reason to visit again.
 
