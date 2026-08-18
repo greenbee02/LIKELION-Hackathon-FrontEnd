@@ -55,6 +55,43 @@ export const type = {
    * face.
    */
   wordmark: { ...base, fontFamily: 'TitilliumWeb_700Bold', fontSize: 40, lineHeight: 48, letterSpacing: -0.5 },
+
+  /**
+   * The city stamped on a card's face, and nothing else.
+   *
+   * The second exception to the platform font, and it holds for a narrower reason than the
+   * wordmark's: this is not interface type at all. It is an engraving on an object — the way a
+   * year is struck on a coin — and the object is a collectible whose whole appeal is that it
+   * looks made rather than rendered. A system sans set in caps over a photograph reads as a
+   * caption laid on top of it; a Garamond set in caps reads as part of the card.
+   *
+   * It sets no label, no button and no heading anywhere in the app, so the rule that a brand's
+   * typeface never sets the interface is untouched — and this face is not a brand's, it is the
+   * platform's own choice for the surface every house's cards share.
+   *
+   * SemiBold rather than something lighter, because a Garamond's hairlines are its whole
+   * character and they vanish first: at 22pt over a bright Paris sky, Light would be a rumour.
+   * 18 is `heading`'s size, and it lands smaller than `heading` looks — Cormorant's cap height
+   * runs short for its point size. That is the right trade here: an engraving is struck small.
+   * It is the card's quietest claim, not its headline, and the artwork under it is the subject.
+   *
+   * The line height is the point size, with none of the leading every other role carries. Those
+   * roles are set for running text, where the space between lines is what makes a paragraph
+   * readable; this one only ever sets a single line of caps with something small directly under
+   * it, and leading there is just a gap holding the two apart. Caps have no descenders to clip,
+   * which is what makes it safe here and nowhere else.
+   */
+  engraving: {
+    ...base,
+    fontFamily: 'CormorantGaramond_600SemiBold',
+    fontSize: 18,
+    lineHeight: 18,
+    /* Barely open. Caps set dead tight collide at the diagonals — the E after an S needs somewhere
+       to go — but this is a stamp, not a luxury advertisement, and wide-tracked caps are that
+       advertisement's most worn-out gesture. Half a point is enough to keep the letters apart
+       without making the word look spaced out. */
+    letterSpacing: 0.5,
+  },
 } satisfies Record<string, TextStyle>;
 
 export type TypeToken = keyof typeof type;

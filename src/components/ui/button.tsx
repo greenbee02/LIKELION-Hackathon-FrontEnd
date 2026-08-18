@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import Animated from 'react-native-reanimated';
+
+import { allowPressOverflow, usePressScale } from './press-scale';
 
 import { Text } from './text';
 import type { BrandButtonPalette } from '@/components/brand-marks/palettes';
@@ -35,8 +38,13 @@ export type ButtonProps = {
  * this height and merely rounded at any other, so the height is fixed rather than derived from
  * padding.
  *
- * A pressed state moves the fill one step, never the size: nothing here scales or lifts, because
- * the card is the object that gets to move in this app and a button competing with it is noise.
+ * A press does two things at once: the fill steps and the control grows by 4%. The fill is what
+ * the control looks like; the growth is what it feels like, and it is the same growth every
+ * pressable in the app uses — see `usePressScale`.
+ *
+ * The outer `Pressable` owns the hit area and whatever margin the caller passed; the inner view
+ * owns the shape and does the growing. Keeping those apart is what stops a scaled button from
+ * dragging its own margins around with it.
  */
 export function Button({
   label,
@@ -50,6 +58,7 @@ export function Button({
 }: ButtonProps) {
   const inert = disabled || loading;
   const foreground = palette && !inert ? palette.foreground : undefined;
+  const press = usePressScale(inert);
 
   return (
     <Pressable
@@ -57,34 +66,43 @@ export function Button({
       accessibilityState={{ disabled: inert, busy: loading }}
       disabled={inert}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.base,
-        variant === 'solid' ? styles.solid : styles.outline,
-        pressed && !inert && (variant === 'solid' ? styles.solidPressed : styles.outlinePressed),
-        palette &&
-          !inert && {
-            backgroundColor: pressed ? palette.backgroundPressed : palette.background,
-            borderWidth: 0,
-          },
-        inert && styles.inert,
-        style,
-      ]}
+      {...press.handlers}
+      style={[allowPressOverflow, style]}
     >
-      {loading ? (
-        <ActivityIndicator
-          color={palette?.foreground ?? (variant === 'solid' ? colors.textInverted : colors.text)}
-        />
-      ) : (
-        <View style={styles.row}>
-          {leading ? <View style={styles.leading}>{leading}</View> : null}
-          <Text
-            variant="action"
-            tone={variant === 'solid' && !inert ? 'inverted' : 'default'}
-            style={foreground ? { color: foreground } : undefined}
-          >
-            {label}
-          </Text>
-        </View>
+      {({ pressed }) => (
+        <Animated.View
+          style={[
+            styles.base,
+            variant === 'solid' ? styles.solid : styles.outline,
+            pressed && !inert && (variant === 'solid' ? styles.solidPressed : styles.outlinePressed),
+            palette &&
+              !inert && {
+                backgroundColor: pressed ? palette.backgroundPressed : palette.background,
+                borderWidth: 0,
+              },
+            inert && styles.inert,
+            press.style,
+          ]}
+        >
+          {loading ? (
+            <ActivityIndicator
+              color={
+                palette?.foreground ?? (variant === 'solid' ? colors.textInverted : colors.text)
+              }
+            />
+          ) : (
+            <View style={styles.row}>
+              {leading ? <View style={styles.leading}>{leading}</View> : null}
+              <Text
+                variant="action"
+                tone={variant === 'solid' && !inert ? 'inverted' : 'default'}
+                style={foreground ? { color: foreground } : undefined}
+              >
+                {label}
+              </Text>
+            </View>
+          )}
+        </Animated.View>
       )}
     </Pressable>
   );
