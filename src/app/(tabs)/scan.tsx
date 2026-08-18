@@ -58,9 +58,9 @@ export default function ScanScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text variant="title">QR 코드를 스캔하세요</Text>
+        <Text variant="title">스캔</Text>
         <Text variant="body" tone="muted" style={styles.support}>
-          영수증의 QR을 사각형 안에 맞춰주세요
+          영수증의 QR 코드를 사각형 안에 맞춰주세요
         </Text>
       </View>
 
@@ -88,12 +88,13 @@ export default function ScanScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { marginTop: space[6] },
+  /** The same top rhythm the collection header sits on, so the two tabs start on one line. */
+  header: { paddingTop: space[2] },
   support: { marginTop: space[2] },
   square: {
     width: '100%',
     aspectRatio: 1,
-    marginTop: space[6],
+    marginTop: space[5],
     borderRadius: radius.base,
     backgroundColor: colors.surface,
     overflow: 'hidden',

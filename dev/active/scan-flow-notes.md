@@ -132,6 +132,43 @@ AI 생성은 큐가 아니라 **시계**다. `POST` 는 시작 시각만 적고 
 
 ---
 
+## 5-1. 다른 세션(컬렉션)과의 접점 — 2026-08-19
+
+컬렉션 화면의 시각 언어에 맞추라는 지시로 두 화면을 정렬했다. 그쪽 브랜치가 아직 push 되지
+않아 **그 컴포넌트와 토큰은 이 브랜치에 없다.** 복사하면 머지 때 충돌하므로 가져오지 않고,
+구조만 같게 맞춰 나중에 갈아끼울 때 레이아웃이 안 흔들리게 했다.
+
+그쪽에만 있는 것 (이 브랜치에서 쓸 수 없음):
+
+| 항목 | 정체 |
+|---|---|
+| `components/card/card-face.tsx` · `card-tile.tsx` | 진짜 카드 |
+| `components/ui/icon-button.tsx` · `glass-surface.tsx` · `empty-state.tsx` · `dropdown.tsx` | 새 프리미티브 |
+| `components/navigation/tab-bar.tsx` | 떠 있는 탭바 + `useTabBarSpace()` |
+| `engraving` 타입 역할 | 카드 면의 도시명 (Cormorant Garamond) |
+| `glassFill` `glassEdge` `glassShadow` `scrimInk` 색 역할 | 유리와 스크림 |
+| `lib/card-art.ts` · `lib/format.ts` | 카드 아트·마크 소스, 날짜 포맷 |
+
+맞춘 것:
+
+- **스캔 화면 헤더** — 컬렉션과 같은 `paddingTop: space[2]`, `title` 한 단어("스캔"), 본문은
+  `space[5]` 아래. 두 탭이 같은 선에서 시작한다.
+- **카드 플레이스홀더** — `CardFace` + `CardTile` 구조를 그대로 흉내낸다. 3:4 면, 좌상단
+  도시명 + 날짜, 우측 하우스명, 상품명과 매장은 면 위가 아니라 **아래 캡션**. 도시명은
+  `engraving` 이 없어 `heading` 으로 대신했고, 카드 아트가 없어 면은 `Brand.accent` 단색이다
+  — 그쪽 `CardFace` 도 이 상태를 "사진이 디코딩되는 동안 보이는 완성된 상태"로 취급한다.
+- 생성 중에는 면에 아무것도 새기지 않고, `ready` 에서 도시명·날짜·하우스명이 올라온다.
+  카드가 맨몸으로 도착해 각인되는 순간이 대기 시간을 쓴 대가다.
+
+**`src/lib/format.ts` 와 `src/lib/card-art.ts` 경로는 이 브랜치에서 만들지 않는다.** 그쪽이
+같은 경로를 쓰고 있어 한 줄짜리 함수 때문에 충돌을 살 이유가 없다. 날짜 포맷은
+`card-placeholder.tsx` 안에 로컬로 둔다.
+
+**머지 후 할 일:** `CardPlaceholder` 삭제 → `CardFace` 로 교체(호출부 3곳). 발급 순간에
+진짜 카드 아트가 뜨는 편이 훨씬 강하다. 스캔 화면은 `useTabBarSpace()` 검토.
+
+---
+
 ## 6. 공용으로 승격 후보 (지금은 로컬)
 
 다른 세션이 `src/components/card/` 와 공용 컴포넌트를 작업 중이라 직접 만들지 않고 자리만
