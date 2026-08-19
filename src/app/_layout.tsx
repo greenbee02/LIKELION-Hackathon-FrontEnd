@@ -7,19 +7,21 @@ import { PortalHost } from '@rn-primitives/portal';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ToastProvider } from '@/components/ui/toast';
 import { AuthProvider, useAuth } from '@/lib/auth-store';
 import { CardsProvider } from '@/lib/cards-store';
+import { CollectionsProvider } from '@/lib/collections-store';
+import { onboardingSnapshot, primeOnboarding, subscribeOnboarding } from '@/lib/onboarding';
 
 /** The splash stays up until the stored session has been read and the wordmark face has loaded. */
 void SplashScreen.preventAutoHideAsync();
 
 /** Routes reachable without a session. Everything else redirects to /sign-in. */
-const PUBLIC_SEGMENTS = new Set(['sign-in', 'sign-up', 'oauth']);
+const PUBLIC_SEGMENTS = new Set(['sign-in', 'sign-up', 'oauth', 'onboarding']);
 
 /**
  * The session gate.
@@ -33,16 +35,36 @@ function SessionGate({ children, fontsReady }: { children: ReactNode; fontsReady
   const { status } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const ready = status !== 'restoring' && fontsReady;
+  /* 저장소가 아니라 모듈을 구독한다 — 온보딩 화면이 "봤다"고 적는 순간 이 게이트가 알아야
+     하고, 그러지 않으면 로그인 화면으로 나가자마자 다시 온보딩으로 끌려온다. */
+  const onboarded = useSyncExternalStore(subscribeOnboarding, onboardingSnapshot, onboardingSnapshot);
+
+  useEffect(() => {
+    void primeOnboarding();
+  }, []);
+
+  /* 셋이 다 정해지기 전에는 아무것도 그리지 않는다. 스플래시가 아직 창을 덮고 있고, 여기서
+     한 프레임이라도 새면 그 프레임에 틀린 화면이 보인다. */
+  const ready = status !== 'restoring' && fontsReady && onboarded !== null;
 
   useEffect(() => {
     if (!ready) return;
     void SplashScreen.hideAsync();
 
-    const onPublicRoute = PUBLIC_SEGMENTS.has(segments[0] as string);
-    if (status === 'signed-out' && !onPublicRoute) router.replace('/sign-in');
-    else if (status === 'signed-in' && onPublicRoute) router.replace('/');
-  }, [ready, status, segments, router]);
+    const segment = segments[0] as string;
+    const onPublicRoute = PUBLIC_SEGMENTS.has(segment);
+
+    /* 소개가 로그인보다 먼저다. 아직 아무것도 사지 않은 사람에게 계정부터 요구하면 무엇을
+       위한 계정인지 알 수 없다. 이미 로그인된 사람에게는 해당 없음 — 그 사람에게 이 앱은
+       처음이 아니다. */
+    if (status === 'signed-out' && !onboarded && segment !== 'onboarding') {
+      router.replace('/onboarding');
+    } else if (status === 'signed-out' && onboarded && !onPublicRoute) {
+      router.replace('/sign-in');
+    } else if (status === 'signed-in' && onPublicRoute) {
+      router.replace('/');
+    }
+  }, [ready, status, onboarded, segments, router]);
 
   // Nothing renders until both are settled: the splash is still covering the window, and the
   // wordmark must not appear in the system font for a frame before swapping.
@@ -60,12 +82,14 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AuthProvider>
           <CardsProvider>
-            <ToastProvider>
-              <SessionGate fontsReady={fontsLoaded || Boolean(fontError)}>
-                <Stack screenOptions={{ headerShown: false }} />
-              </SessionGate>
-              <PortalHost />
-            </ToastProvider>
+            <CollectionsProvider>
+              <ToastProvider>
+                <SessionGate fontsReady={fontsLoaded || Boolean(fontError)}>
+                  <Stack screenOptions={{ headerShown: false }} />
+                </SessionGate>
+                <PortalHost />
+              </ToastProvider>
+            </CollectionsProvider>
           </CardsProvider>
         </AuthProvider>
       </SafeAreaProvider>
