@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import type { ImageSourcePropType } from 'react-native';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
@@ -34,14 +35,20 @@ export const CARD_ASPECT = 3 / 4;
  * holds because it is data travelling with the card rather than a decision the design system
  * made — onboarding a house changes this file's output without changing this file.
  */
-export function CardFace({ card }: { card: Card }) {
+export function CardFace({ card, art }: { card: Card; art?: ImageSourcePropType | null }) {
   const { brand, store, purchaseDate } = card;
-  const art = useCardArt(card);
+  /* 훅이므로 넘겨받았든 아니든 항상 부른다. 고르는 것은 결과뿐이다. */
+  const own = useCardArt(card);
+  /* `undefined` 는 "네가 정해라", `null` 은 "그림 없이 그려라". 둘을 구분하지 않으면 편집
+     화면이 액센트만 남은 얼굴을 보여줄 방법이 없다. */
+  const source = art === undefined ? own : art;
   const mark = brandMarkSource(brand);
 
   return (
     <View style={[styles.face, { backgroundColor: brand.accent }]}>
-      {art ? <Image source={art} style={styles.art} contentFit="cover" transition={200} /> : null}
+      {source ? (
+        <Image source={source} style={styles.art} contentFit="cover" transition={200} />
+      ) : null}
       <Scrim />
 
       <View style={styles.top}>

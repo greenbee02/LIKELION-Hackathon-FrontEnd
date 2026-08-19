@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { FileQuestionMark } from 'lucide-react-native';
+import { FileQuestionMark, Palette } from 'lucide-react-native';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { CARD_ASPECT } from '@/components/card/card-face';
@@ -9,10 +9,12 @@ import { Badge } from '@/components/ui/badge';
 import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { IconButton } from '@/components/ui/icon-button';
 import { Screen } from '@/components/ui/screen';
 import { Sheet, useSheetSpace } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
+import { TextLink } from '@/components/ui/text-link';
 import { allowPressOverflow } from '@/components/ui/press-scale';
 import { useCard, useCards } from '@/lib/cards-store';
 import { radius } from '@/theme/radius';
@@ -59,9 +61,19 @@ export default function CardDetailScreen() {
      bar on every scrolling tab screen. */
   const bottomSpace = useSheetSpace();
 
+  /* 뒤로 가기만 있던 줄의 오른쪽 끝을 편집이 쓴다. 카드에 하는 일이라 카드 가까이 있어야
+     하고, 아이콘이라 화면의 마지막 말인 공유하기와 무게를 다투지 않는다. */
   const nav = (
     <View style={styles.nav}>
       <BackButton fallback="/" />
+      {card ? (
+        <IconButton
+          icon={Palette}
+          variant="glass"
+          accessibilityLabel="카드 꾸미기"
+          onPress={() => router.push({ pathname: '/card/[id]/edit', params: { id: card.id } })}
+        />
+      ) : null}
     </View>
   );
 
@@ -138,11 +150,27 @@ export default function CardDetailScreen() {
           onPress={() => router.push({ pathname: '/share/[id]', params: { id: card.id } })}
           style={styles.share}
         />
+
+        {/* 시트가 있으면 케어 링크는 그 안에 있다. 두 곳에 동시에 두지 않는다 — 같은 곳으로
+            가는 길이 한 화면에 둘이면 어느 쪽이 진짜인지 묻게 된다. */}
+        {detailed ? null : (
+          <TextLink
+            label="케어 서비스 안내"
+            onPress={() => router.push({ pathname: '/card/[id]/care', params: { id: card.id } })}
+          />
+        )}
       </ScrollView>
 
       {detailed ? (
         <Sheet title="제품 상세">
           <ProductDetail product={product} />
+          {/* 케어는 카드가 아니라 물건에 대한 것이고, 이 화면에서 물건에 대한 것이 사는 곳이
+              여기다. 시트가 그려지지 않는 카드에서는 아래 본문이 대신 받는다. */}
+          <TextLink
+            label="케어 서비스 안내"
+            align="start"
+            onPress={() => router.push({ pathname: '/card/[id]/care', params: { id: card.id } })}
+          />
         </Sheet>
       ) : null}
     </Screen>
@@ -155,7 +183,7 @@ const styles = StyleSheet.create({
      `Screen`'s own gutter instead and take `head` alone — applying both would pad them twice. */
   gutter: { paddingHorizontal: space[4], paddingTop: space[2] },
   head: { paddingTop: space[2] },
-  nav: { flexDirection: 'row' },
+  nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   hero: { width: '100%', maxWidth: 280, alignSelf: 'center', marginTop: space[5] },
   heroFace: { width: '100%', aspectRatio: CARD_ASPECT, borderRadius: radius.base },
   title: { marginTop: space[5] },

@@ -1,3 +1,4 @@
+import type { ProductResponse } from './products';
 import { request } from './client';
 import type { ProductCollection } from '../types';
 
@@ -27,8 +28,16 @@ export type ProductCollectionResponse = {
   coverImageUrl: string | null;
 };
 
-type CollectionItemResponse = {
-  product: { id: string };
+/**
+ * **`product` 는 요약이 아니라 `ProductResponse` 전문이다.**
+ *
+ * 예전에는 `{ id: string }` 으로 선언해 두고 색인을 만든 뒤 나머지를 버렸는데, 서버는 처음부터
+ * 이름·사진·소재·케어·가격까지 전부 보내고 있었다. 그 사실이 화면 하나를 통째로 바꾼다 —
+ * **아직 갖지 않은 상품이 무엇인지 이미 메모리에 있다.** 추천 화면(`lib/recommendations.ts`)이
+ * 왕복 한 번 없이 성립하는 이유이고, 그래서 아래 `byCollection` 이 생겼다.
+ */
+export type CollectionItemResponse = {
+  product: ProductResponse;
   required: boolean;
   displayOrder: number;
 };
@@ -44,9 +53,17 @@ export type CollectionIndex = {
   byId: Map<string, ProductCollectionResponse>;
   /** 상품 id → 그 상품이 속한 공식 컬렉션. */
   byProduct: Map<string, ProductCollection>;
+  /**
+   * 컬렉션 id → 그 세트를 이루는 상품 전부.
+   *
+   * `byProduct` 가 "이 상품은 어느 세트의 것인가"라면 이쪽은 "이 세트는 무엇으로 이루어지는가"
+   * 다. 보유 카드와 빼면 **아직 없는 것**이 남고, 그것이 추천 화면의 전부다. 같은 응답에서
+   * 나오므로 요청은 한 번도 늘지 않는다.
+   */
+  byCollection: Map<string, CollectionItemResponse[]>;
 };
 
-const EMPTY: CollectionIndex = { byId: new Map(), byProduct: new Map() };
+const EMPTY: CollectionIndex = { byId: new Map(), byProduct: new Map(), byCollection: new Map() };
 
 let index: Promise<CollectionIndex> | null = null;
 
@@ -64,6 +81,7 @@ export function fetchCollectionIndex(): Promise<CollectionIndex> {
     const collections = await fetchProductCollections();
     const byId = new Map(collections.map((c) => [c.id, c]));
     const byProduct = new Map<string, ProductCollection>();
+    const byCollection = new Map<string, CollectionItemResponse[]>();
 
     // 컬렉션 하나가 실패해도 나머지 색인은 살린다 — 시트의 한 줄 때문에 카드 화면 전체가
     // 비는 것은 균형이 맞지 않는다.
@@ -72,6 +90,7 @@ export function fetchCollectionIndex(): Promise<CollectionIndex> {
     );
 
     collections.forEach((collection, i) => {
+      byCollection.set(collection.id, lists[i]);
       for (const item of lists[i]) {
         if (!byProduct.has(item.product.id)) {
           byProduct.set(item.product.id, { id: collection.id, name: collection.name });
@@ -79,7 +98,7 @@ export function fetchCollectionIndex(): Promise<CollectionIndex> {
       }
     });
 
-    return { byId, byProduct };
+    return { byId, byProduct, byCollection };
   })().catch(() => {
     // 색인이 없으면 컬렉션 줄이 안 보일 뿐, 카드는 멀쩡하다. 다음 호출에서 다시 시도한다.
     index = null;
@@ -87,4 +106,15 @@ export function fetchCollectionIndex(): Promise<CollectionIndex> {
   });
 
   return index;
+}
+
+/**
+ * 색인을 버린다. 다음 호출이 새로 만든다.
+ *
+ * 색인은 앱이 사는 동안 한 번만 만들도록 되어 있는데, **카드를 새로 발급받으면 그 전제가
+ * 깨진다** — 방금 산 상품이 추천 목록에 계속 남아 "아직 없는 것"인 척한다. 컬렉션 자체가
+ * 자주 바뀌지는 않으므로 주기적 갱신은 과하고, 바뀌었다는 것을 아는 순간에만 버린다.
+ */
+export function invalidateCollectionIndex() {
+  index = null;
 }

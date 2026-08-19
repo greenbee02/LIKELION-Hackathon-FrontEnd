@@ -8,21 +8,34 @@
  * 화면이 비는 것보다는, 낯선 단어라도 무언가 적혀 있는 편이 낫다 — 번역표는 화면을 막는
  * 관문이 아니라 다듬는 층이다.
  *
- * 값은 마이그레이션과 시드(V4·V7)에서 확인한 것만 적었다. 추측한 항목은 없다.
+ * 값은 마이그레이션과 시드(V4·V7), 그리고 실서버 `/product-collections/{id}/products` 가
+ * 실제로 돌려준 상품 11건의 코드에서 확인한 것만 적었다. 추측한 항목은 없다.
+ *
+ * **`ICON` 이 아니라 `ICONIC` 이다.** 처음 표는 전자로 적었는데 서버가 주는 값은 후자라,
+ * 아이코닉 테마가 화면에 영문 그대로 나오고 있었다 — 모르는 코드를 통과시키는 설계가
+ * 화면을 살리는 대신 오탈자를 조용히 덮은 경우다.
  */
 
 const CATEGORY: Record<string, string> = {
   BAG: '가방',
   BACKPACK: '백팩',
+  BOSTON_BAG: '보스턴백',
+  SHOPPER_BAG: '쇼퍼백',
+  SUITCASE: '캐리어',
+  VANITY_CASE: '버니티 케이스',
+  PASSPORT_CASE: '여권 케이스',
   SHIRT: '셔츠',
   SCARF: '스카프',
   WALLET: '지갑',
   SHOES: '신발',
+  SANDALS: '샌들',
   ACCESSORY: '액세서리',
   JEWELRY: '주얼리',
   OUTER: '아우터',
   BELT: '벨트',
   HAT: '모자',
+  PERFUME: '프래그런스',
+  LIFESTYLE: '리빙',
 };
 
 const SEASON: Record<string, string> = {
@@ -38,7 +51,8 @@ const THEME: Record<string, string> = {
   WOMEN: '여성',
   MEN: '남성',
   TRAVEL: '트래블',
-  ICON: '아이코닉',
+  ICONIC: '아이코닉',
+  LIFESTYLE: '리빙',
 };
 
 /**
