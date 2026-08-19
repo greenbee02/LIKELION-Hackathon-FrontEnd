@@ -7,18 +7,14 @@ import {
   type GenerationStatus,
   type IssueResourceType,
 } from './api/ai-resources';
-import {
-  issueErrorCodeOf,
-  registerCard,
-  toCard,
-  type IssueErrorCode,
-} from './api/registrations';
+import { issueErrorCodeOf, registerCard, type IssueErrorCode } from './api/registrations';
 import {
   fetchMockAiResources,
   registerMockCard,
   requestMockAiResources,
 } from './mock/registrations';
 import { useCards } from './cards-store';
+import { USE_MOCK } from './config';
 import type { Card } from './types';
 
 /**
@@ -31,10 +27,9 @@ import type { Card } from './types';
  * run in the map below, the screen subscribes to it, and unmounting drops the subscription rather
  * than the work. Re-entering the same token re-attaches to the run already in flight.
  *
- * Nothing above this file knows whether any of it was real — flip `USE_MOCK` and the screens do
- * not change.
+ * Nothing above this file knows whether any of it was real — flip `EXPO_PUBLIC_USE_MOCK` and the
+ * screens do not change.
  */
-const USE_MOCK = true;
 
 /** How often we ask. Fast enough that resources land visibly one after another. */
 const POLL_MS = 800;
@@ -95,7 +90,7 @@ const settled = (resources: ResourceState[]) => resources.every((r) => r.status 
 async function drive(token: string, run: Run) {
   let card: Card;
   try {
-    card = USE_MOCK ? registerMockCard(token) : toCard(await registerCard(token));
+    card = USE_MOCK ? registerMockCard(token) : await registerCard(token);
   } catch (e) {
     patch(run, { stage: 'error', errorCode: issueErrorCodeOf(e) });
     return;
@@ -127,7 +122,7 @@ async function drive(token: string, run: Run) {
       const raw = USE_MOCK ? fetchMockAiResources(card.id) : await fetchAiResources(card.id);
       const resources = ISSUE_RESOURCE_TYPES.map<ResourceState>((type) => {
         const match = raw.find((r) => r.resourceType === type);
-        return { type, status: match ? toResourceState(match.generationStatus) : 'PENDING' };
+        return { type, status: match ? toResourceState(match.status) : 'PENDING' };
       });
       patch(run, { resources });
 

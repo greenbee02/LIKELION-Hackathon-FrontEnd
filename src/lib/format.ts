@@ -16,6 +16,29 @@
 export function formatPurchaseDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
+  return stamp(d);
+}
+
+/**
+ * When the warranty runs out, in the same stamp as every other date.
+ *
+ * The backend sends a length (`warrantyMonths`), not a date, so the only place the customer can
+ * be told the thing they actually want to know — *until when* — is here. "24개월" is arithmetic
+ * homework handed to someone holding a receipt; the passport should answer it.
+ *
+ * Month arithmetic overflows the way JavaScript's does: a purchase on the 31st with a 12-month
+ * warranty lands on the 1st of the following month rather than the 30th. That is a day either
+ * way on a two-year guarantee, and correcting it would mean deciding whose calendar rule to
+ * follow — the brand's, and the brand has not said.
+ */
+export function formatWarrantyExpiry(iso: string, months: number): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  d.setMonth(d.getMonth() + months);
+  return stamp(d);
+}
+
+function stamp(d: Date): string {
   const month = `${d.getMonth() + 1}`.padStart(2, '0');
   const day = `${d.getDate()}`.padStart(2, '0');
   return `${d.getFullYear()}.${month}.${day}`;

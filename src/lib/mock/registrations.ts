@@ -49,14 +49,17 @@ const BLUEPRINTS: Blueprint[] = [
     product: {
       id: 'p-demo-1',
       name: 'Visetos Original Shoulder Bag',
-      category: 'Bag',
+      code: 'MWXAAVI02BK004',
+      category: '가방',
       imageUrl: null,
       limited: true,
-      material: 'Coated canvas, leather trim',
-      origin: 'Italy',
+      material: '코팅 캔버스 · 레더 트림',
+      origin: '이탈리아',
       warrantyMonths: 24,
+      warrantyInfo: '구매일로부터 24개월간 제조상 결함에 한해 무상 수선됩니다. 사용 중 생긴 흠집과 변색은 제외됩니다.',
       careInfo: '마른 천으로 닦고 직사광선을 오래 받지 않게 보관하세요.',
       season: '26SS',
+      collection: { id: 'aw26-new', name: '2026 New Arrivals' },
     },
   },
   {
@@ -67,14 +70,17 @@ const BLUEPRINTS: Blueprint[] = [
     product: {
       id: 'p-demo-2',
       name: 'Aren Small Crossbody',
-      category: 'Bag',
+      code: 'MWXAAAR01BK005',
+      category: '가방',
       imageUrl: null,
       limited: false,
-      material: 'Calf leather',
-      origin: 'Korea',
+      material: '카프 레더',
+      origin: '대한민국',
       warrantyMonths: 12,
+      warrantyInfo: '제조상 결함에 한해 무상 수선됩니다. 가죽의 자연스러운 색 변화는 하자가 아닙니다.',
       careInfo: '사용하지 않을 때는 더스트백에 보관하세요.',
       season: '26SS',
+      collection: { id: 'aw26-new', name: '2026 New Arrivals' },
     },
   },
   {
@@ -85,14 +91,17 @@ const BLUEPRINTS: Blueprint[] = [
     product: {
       id: 'p-demo-3',
       name: 'Plissé Silk Scarf',
-      category: 'Scarf',
+      code: 'ATR-SC-PL0044',
+      category: '스카프',
       imageUrl: null,
       limited: false,
-      material: 'Silk twill',
-      origin: 'France',
+      material: '실크 트윌',
+      origin: '프랑스',
       warrantyMonths: 12,
+      warrantyInfo: '봉제와 프린트 결함에 한해 무상 수선됩니다. 세탁으로 인한 손상은 제외됩니다.',
       careInfo: '드라이클리닝만 가능합니다.',
       season: '25AW',
+      collection: { id: 'atelier-signature', name: 'Atelier Signature' },
     },
   },
   {
@@ -103,14 +112,17 @@ const BLUEPRINTS: Blueprint[] = [
     product: {
       id: 'p-demo-4',
       name: 'Tracery Seoul Exclusive Tote',
-      category: 'Bag',
+      code: 'MWXAATR04CO006',
+      category: '가방',
       imageUrl: null,
       limited: true,
-      material: 'Coated canvas',
-      origin: 'Italy',
+      material: '코팅 캔버스',
+      origin: '이탈리아',
       warrantyMonths: 24,
+      warrantyInfo: '구매일로부터 24개월간 제조상 결함에 한해 무상 수선됩니다. 사용 중 생긴 흠집과 변색은 제외됩니다.',
       careInfo: '마른 천으로 닦아 보관하세요.',
       season: '26SS',
+      collection: { id: 'seoul-exclusive', name: 'Seoul Exclusive' },
     },
   },
   {
@@ -121,14 +133,17 @@ const BLUEPRINTS: Blueprint[] = [
     product: {
       id: 'p-demo-5',
       name: 'Cabas Leather Belt',
-      category: 'Belt',
+      code: 'ATR-BT-CB0077',
+      category: '벨트',
       imageUrl: null,
       limited: false,
-      material: 'Calf leather',
-      origin: 'France',
+      material: '카프 레더',
+      origin: '프랑스',
       warrantyMonths: 12,
+      warrantyInfo: '버클과 봉제 결함에 한해 무상 수선됩니다. 가죽의 자연스러운 색 변화는 하자가 아닙니다.',
       careInfo: '습기를 피해 보관하세요.',
       season: '26SS',
+      collection: { id: 'atelier-signature', name: 'Atelier Signature' },
     },
   },
 ];
@@ -190,7 +205,6 @@ const SCHEDULE_MS: Record<(typeof ISSUE_RESOURCE_TYPES)[number], number> = {
   BACKGROUND: 1500,
   BORDER: 2800,
   PATTERN: 4200,
-  PRODUCT_ANGLE: 5600,
 };
 
 export function requestMockAiResources(cardId: string): void {
@@ -206,12 +220,12 @@ export function fetchMockAiResources(cardId: string): AiResource[] {
     id: `${cardId}-${type.toLowerCase()}`,
     cardId,
     resourceType: type,
-    generationStatus:
+    status:
       elapsed < SCHEDULE_MS[type]
         ? ('PENDING' as const)
         : type === 'PATTERN' && patternFails
           ? ('FAILED' as const)
           : ('COMPLETED' as const),
-    imageUrl: null,
+    generatedImageUrl: null,
   }));
 }

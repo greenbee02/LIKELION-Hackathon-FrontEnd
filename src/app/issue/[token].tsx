@@ -9,7 +9,7 @@ import { ResourceChecklist } from '@/components/issue/resource-checklist';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
-import type { IssueErrorCode } from '@/lib/api/registrations';
+import { isIssueBlocked, type IssueErrorCode } from '@/lib/api/registrations';
 import { formatPurchaseDate } from '@/lib/format';
 import { useIssue } from '@/lib/issue-flow';
 import type { Card } from '@/lib/types';
@@ -171,7 +171,16 @@ type ErrorCopy = {
   secondary?: { label: string; action: 'retry' | 'scan' | 'collection' };
 };
 
-const ERROR_COPY: Record<IssueErrorCode, ErrorCopy> = {
+/**
+ * 화면이 실제로 가르는 경우들.
+ *
+ * 오류 코드는 아홉 개지만 화면은 다섯이다. 발급이 막히는 다섯 코드(템플릿 없음·비활성·타입
+ * 불일치·브랜드 불일치·비활성 상품)는 전부 브랜드 쪽 설정 문제이고 고객이 할 수 있는 일이
+ * 같아서, `BLOCKED` 하나로 모인다 — 다섯 개의 사과문을 쓰는 대신 하나를 정확히 쓴다.
+ */
+type ErrorCase = 'QR_TOKEN_INVALID' | 'QR_ALREADY_USED' | 'QR_EXPIRED' | 'BLOCKED' | 'UNKNOWN';
+
+const ERROR_COPY: Record<ErrorCase, ErrorCopy> = {
   QR_TOKEN_INVALID: {
     icon: ScanLine,
     title: '인식할 수 없는 코드입니다',
@@ -191,7 +200,7 @@ const ERROR_COPY: Record<IssueErrorCode, ErrorCopy> = {
     body: '카드를 발급할 수 있는 기간이 끝난 영수증입니다. 구매하신 매장에 문의해주세요.',
     primary: { label: '다른 영수증 스캔하기', action: 'scan' },
   },
-  CARD_TEMPLATE_NOT_FOUND: {
+  BLOCKED: {
     icon: Clock,
     title: '카드 디자인을 준비 중입니다',
     body: '이 상품의 카드가 아직 등록되지 않았습니다. 영수증에는 문제가 없으니 잠시 후 다시 시도해주세요.',
@@ -207,9 +216,12 @@ const ERROR_COPY: Record<IssueErrorCode, ErrorCopy> = {
   },
 };
 
+const errorCase = (code: IssueErrorCode): ErrorCase =>
+  isIssueBlocked(code) ? 'BLOCKED' : (code as ErrorCase);
+
 function IssueError({ code, onRetry }: { code: IssueErrorCode; onRetry: () => void }) {
   const router = useRouter();
-  const copy = ERROR_COPY[code];
+  const copy = ERROR_COPY[errorCase(code)];
   const Icon = copy.icon;
 
   const run = (action: ErrorCopy['primary']['action']) => {

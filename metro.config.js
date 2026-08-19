@@ -1,0 +1,91 @@
+const { getDefaultConfig } = require('expo/metro-config');
+const http = require('node:http');
+const https = require('node:https');
+
+/**
+ * 개발 서버에 API 프록시를 붙인다.
+ *
+ * **브라우저에서만 필요하고, 개발 중에만 동작한다.** 백엔드에 CORS 설정이 없어서
+ * (`SecurityConfig` 에 `.cors(...)` 가 없고 프리플라이트가 403) 브라우저가 요청 자체를 막는다.
+ * CORS 는 브라우저가 강제하는 규칙이라 프론트 코드로 우회할 방법이 없다 — 우회할 수 있는
+ * 것은 "다른 출처"라는 조건뿐이고, 그래서 개발 서버가 같은 출처인 척 요청을 대신 보낸다.
+ *
+ * 네이티브는 CORS 를 적용하지 않으므로 이 경로를 타지 않고 백엔드로 직접 간다.
+ *
+ * **이것은 해법이 아니라 우회다.** 웹 익스포트(`expo export`)에는 개발 서버가 없으므로
+ * 배포된 웹에서는 여전히 막힌다. 백엔드가 CORS 를 열어야 진짜로 끝난다 —
+ * `dev/active/backend-integration-plan.md` §4-1. 열리면 이 파일은 통째로 지운다.
+ */
+const TARGET = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1';
+
+/**
+ * 어디로 대신 보낼지. 주소를 못 읽으면 `null`.
+ *
+ * 상대 경로(`/api/v1`)가 오는 경우가 실제로 있고, 그건 **앞단에서 이미 누가 프록시하고 있다**는
+ * 뜻이다 — 배포에서는 `vercel.json` 의 rewrite 가 그 역할을 한다. 그때 개발 서버가 대신 나설
+ * 일은 없으므로 미들웨어를 붙이지 않는다. 여기서 `new URL` 이 그냥 터지면 웹 익스포트 빌드가
+ * 통째로 실패한다.
+ */
+function resolveUpstream(target) {
+  try {
+    const { protocol, hostname, port } = new URL(target);
+    return {
+      protocol,
+      hostname,
+      port: port || (protocol === 'https:' ? 443 : 80),
+      agent: protocol === 'https:' ? https : http,
+    };
+  } catch {
+    return null;
+  }
+}
+
+const upstream = resolveUpstream(TARGET);
+
+/** 대신 보내줄 경로. API 와, API 바깥 루트에 있는 이미지. */
+const PROXIED = ['/api/', '/images/', '/generated/'];
+
+const config = getDefaultConfig(__dirname);
+
+if (upstream) {
+  const { protocol, hostname, port, agent } = upstream;
+  const base = config.server?.enhanceMiddleware;
+
+  config.server = {
+    ...config.server,
+    enhanceMiddleware: (middleware, server) => {
+      const next = base ? base(middleware, server) : middleware;
+
+      return (req, res, nextHandler) => {
+        if (!PROXIED.some((p) => req.url?.startsWith(p))) return next(req, res, nextHandler);
+
+        const proxied = agent.request(
+          {
+            protocol,
+            hostname,
+            port,
+            path: req.url,
+            method: req.method,
+            // Host 는 대상 서버의 것으로 바꿔 보낸다. localhost:8081 을 그대로 넘기면
+            // 백엔드가 자기 주소를 잘못 알게 된다.
+            headers: { ...req.headers, host: hostname },
+          },
+          (res2) => {
+            res.writeHead(res2.statusCode ?? 502, res2.headers);
+            res2.pipe(res);
+          },
+        );
+
+        // 백엔드가 죽어 있을 때 개발 서버까지 같이 죽지 않도록 한다.
+        proxied.on('error', () => {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ code: 'PROXY_ERROR', message: '백엔드에 연결할 수 없습니다.' }));
+        });
+
+        req.pipe(proxied);
+      };
+    },
+  };
+}
+
+module.exports = config;

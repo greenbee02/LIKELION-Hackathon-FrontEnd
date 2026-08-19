@@ -38,12 +38,35 @@ export function GlassSurface({
   style,
   /** Matched to the surface's own corner radius — the blur has to be clipped to the same shape. */
   borderRadius,
+  /**
+   * Which corners take that radius. `all` is a surface floating free of every edge — the tab bar,
+   * a menu, an icon button. `top` is a surface fused to the bottom of the screen, where the two
+   * corners against the wall have no shape of their own to round.
+   */
+  corners = 'all',
+  /**
+   * Whether the surface casts one.
+   *
+   * A shadow is what a surface drops into the gap between itself and the page, so it is only
+   * meaningful for a surface that has one — everything floating free of the screen's edges, which
+   * is nearly everything here. A sheet fused to three walls has no gap to cast into: what
+   * separates it from the page is a single real edge, and an edge is drawn with a hairline. The
+   * `edge` layer below already draws that, so switching this off leaves the surface with exactly
+   * one line and no smear over the content it is covering.
+   */
+  shadow = true,
 }: {
   children?: ReactNode;
   style?: ViewStyle | ViewStyle[];
   borderRadius: number;
+  corners?: 'all' | 'top';
+  shadow?: boolean;
 }) {
-  const clip = { borderRadius, overflow: 'hidden' as const };
+  const shape =
+    corners === 'top'
+      ? { borderTopLeftRadius: borderRadius, borderTopRightRadius: borderRadius }
+      : { borderRadius };
+  const clip = { ...shape, overflow: 'hidden' as const };
 
   const inner = isLiquidGlassAvailable() ? (
     <GlassView style={[styles.fill, clip]} glassEffectStyle="regular" colorScheme="light">
@@ -65,7 +88,7 @@ export function GlassSurface({
     </View>
   );
 
-  return <View style={[styles.shadow, { borderRadius }, style]}>{inner}</View>;
+  return <View style={[shadow && styles.shadow, shape, style]}>{inner}</View>;
 }
 
 const styles = StyleSheet.create({
