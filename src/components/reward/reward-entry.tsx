@@ -3,13 +3,11 @@ import { StyleSheet, View } from 'react-native';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { allowPressOverflow } from '@/components/ui/press-scale';
+import { Panel } from '@/components/ui/panel';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Text } from '@/components/ui/text';
 import { formatPurchaseDate } from '@/lib/format';
 import type { Reward, RewardKind } from '@/lib/types';
-import { colors } from '@/theme/colors';
-import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
 /**
@@ -48,7 +46,7 @@ export function RewardEntry({ reward }: { reward: Reward }) {
   const router = useRouter();
 
   return (
-    <View style={styles.panel}>
+    <Panel>
       <View style={styles.head}>
         <Text variant="heading" style={styles.title}>
           {reward.title}
@@ -88,7 +86,7 @@ export function RewardEntry({ reward }: { reward: Reward }) {
           {footnote(reward)}
         </Text>
       )}
-    </View>
+    </Panel>
   );
 }
 
@@ -117,14 +115,6 @@ function footnote(reward: Reward): string {
 }
 
 const styles = StyleSheet.create({
-  panel: {
-    padding: space[4],
-    borderRadius: radius.base,
-    backgroundColor: colors.backgroundSubtle,
-    /* The button inside grows under the finger, and on the web export this panel would be the
-       first of three containers to clip it. */
-    ...allowPressOverflow,
-  },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: space[2] },
   title: { flexShrink: 1 },
   note: { marginTop: space[1] },
