@@ -5,10 +5,11 @@ import { useEffect } from 'react';
 import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 
 import { IssueCard } from '@/components/issue/issue-card';
-import { ResourceChecklist } from '@/components/issue/resource-checklist';
+import { Checklist } from '@/components/ui/checklist';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
+import { RESOURCE_LABELS } from '@/lib/api/ai-resources';
 import { isIssueBlocked, type IssueErrorCode } from '@/lib/api/registrations';
 import { formatPurchaseDate } from '@/lib/format';
 import { useIssue } from '@/lib/issue-flow';
@@ -102,7 +103,14 @@ function IssueGenerating({
       </View>
 
       <View style={styles.checklist}>
-        <ResourceChecklist resources={resources} />
+        {/* 무엇을 만들고 있는지 아는 것은 이 화면의 일이다 — `Checklist` 는 줄만 그린다. */}
+        <Checklist
+          items={resources.map((r) => ({
+            key: r.type,
+            label: RESOURCE_LABELS[r.type],
+            status: r.status === 'COMPLETED' ? 'done' : r.status === 'FAILED' ? 'failed' : 'pending',
+          }))}
+        />
         {slow ? (
           <>
             <Text variant="caption" tone="muted" style={styles.note}>

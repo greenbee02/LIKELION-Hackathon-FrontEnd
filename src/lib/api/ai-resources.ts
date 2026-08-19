@@ -59,11 +59,33 @@ export const ISSUE_RESOURCE_TYPES = [
 
 export type IssueResourceType = (typeof ISSUE_RESOURCE_TYPES)[number];
 
+/**
+ * 커스텀 화면이 요청하는 넷.
+ *
+ * 발급이 쓰는 셋을 뺀 나머지이고, 그 나눔은 이 파일이 처음부터 갖고 있던 것이다 — 위쪽 주석이
+ * "나머지 넷(장식·팔레트·텍스트 스타일·조합)은 커스텀 화면의 것"이라고 적어두었다.
+ *
+ * **넷이 정확히 상한이다.** `AiResourceBatchGenerationRequest` 의 `resources` 가
+ * `minItems: 3, maxItems: 4` 라, 셋 미만은 요청 자체가 거부되고 다섯은 보낼 수 없다.
+ */
+export const CUSTOM_RESOURCE_TYPES = [
+  'DECORATION',
+  'COLOR_PALETTE',
+  'TEXT_STYLE',
+  'COMPOSITION',
+] as const satisfies readonly AiResourceType[];
+
+export type CustomResourceType = (typeof CUSTOM_RESOURCE_TYPES)[number];
+
 /** What each one is called on screen. The backend's enum never reaches the customer. */
-export const RESOURCE_LABELS: Record<IssueResourceType, string> = {
+export const RESOURCE_LABELS: Record<IssueResourceType | CustomResourceType, string> = {
   BACKGROUND: '배경',
   BORDER: '테두리',
   PATTERN: '패턴',
+  DECORATION: '장식',
+  COLOR_PALETTE: '색 조합',
+  TEXT_STYLE: '글자 모양',
+  COMPOSITION: '구성',
 };
 
 /**
@@ -76,11 +98,46 @@ export const RESOURCE_LABELS: Record<IssueResourceType, string> = {
  * 프롬프트는 백엔드가 정하도록 비워 둔다. 무엇이 브랜드다운 이미지인지는 카드를 발급하는
  * 쪽이 알 일이고, 프론트가 문장을 지어 보내면 그 판단이 두 곳으로 쪼개진다.
  */
-export const requestAiResources = (cardId: string, types: readonly AiResourceType[]) =>
+export const requestAiResources = (
+  cardId: string,
+  types: readonly AiResourceType[],
+  /** 어느 승인 디자인의 범위에서 만들 것인가. 발급은 넘기지 않고, 편집은 고른 것을 넘긴다. */
+  templateId?: string,
+) =>
   request<AiResource[]>(`/cards/${cardId}/ai-resources/batch`, {
     method: 'POST',
-    body: JSON.stringify({ resources: types.map((resourceType) => ({ resourceType })) }),
+    body: JSON.stringify({
+      resources: types.map((resourceType) => ({ resourceType, ...(templateId && { templateId }) })),
+    }),
   });
 
 export const fetchAiResources = (cardId: string) =>
   request<AiResource[]>(`/cards/${cardId}/ai-resources`);
+
+/**
+ * 만들어진 자원들을 한 장의 얼굴로 합친다.
+ *
+ * 생성이 끝났다고 카드가 바뀌지는 않는다 — 배경과 장식이 따로 있을 뿐이고, 그것을 하나로
+ * 얹는 것이 이 호출이다. 응답이 **카드와 커스터마이징을 함께** 돌려주므로 편집 화면은 저장
+ * 직후 컬렉션에 무엇을 넣을지 다시 묻지 않아도 된다.
+ */
+export type ComposeResult = {
+  card: unknown;
+  customization: {
+    id: string;
+    status: string;
+    generatedFrontImageUrl: string | null;
+    generatedBackImageUrl: string | null;
+    generatedMessage: string | null;
+    createdAt: string;
+  } | null;
+};
+
+export const composeAiResources = (
+  cardId: string,
+  body: { resourceIds: string[]; message?: string },
+) =>
+  request<ComposeResult>(`/cards/${cardId}/ai-resources/compose`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });

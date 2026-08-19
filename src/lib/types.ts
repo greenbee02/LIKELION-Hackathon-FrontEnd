@@ -44,6 +44,14 @@ export type Product = {
   limited: boolean;
   /** §5-2 — columns exist, DTO does not expose them yet. Mock until it does. */
   material?: string;
+  /**
+   * `products.color` — 하우스가 부르는 색 이름이지 색상값이 아니다.
+   *
+   * 실서버가 `Cognac` `Orangeade` `Cinnamon` 같은 이름을 주고, 그중에는 `Aw26 Sangria Sunset`
+   * 처럼 색이 아니라 시즌 팔레트 이름인 것도 섞여 있다. **그래서 이 값으로 필터를 만들지
+   * 않는다** — 목록으로 세우는 순간 색이 아닌 항목이 색인 척하게 된다. 읽을 거리로만 쓴다.
+   */
+  color?: string;
   origin?: string;
   warrantyMonths?: number;
   careInfo?: string;
@@ -61,6 +69,97 @@ export type Product = {
 
 export type Store = { id: string; name: string; country: string; city: string };
 
+/**
+ * 고객이 만든 컬렉션 — 하우스가 묶은 `ProductCollection` 과 이름만 비슷한 다른 물건이다.
+ *
+ * 공식 컬렉션은 상품을 묶고 리워드가 세어지는 단위이지만, 이쪽은 **카드를 묶고 아무것도
+ * 해금하지 않는다.** 서울에서 산 것만 모아두거나 첫 카드를 따로 두는, 순전히 개인의 분류다.
+ *
+ * **`cards` 를 통째로 받지 않고 id 만 남긴다.** 응답은 `CardResponse[]` 를 실어 오는데 그것을
+ * 카드로 만들려면 `hydrateCard()` 가 다시 돌아야 하고, 그러면 컬렉션 하나를 열 때마다 상품
+ * 조회가 담긴 카드 수만큼 더 나간다. 카드 본문은 `useCards()` 가 이미 전부 들고 있으므로
+ * 여기서는 **어느 카드가 들어 있는지만** 알면 된다.
+ */
+export type UserCollection = {
+  id: string;
+  name: string;
+  description?: string;
+  coverImageUrl: string | null;
+  /**
+   * `collections.collection_type` — DB 는 `CUSTOM` 과 `AI` 를 구분하지만 **생성 요청에는 이
+   * 필드가 없다.** 무엇으로 만들었든 서버에는 `CUSTOM` 으로 저장되므로, 화면이 이 값을 근거로
+   * "AI 가 만든 컬렉션"이라고 말하면 저장된 것과 다른 말을 하게 된다.
+   */
+  collectionType: 'CUSTOM' | 'AI';
+  createdAt: string;
+  updatedAt: string;
+  cardCount: number;
+  cardIds: string[];
+};
+
+/**
+ * 템플릿이 실어 오는 디자인 값 — `card_templates.resource_data` 를 파싱한 것.
+ *
+ * 백엔드는 이것을 **JSON 문자열 한 덩어리로** 준다. 파싱은 API 층에서 한 번만 하고 위쪽은
+ * 객체만 본다 — 화면이 `JSON.parse` 를 부르기 시작하면 실패 처리가 화면마다 흩어진다.
+ *
+ * 전부 옵셔널인 이유는 이 값이 스키마가 아니라 **자유 JSON** 이기 때문이다. 컬럼 하나에 담긴
+ * 이상 어떤 키가 오는지는 시드가 정하고, 지금 시드에 있다고 다음 브랜드도 채운다는 보장이
+ * 없다. 없는 키를 옵셔널로 두는 것이 있는 척하는 것보다 정확하다.
+ *
+ * **여기 색들은 `brand-marks/` 규칙의 예외가 아니라 그 규칙 자체다.** 하우스의 색은 데이터로
+ * 여행한다는 것이 원칙이고, 이 필드가 그 원칙이 실제로 지켜지는 첫 경로다.
+ */
+export type TemplateResource = {
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  textColor?: string;
+  pattern?: string;
+  fontStyle?: string;
+  graphicStyle?: string;
+  frontLayout?: string;
+  backLayout?: string;
+};
+
+/**
+ * 카드에 붙어 있는 템플릿. `CardResponse.template` 이 주는 만큼만이다.
+ *
+ * `GET /card-templates` 가 돌려주는 `CardTemplate` 과 **같은 것의 다른 크기**다 — 카드 응답의
+ * 것에는 브랜드도 설명도 `resourceData` 도 없다. 편집 화면은 목록을 따로 불러 id 로 맞춘다.
+ */
+export type CardTemplateRef = {
+  id: string;
+  name: string;
+  frontImageUrl: string | null;
+  backImageUrl: string | null;
+  allowedCardType: 'BASIC' | 'COLLECTOR' | null;
+};
+
+/** `GET /card-templates` 한 건. 브랜드가 승인한 디자인의 전체 모습. */
+export type CardTemplate = CardTemplateRef & {
+  brandId: string;
+  brandName: string;
+  description: string | null;
+  /** `resourceData` 를 파싱한 것. 문자열이 깨져 있으면 `null` — 템플릿 자체는 살린다. */
+  resource: TemplateResource | null;
+};
+
+/**
+ * 고객이 만든 커스텀 한 벌. `card_customizations` 한 행.
+ *
+ * **`frontImageUrl` 이 이 타입의 존재 이유다.** 커스텀이 적용된 카드 앞면은 서버가 합성해
+ * 이 주소로 돌려주므로, 편집 화면의 결과물이자 컬렉션에 보이는 얼굴이 된다.
+ */
+export type CardCustomization = {
+  id: string;
+  status: string;
+  frontImageUrl: string | null;
+  backImageUrl: string | null;
+  message: string | null;
+  createdAt: string;
+};
+
 export type Card = {
   id: string;
   cardType: CardType;
@@ -72,6 +171,18 @@ export type Card = {
   brand: Brand;
   product: Product;
   store: Store;
+  /**
+   * 발급 때 이 카드에 붙은 템플릿.
+   *
+   * 응답에는 처음부터 있었는데 `hydrateCard()` 가 옮기지 않아 화면이 볼 수 없었다. 편집
+   * 화면이 "지금 무엇이 적용돼 있는가"를 말하려면 이것이 필요하다.
+   */
+  template?: CardTemplateRef;
+  /**
+   * 지금 적용돼 있는 커스텀. 한 번도 꾸미지 않은 카드는 `undefined` 이고, 그건 결함이 아니라
+   * 대부분의 카드가 놓인 상태다.
+   */
+  customization?: CardCustomization;
 };
 
 /**

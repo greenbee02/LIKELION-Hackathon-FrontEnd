@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useTabBarSpace } from '@/components/navigation/tab-bar';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { Panel } from '@/components/ui/panel';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
+import { TextLink } from '@/components/ui/text-link';
 import { useAuth } from '@/lib/auth-store';
-import { colors } from '@/theme/colors';
-import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
 /**
@@ -38,31 +38,20 @@ export default function ProfileScreen() {
         마이
       </Text>
 
-      <View style={styles.account}>
+      <Panel style={styles.account}>
         <Text variant="caption" tone="muted">
           로그인 계정
         </Text>
         <Text variant="body" style={styles.email} numberOfLines={1}>
           {user?.email ?? '-'}
         </Text>
-      </View>
+      </Panel>
 
       <View style={styles.foot}>
         <Button label="로그아웃" variant="outline" onPress={signOut} loading={pending} />
-        {/* A text link, worn exactly as the sign-in screen's are — padded, `radius.base`, a
-            step-3 fill under the finger and no underline. Not a button: a third control of button
-            weight in this foot would flatten the screen into a menu, and the one that erases an
-            account should never be the easiest thing to hit. */}
-        <Pressable
-          onPress={() => setConfirming(true)}
-          accessibilityRole="button"
-          accessibilityLabel="회원 탈퇴"
-          style={({ pressed }) => [styles.withdraw, pressed && styles.withdrawPressed]}
-        >
-          <Text variant="label" tone="muted">
-            회원 탈퇴
-          </Text>
-        </Pressable>
+        {/* 버튼이 아니라 링크다. 버튼 무게의 컨트롤이 이 바닥에 셋이면 화면이 메뉴로 납작해지고,
+            계정을 지우는 것이 가장 누르기 쉬운 것이어서는 안 된다. */}
+        <TextLink label="회원 탈퇴" onPress={() => setConfirming(true)} />
       </View>
 
       <Dialog
@@ -83,21 +72,8 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   title: { paddingTop: space[2] },
-  account: {
-    marginTop: space[5],
-    padding: space[4],
-    borderRadius: radius.base,
-    backgroundColor: colors.backgroundSubtle,
-  },
+  account: { marginTop: space[5] },
   email: { marginTop: space[1] },
   /** Pushed to the bottom: leaving is the last thing on a screen, never the first. */
   foot: { marginTop: 'auto', gap: space[3] },
-  withdraw: {
-    alignSelf: 'center',
-    alignItems: 'center',
-    paddingVertical: space[3],
-    paddingHorizontal: space[4],
-    borderRadius: radius.base,
-  },
-  withdrawPressed: { backgroundColor: colors.surface },
 });

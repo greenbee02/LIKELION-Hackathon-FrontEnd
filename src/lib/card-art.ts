@@ -19,6 +19,9 @@ import type { Brand, Card } from './types';
  * which is a finished state rather than a gap.
  */
 export function cardArtSource(card: Card): ImageSourcePropType | null {
+  /* 꾸민 카드는 꾸민 얼굴을 갖는다. 이 한 줄이 편집 화면의 결과가 컬렉션에 반영되는 유일한
+     지점이라, 없으면 저장이 끝난 뒤에도 카드가 그대로여서 편집 기능 전체가 무의미해진다. */
+  if (card.customization?.frontImageUrl) return authorized(card.customization.frontImageUrl);
   if (card.product.imageUrl) return authorized(card.product.imageUrl);
   return MOCK_CARD_ART[card.id] ?? null;
 }
@@ -95,7 +98,11 @@ function protectedUri(source: ImageSourcePropType | null): string | null {
 }
 
 /**
- * 화면이 카드 아트를 얻는 곳. `cardArtSource()` 를 감싸 **웹의 401 문제만** 해결한다.
+ * 보호된 이미지를 화면이 쓸 수 있는 소스로 바꾼다. 하는 일은 **웹의 401 문제 하나**뿐이다.
+ *
+ * 원래 카드 아트 전용이었는데 같은 벽에 부딪히는 것이 카드만이 아니다 — 템플릿 썸네일
+ * (`/images/templates/*.png`)도, 아직 갖지 않은 상품의 사진도 같은 경로 아래 있고 똑같이
+ * 401 이다. 기계는 소스가 무엇의 사진인지 알 필요가 없으므로 카드를 떼어내고 소스만 받는다.
  *
  * `<img>` 태그에는 `Authorization` 헤더를 실을 수 없다. 그래서 브라우저가 이미 들고 있는
  * 토큰으로 `fetch` 해서 받아온 뒤 `blob:` 주소로 바꿔 넘긴다 — 서비스 계정도, 프록시에 심는
@@ -110,8 +117,7 @@ function protectedUri(source: ImageSourcePropType | null): string | null {
  * 한 카드의 언마운트에서 회수하면 아직 떠 있는 다른 카드의 사진이 깨진다. 상품 수만큼만
  * 쌓이는 양이라 그대로 두는 편이 맞다.
  */
-export function useCardArt(card: Card): ImageSourcePropType | null {
-  const source = cardArtSource(card);
+export function useProtectedImage(source: ImageSourcePropType | null): ImageSourcePropType | null {
   const uri = protectedUri(source);
 
   // 캐시는 렌더 시점에 직접 읽고, 이 상태는 "도착했다"는 신호로만 쓴다. 값을 상태에 복사해 두면
@@ -133,6 +139,22 @@ export function useCardArt(card: Card): ImageSourcePropType | null {
   if (!uri) return source;
   const blobUrl = blobUrls.get(uri);
   return blobUrl ? { uri: blobUrl } : null;
+}
+
+/** 카드 한 장의 얼굴. 어느 그림인지는 `cardArtSource()` 가 정하고, 여기는 401 만 처리한다. */
+export function useCardArt(card: Card): ImageSourcePropType | null {
+  return useProtectedImage(cardArtSource(card));
+}
+
+/**
+ * 주소 한 줄짜리 보호된 이미지 — 템플릿 썸네일, 아직 갖지 않은 상품의 사진처럼 `Card` 가
+ * 없는 자리를 위한 것.
+ *
+ * 주소가 없으면 `null` 이고, 그건 오류가 아니라 그릴 그림이 없다는 사실이다. 부르는 쪽은
+ * `CardFace` 가 마크 없는 브랜드에 하는 것과 같이 이름을 타이포로 세우면 된다.
+ */
+export function useProtectedUrl(url: string | null | undefined): ImageSourcePropType | null {
+  return useProtectedImage(url ? authorized(url) : null);
 }
 
 /**
