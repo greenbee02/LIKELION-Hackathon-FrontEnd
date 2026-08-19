@@ -49,7 +49,7 @@ export function IssueCard({ card }: { card: Card | null }) {
 }
 
 const styles = StyleSheet.create({
-  holder: { width: '100%', maxWidth: 220, alignSelf: 'center' },
+  holder: { width: '100%', maxWidth: 185, alignSelf: 'center' },
   face: { width: '100%', aspectRatio: CARD_ASPECT, borderRadius: radius.base },
   meta: { marginTop: space[2] },
   line: { height: 20, borderRadius: radius.small },

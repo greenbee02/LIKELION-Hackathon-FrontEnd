@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
      "whatever was behind it" on a screen with no explicit ground is undefined. */
   frame: {
     width: '100%',
-    maxWidth: 280,
+    maxWidth: 236,
     alignSelf: 'center',
     marginTop: space[5],
     padding: space[4],

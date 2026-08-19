@@ -1,4 +1,5 @@
 import { request } from './client';
+import { asHexColor, asText, parseJsonObject } from './parse';
 import { assetUrl } from '../config';
 import type { CardTemplate, TemplateResource } from '../types';
 
@@ -33,16 +34,33 @@ type CardTemplateResponse = {
  * 만났을 때의 처리가 화면마다 흩어지기 때문이다. **깨져 있으면 `null` 이고 템플릿 자체는
  * 살린다** — 색을 모르는 템플릿은 이름만으로도 고를 수 있지만, 색 하나 때문에 목록에서
  * 사라지는 템플릿은 고를 방법이 없다.
+ *
+ * **필드마다 검증한다. 통째로 캐스팅하지 않는다.** 이 자유 JSON 의 색은 `TemplateTile` 에서
+ * 곧장 `backgroundColor` 로 들어가는데(`template-tile.tsx`), 네이티브는 파싱할 수 없는 색
+ * 문자열을 만나면 예외가 아니라 **크래시**로 답한다. 시드가 지금 얌전하다는 것은 다음 브랜드도
+ * 얌전하다는 뜻이 아니고, 스키마가 없는 컬럼에서는 특히 그렇다. 색이 아닌 값은 없는 값으로
+ * 떨어지고, 타일은 이미 그 경우의 폴백을 갖고 있다.
  */
 function parseResource(raw: string | null): TemplateResource | null {
-  if (!raw) return null;
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-    return parsed as TemplateResource;
-  } catch {
-    return null;
-  }
+  const data = parseJsonObject(raw);
+  if (!data) return null;
+
+  const resource: TemplateResource = {
+    primaryColor: asHexColor(data.primaryColor),
+    secondaryColor: asHexColor(data.secondaryColor),
+    accentColor: asHexColor(data.accentColor),
+    textColor: asHexColor(data.textColor),
+    pattern: asText(data.pattern),
+    fontStyle: asText(data.fontStyle),
+    graphicStyle: asText(data.graphicStyle),
+    frontLayout: asText(data.frontLayout),
+    backLayout: asText(data.backLayout),
+  };
+
+  /* 값 없는 키는 지운다 — 없는 행을 렌더하지 않는 규칙을 객체 수준에서 지키는 것이고,
+     `?? undefined` 를 부르는 쪽마다 쓰지 않아도 되게 한다. */
+  const kept = Object.entries(resource).filter(([, v]) => v !== undefined);
+  return kept.length > 0 ? (Object.fromEntries(kept) as TemplateResource) : null;
 }
 
 function toTemplate(res: CardTemplateResponse): CardTemplate {

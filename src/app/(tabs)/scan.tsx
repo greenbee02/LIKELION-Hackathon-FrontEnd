@@ -9,6 +9,7 @@ import { useTabBarSpace } from '@/components/navigation/tab-bar';
 import { BackButton } from '@/components/ui/back-button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
+import { TextLink } from '@/components/ui/text-link';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
@@ -129,6 +130,10 @@ export default function ScanScreen() {
       </View>
 
       <View style={[styles.guide, { paddingBottom: tabBarSpace }]}>
+        {/* 카메라가 열리지 않는 자리가 실제로 있다 — 보안 컨텍스트가 아닌 브라우저, 권한을
+            한 번 거절해 `canAskAgain` 이 닫힌 기기. 영수증에는 코드가 글자로도 인쇄돼 있으니
+            그때 할 수 있는 일이 없어서는 안 된다. */}
+        <TextLink label="코드 직접 입력" onPress={() => router.push('/issue')} />
         <Text variant="caption" tone="muted" style={styles.guideText}>
           QR 코드를 화면 중앙에 스캔하면 카드가 발급됩니다
         </Text>

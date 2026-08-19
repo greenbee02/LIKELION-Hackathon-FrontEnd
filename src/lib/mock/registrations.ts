@@ -227,5 +227,7 @@ export function fetchMockAiResources(cardId: string): AiResource[] {
           ? ('FAILED' as const)
           : ('COMPLETED' as const),
     generatedImageUrl: null,
+    generatedData: null,
+    createdAt: new Date(started ?? Date.now()).toISOString(),
   }));
 }

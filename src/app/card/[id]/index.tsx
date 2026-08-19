@@ -151,6 +151,17 @@ export default function CardDetailScreen() {
           style={styles.share}
         />
 
+        {/* 꾸민 적이 있을 때만 나온다. 기록이 없는 카드에 기록으로 가는 길을 두면 그 길은
+            빈 화면으로만 이어지고, 값 없는 행을 그리지 않는다는 규칙이 컨트롤에도 적용된다. */}
+        {card.customization ? (
+          <TextLink
+            label="꾸민 기록"
+            onPress={() =>
+              router.push({ pathname: '/card/[id]/customizations', params: { id: card.id } })
+            }
+          />
+        ) : null}
+
         {/* 시트가 있으면 케어 링크는 그 안에 있다. 두 곳에 동시에 두지 않는다 — 같은 곳으로
             가는 길이 한 화면에 둘이면 어느 쪽이 진짜인지 묻게 된다. */}
         {detailed ? null : (
@@ -184,7 +195,7 @@ const styles = StyleSheet.create({
   gutter: { paddingHorizontal: space[4], paddingTop: space[2] },
   head: { paddingTop: space[2] },
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  hero: { width: '100%', maxWidth: 280, alignSelf: 'center', marginTop: space[5] },
+  hero: { width: '100%', maxWidth: 236, alignSelf: 'center', marginTop: space[5] },
   heroFace: { width: '100%', aspectRatio: CARD_ASPECT, borderRadius: radius.base },
   title: { marginTop: space[5] },
   /** 32 — the control is a separate subject from the name above it. */
