@@ -1,26 +1,36 @@
 import { ApiError, request } from './client';
-import { colors } from '@/theme/colors';
-import type { Card, CardStatus, CardType } from '../types';
+import { hydrateCard, type CardResponse } from './cards';
 
 /**
- * `POST /cards/registrations` — the one endpoint that turns a receipt into a card.
- * See dev/active/scope-vs-backend.md §1.
+ * `POST /cards/registrations` — 영수증을 카드로 바꾸는 유일한 엔드포인트.
  *
- * The four codes below are the whole reason this module exists as more than one line: each one
- * leaves the customer somewhere different, so the screen branches on the code rather than on
- * "did it fail". Anything else that comes back is a network or server problem and is treated as
- * one — retryable, not the customer's doing.
+ * 이 모듈이 한 줄이 아닌 이유는 오류 코드다. 각 코드는 고객을 서로 다른 곳에 남겨두므로,
+ * 화면은 "실패했다"가 아니라 코드에 따라 갈라진다.
  */
-export const REGISTRATION_ERROR_CODES = [
-  'QR_TOKEN_INVALID',
-  'QR_ALREADY_USED',
-  'QR_EXPIRED',
+
+/** QR 자체의 문제 — 고객이 다시 해볼 여지가 있거나, 최소한 무슨 일인지 말해줄 수 있다. */
+export const QR_ERROR_CODES = ['QR_TOKEN_INVALID', 'QR_ALREADY_USED', 'QR_EXPIRED'] as const;
+
+/**
+ * QR 은 멀쩡한데 발급을 못 하는 경우.
+ *
+ * 다섯 가지지만 고객에게는 전부 같은 사건이다 — 브랜드 쪽 설정 문제이고, 고객이 할 수 있는
+ * 일이 없다. **코드는 늘리되 화면은 늘리지 않는다**: 다섯 개의 사과문을 쓰는 대신 하나를
+ * 정확히 쓰고, 원인은 로그에 남긴다.
+ */
+export const ISSUE_BLOCKED_CODES = [
   'CARD_TEMPLATE_NOT_FOUND',
+  'TEMPLATE_INACTIVE',
+  'TEMPLATE_CARD_TYPE_NOT_ALLOWED',
+  'TEMPLATE_BRAND_MISMATCH',
+  'PRODUCT_INACTIVE',
 ] as const;
+
+export const REGISTRATION_ERROR_CODES = [...QR_ERROR_CODES, ...ISSUE_BLOCKED_CODES] as const;
 
 export type RegistrationErrorCode = (typeof REGISTRATION_ERROR_CODES)[number];
 
-/** Everything the flow can end on. `UNKNOWN` covers the network and the server's bad days. */
+/** 흐름이 끝날 수 있는 지점 전부. `UNKNOWN` 은 네트워크와 서버의 나쁜 날을 덮는다. */
 export type IssueErrorCode = RegistrationErrorCode | 'UNKNOWN';
 
 export function issueErrorCodeOf(e: unknown): IssueErrorCode {
@@ -30,67 +40,17 @@ export function issueErrorCodeOf(e: unknown): IssueErrorCode {
   return 'UNKNOWN';
 }
 
-/** The backend's `CardResponse`, verbatim — fields it does not send are not invented here. */
-export type CardResponse = {
-  id: string;
-  originalCardType: CardType;
-  cardType: CardType;
-  status: CardStatus;
-  purchaseDate: string;
-  issuedAt: string;
-  serialNumber: string;
-  product: {
-    id: string;
-    name: string;
-    offeringType: string;
-    category: string;
-    imageUrl: string | null;
-    limited: boolean;
-  };
-  store: { id: string; name: string; country: string; city: string };
-  template: {
-    id: string;
-    name: string;
-    frontImageUrl: string | null;
-    backImageUrl: string | null;
-    allowedCardType: CardType;
-  };
-  selectedCustomization: unknown | null;
-};
+/** 발급이 막힌 다섯 코드는 한 화면으로 모인다. */
+export const isIssueBlocked = (code: IssueErrorCode) =>
+  (ISSUE_BLOCKED_CODES as readonly string[]).includes(code);
 
-/**
- * `CardResponse` → `Card`.
- *
- * The gap is `brand`, which the DTO does not expose yet (§5-1) even though every catalogue table
- * is scoped by `brand_id`. Until it lands the house is read off the serial's prefix — `MCM-SE-0042`
- * is MCM's — which is a guess with a short life: the moment the field arrives this function loses
- * three lines and no screen changes. The accent is a token rather than a colour, because a brand
- * we cannot name is a brand whose colour we do not have.
- */
-export function toCard(res: CardResponse): Card {
-  const code = res.serialNumber.split('-')[0] ?? 'UNKNOWN';
+export type { CardResponse };
 
-  return {
-    id: res.id,
-    cardType: res.cardType,
-    status: res.status,
-    purchaseDate: res.purchaseDate,
-    issuedAt: res.issuedAt,
-    serialNumber: res.serialNumber,
-    brand: { id: code.toLowerCase(), name: code, accent: colors.solid, logoUrl: null },
-    product: {
-      id: res.product.id,
-      name: res.product.name,
-      category: res.product.category,
-      imageUrl: res.product.imageUrl,
-      limited: res.product.limited,
-    },
-    store: res.store,
-  };
-}
-
-export const registerCard = (qrToken: string) =>
-  request<CardResponse>('/cards/registrations', {
+/** 등록하고, 곧바로 상품 상세까지 채운 카드를 돌려준다. */
+export async function registerCard(qrToken: string) {
+  const res = await request<CardResponse>('/cards/registrations', {
     method: 'POST',
     body: JSON.stringify({ qrToken }),
   });
+  return hydrateCard(res);
+}

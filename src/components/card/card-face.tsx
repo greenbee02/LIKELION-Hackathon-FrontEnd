@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { Text } from '@/components/ui/text';
-import { brandMarkSource, cardArtSource } from '@/lib/card-art';
+import { brandMarkSource, useCardArt } from '@/lib/card-art';
 import { formatPurchaseDate } from '@/lib/format';
 import type { Card } from '@/lib/types';
 import { colors } from '@/theme/colors';
@@ -36,7 +36,7 @@ export const CARD_ASPECT = 3 / 4;
  */
 export function CardFace({ card }: { card: Card }) {
   const { brand, store, purchaseDate } = card;
-  const art = cardArtSource(card);
+  const art = useCardArt(card);
   const mark = brandMarkSource(brand);
 
   return (

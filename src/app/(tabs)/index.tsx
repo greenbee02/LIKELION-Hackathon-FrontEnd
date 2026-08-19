@@ -12,7 +12,6 @@ import { IconButton } from '@/components/ui/icon-button';
 import { allowPressOverflow } from '@/components/ui/press-scale';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
-import { useToast } from '@/components/ui/toast';
 import { useCards } from '@/lib/cards-store';
 import { ALL_FILTER, collectionFilters, type CollectionFilter } from '@/lib/collection-filters';
 import type { Card } from '@/lib/types';
@@ -44,10 +43,11 @@ export default function CollectionScreen() {
   const { status, cards, error } = useCards();
   const [filterId, setFilterId] = useState<string>(ALL_FILTER);
   const router = useRouter();
-  const toast = useToast();
   /* The tab bar floats over this list, so the last row has to buy its own clearance. */
   const bottomSpace = useTabBarSpace();
   const goScan = () => router.push('/scan');
+  const openCard = (card: Card) =>
+    router.push({ pathname: '/card/[id]', params: { id: card.id } });
 
   const filters = useMemo(() => collectionFilters(cards), [cards]);
   const current = filters.find((f) => f.value === filterId) ?? filters[0];
@@ -122,7 +122,7 @@ export default function CollectionScreen() {
         ListHeaderComponent={header}
         renderItem={({ item }) =>
           item ? (
-            <CardTile card={item} onPress={() => toast('카드 상세는 준비 중입니다')} />
+            <CardTile card={item} onPress={() => openCard(item)} />
           ) : (
             <View style={styles.blank} />
           )

@@ -5,6 +5,13 @@
 백엔드: `greenbee02/LIKELION-Hackathon-BackEnd` @ main (마지막 푸시 2026-08-18)
 Base URL: `/api/v1` · 인증 `Authorization: Bearer {accessToken}` · 성공 `{"data":…}` / 오류 `{"code","message"}`
 
+> ⚠️ **2026-08-20 기준 이 문서의 §1·§3·§4·§5 는 낡았다.** 백엔드가 08-19 에 `card-templates`,
+> 사용자 컬렉션, 리워드 API 를 추가해서 "막힘"으로 적힌 항목 상당수가 열렸다. 실제 서버
+> (`http://1.201.117.14`) 에 직접 확인한 최신 내용과 연동 계획은 `dev/active/backend-integration-plan.md`
+> 에 있고, 충돌하면 그쪽이 기준이다.
+
+DB 스키마 초안은 `dev/active/db-schema-draft.md` 에 따로 있다. **참고용이고, 정확하지 않을 수 있으며 변경될 수 있다** — 프론트가 실제로 받을 수 있는 필드는 이 문서 §2 가 기준이다.
+
 ---
 
 ## 1. 백엔드에 실제로 존재하는 API
@@ -65,8 +72,15 @@ selectedCustomization { id, status, generatedFrontImageUrl, generatedBackImageUr
 `cardType`: `BASIC` `CUSTOMIZE` `COLLECTOR` / `status`: `ACTIVE` `BLOCKED` `REVOKED`
 
 **여기 없는 것** — `brand`, `product.material`, `product.origin`, `product.warrantyInfo`,
-`product.warrantyMonths`, `product.careInfo`, `product.season`, `product.region`, `product.price`.
-전부 `products` 테이블에는 컬럼이 있으나 DTO로 노출되지 않는다.
+`product.warrantyMonths`, `product.careInfo`, `product.season`, `product.region`, `product.price`,
+`product.productCode`. 전부 `products` 테이블에는 컬럼이 있으나 DTO로 노출되지 않는다.
+
+`product.productCode` 는 기획서 §4 가 시리얼과 **따로** 요구한 제품 번호다. 시리얼은 카드 한 장의
+것이고 제품 번호는 같은 모델이면 공유하는 값이라, 상세 화면에서 두 값이 서로 다른 면에 실린다.
+
+**공식 컬렉션(`product_collections`)도 `CardResponse` 에 없다.** 카드가 어느 세트에 속하는지는
+기획서 §4 가 카드 내용으로 명시했고, 리워드 해금 단위(`collection_rewards.required_percentage`)
+이기도 하다. 최소 `{ id, name }` 이면 화면이 붙는다.
 
 ---
 
@@ -144,8 +158,9 @@ selectedCustomization { id, status, generatedFrontImageUrl, generatedBackImageUr
 1. **`CardResponse` 에 `brand` 추가** — 최소 `{ id, name }`, 가능하면 로고·액센트까지.
    **멀티 브랜드 플랫폼이므로 이건 표시용 필드가 아니라 화면의 전제다.** 카드가 어느 브랜드 것인지 모르면 통합 컬렉션 화면도, 브랜드별 필터도, 브랜드 귀속 리워드도 그릴 수 없다.
    `brands` 테이블이 이미 있고 `products`·`stores`·`card_templates`·`rewards` 전부 `brand_id` 로 묶여 있으므로 DTO 매핑만 추가하면 된다.
-2. **`CardResponse.product` 에 상세 필드 추가** — `material`, `origin`, `warrantyInfo`, `warrantyMonths`, `careInfo`, `season`, `region`.
-   컬럼이 이미 있으므로 DTO 매핑만 추가하면 된다. 없으면 §9 디지털 패스포트 화면 전체가 목데이터다.
+2. **`CardResponse.product` 에 상세 필드 추가** — `material`, `origin`, `warrantyInfo`, `warrantyMonths`, `careInfo`, `season`, `region`, `productCode`, 그리고 소속 `collection { id, name }`.
+   `collection` 을 뺀 나머지는 컬럼이 이미 있으므로 DTO 매핑만 추가하면 된다. 없으면 §9 디지털 패스포트 화면 전체가 목데이터다.
+   `price` 는 **요청하지 않는다** — 얼마 줬는지 적는 순간 수집품이 영수증이 된다.
 3. **`GET /card-templates`** — 커스텀 화면 진입 조건.
 4. **사용자 컬렉션 CRUD** — `GET/POST /collections`, `POST/DELETE /collections/{id}/cards`.
 5. **리워드 조회** — `GET /rewards` (브랜드별 진행률 포함), `POST /rewards/{id}/claim`.
@@ -175,6 +190,9 @@ selectedCustomization { id, status, generatedFrontImageUrl, generatedBackImageUr
 | 마이페이지 / 탈퇴 | `/(tabs)/profile` | `GET·DELETE /auth/me` |
 | SNS 공유 | `/share/[id]` | 없음 (FE 단독) |
 
+**2026-08-19 기준 구현 완료**: 로그인 · 회원가입 · QR 스캔 · 발급 연출 · 내 컬렉션 · 카드 상세 · SNS 공유 ·
+마이페이지(탈퇴 포함) · 리워드(목데이터). 남은 것은 OAuth 콜백(`/oauth/callback`)과 카드 커스텀(Tier 2)뿐이다.
+
 발급 연출은 기획서에 항목으로 없지만 제품의 감정적 핵심이라 별도 화면으로 잡는다.
 내 컬렉션의 **브랜드 필터는 `CardResponse.brand` 가 나오기 전까지 그릴 수 없다** (5-1).
 
@@ -192,7 +210,7 @@ selectedCustomization { id, status, generatedFrontImageUrl, generatedBackImageUr
 
 | 화면 | 라우트 | 비고 |
 |---|---|---|
-| 리워드 | `/(tabs)/rewards` | 품목 미정 · `kind` 분기 구조로 (4-B) |
+| 리워드 | `/(tabs)/rewards` · `/reward/[id]` | **구현됨**, 목데이터. `kind` 분기 + `LOCKED`/`UNLOCKED`/`CLAIMED`/`EXPIRED`.<br>`LOCKED` 은 프론트 자체 상태다 — 해금 전에는 `user_rewards` 행 자체가 없다 |
 | 컬렉션 폴더 | 드롭다운 (`/(tabs)/index`) | 클라 파생 필터. `collections` API 나오면 그대로 대체 |
 | 디지털 패스포트 상세 | `/card/[id]` 하단 | 5-2 나오면 실데이터 |
 
