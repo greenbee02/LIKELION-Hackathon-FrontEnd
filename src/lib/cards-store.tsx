@@ -45,6 +45,8 @@ type CardsValue = {
    * 상세 화면이 딥링크로 판단해 또 부르는 일이 실제로 일어난다.
    */
   loadCard: (id: string) => Promise<Card | null>;
+  /** 저장 직후 캐시된 진행 중 요청을 무시하고 카드의 최신 상태를 다시 받는다. */
+  refreshCard: (id: string) => Promise<Card | null>;
   /**
    * 수령 코드를 발급받는다. 조회가 아니라 생성이라 store 를 거친다 — 발급된 코드는 그 리워드의
    * 상태이므로, 화면이 혼자 들고 있으면 목록으로 돌아갔을 때 사라진다.
@@ -198,6 +200,22 @@ export function CardsProvider({ children }: { children: ReactNode }) {
     return task;
   }, []);
 
+  const refreshCard = useCallback<CardsValue['refreshCard']>(async (id) => {
+    /* 저장 직후에는 이전 GET 결과를 재사용하면 selectedCustomization이 없는 카드가 돌아온다. */
+    inflight.current.delete(id);
+    const found = await fetchCard(id);
+    if (found) {
+      setCards((prev) => {
+        const at = prev.findIndex((c) => c.id === found.id);
+        if (at < 0) return [found, ...prev];
+        const next = [...prev];
+        next[at] = found;
+        return next;
+      });
+    }
+    return found;
+  }, []);
+
   /* 로그아웃한 뒤에도 state 에는 앞사람의 카드가 남아 있다. 지우는 대신 내보내지 않는다 —
      이펙트 본문에서 setState 로 되돌리면 렌더가 한 바퀴 더 돌고, 그 한 프레임 동안 앞사람의
      목록이 그대로 보인다. 다음 로그인이 이펙트를 다시 돌려 진짜 값을 채운다. */
@@ -215,10 +233,11 @@ export function CardsProvider({ children }: { children: ReactNode }) {
         refreshRewards();
       },
       loadCard,
+      refreshCard,
       claim,
       refreshRewards,
     }),
-    [signedIn, status, cards, rewards, error, reload, loadCard, claim, refreshRewards],
+    [signedIn, status, cards, rewards, error, reload, loadCard, refreshCard, claim, refreshRewards],
   );
 
   return <CardsContext.Provider value={value}>{children}</CardsContext.Provider>;

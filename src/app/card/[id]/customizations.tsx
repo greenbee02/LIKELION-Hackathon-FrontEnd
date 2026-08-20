@@ -45,7 +45,7 @@ import { space } from '@/theme/spacing';
 export default function CustomizationsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { card, status: cardStatus } = useCard(id);
-  const { loadCard } = useCards();
+  const { refreshCard } = useCards();
   const router = useRouter();
   const toast = useToast();
 
@@ -128,7 +128,7 @@ export default function CustomizationsScreen() {
     void (async () => {
       try {
         await selectCustomization(card.id, customization.id);
-        await loadCard(card.id);
+        await refreshCard(card.id);
         toast('이 디자인을 적용했습니다.');
         router.replace({ pathname: '/card/[id]', params: { id: card.id } });
       } catch (e) {
@@ -145,7 +145,7 @@ export default function CustomizationsScreen() {
     void (async () => {
       try {
         await restoreOriginalCard(card.id);
-        await loadCard(card.id);
+        await refreshCard(card.id);
         toast('원래 디자인으로 되돌렸습니다.');
         router.replace({ pathname: '/card/[id]', params: { id: card.id } });
       } catch (e) {

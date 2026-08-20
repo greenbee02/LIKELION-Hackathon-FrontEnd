@@ -106,6 +106,62 @@ export function toFaceLayers(list: FaceLayerResponse[] | null | undefined): Card
     .sort((a, b) => a.zIndex - b.zIndex);
 }
 
+/**
+ * AI compose 는 승인 에셋 저장 API 와 달리 `frontLayers` 테이블 행을 만들지 않고,
+ * `customizationData.layers` JSON 안에 레이어를 저장한다. 카드 상세에서도 같은 얼굴을
+ * 그릴 수 있도록 그 JSON을 화면 레이어로 복원한다.
+ */
+function compositionLayers(value: string | null): CardFaceLayer[] {
+  if (!value) return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return [];
+  }
+
+  if (!parsed || typeof parsed !== 'object') return [];
+  const composition = parsed as { layers?: unknown };
+  if (!Array.isArray(composition.layers)) return [];
+
+  const layers = composition.layers as unknown[];
+  return layers
+    .map((raw: unknown, index: number): CardFaceLayer | null => {
+      if (!raw || typeof raw !== 'object') return null;
+      const layer = raw as Record<string, unknown>;
+      const rawType = typeof layer.type === 'string' ? layer.type : '';
+      const type = rawType === 'BACKGROUND' ? 'PRODUCT_BACKGROUND' : rawType;
+      if (type !== 'PRODUCT_BACKGROUND' && type !== 'BORDER' && type !== 'TEXT') return null;
+
+      const numberOf = (key: string, fallback: number) =>
+        typeof layer[key] === 'number' && Number.isFinite(layer[key])
+          ? layer[key] as number
+          : fallback;
+
+      return {
+        type,
+        assetId: typeof layer.resourceId === 'string' ? layer.resourceId : null,
+        imageUrl: typeof layer.assetUrl === 'string' ? assetUrl(layer.assetUrl) : null,
+        text: typeof layer.text === 'string' ? layer.text : null,
+        frame: {
+          x: numberOf('x', 0),
+          y: numberOf('y', 0),
+          width: numberOf('width', 1),
+          height: numberOf('height', 1),
+        },
+        rotation: numberOf('rotation', 0),
+        opacity: numberOf('opacity', 1),
+        zIndex: numberOf('zIndex', index),
+        style: layer.styleData && typeof layer.styleData === 'object'
+          ? layer.styleData as Record<string, unknown>
+          : {},
+      };
+    })
+    .filter((layer): layer is CardFaceLayer => layer !== null)
+    .sort((a, b) => a.zIndex - b.zIndex);
+}
+
 /** `contentData` 는 자유 JSON 이라 값 하나하나가 문자열인지 확인하고 지난다. */
 function text(source: Record<string, unknown> | null | undefined, key: string): string | null {
   const value = source?.[key];
@@ -129,6 +185,7 @@ export function toBackSnapshot(res: BackResponse | null | undefined): CardBackSn
 
 /** 서버 쪽 이름을 화면 쪽 이름으로. `generated*` 의 "생성된"은 화면에서 뜻이 없다. */
 export function toCustomization(res: CardCustomizationResponse): CardCustomization {
+  const layers = toFaceLayers(res.frontLayers);
   return {
     id: res.id,
     status: res.status,
@@ -136,7 +193,7 @@ export function toCustomization(res: CardCustomizationResponse): CardCustomizati
     backImageUrl: assetUrl(res.generatedBackImageUrl),
     message: res.generatedMessage,
     createdAt: res.createdAt,
-    layers: toFaceLayers(res.frontLayers),
+    layers: layers.length > 0 ? layers : compositionLayers(res.customizationData),
     back: toBackSnapshot(res.back),
   };
 }

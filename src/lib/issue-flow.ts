@@ -2,9 +2,11 @@ import { useCallback, useState, useSyncExternalStore } from 'react';
 
 import {
   ISSUE_RESOURCE_TYPES,
+  composeAiResources,
   fetchAiResources,
   isPending,
   requestAiResources,
+  type CardLayerRequest,
   type GenerationStatus,
   type IssueResourceType,
 } from './api/ai-resources';
@@ -90,6 +92,8 @@ type Run = {
   /** The customer has confirmed the preview, so registration should only start once. */
   registrationStarted: boolean;
   onIssued: (card: Card) => void;
+  /** Refreshes the server card after an AI composition has been saved. */
+  refreshCard: (cardId: string) => Promise<Card | null>;
 };
 
 const runs = new Map<string, Run>();
@@ -146,8 +150,18 @@ async function drive(token: string, run: Run) {
   }
   patch(run, { stage: 'generating', card });
 
+  let requestedGroupIds = new Set<string>();
+  let requestedResourceIds = new Set<string>();
   try {
-    await requestAiResources(card.id, ISSUE_RESOURCE_TYPES);
+    const requestedBatch = await requestAiResources(card.id, ISSUE_RESOURCE_TYPES);
+    requestedGroupIds = new Set(
+      requestedBatch.groups
+        .map((group) => group.candidateGroupId)
+        .filter((groupId): groupId is string => Boolean(groupId)),
+    );
+    requestedResourceIds = new Set(
+      requestedBatch.groups.flatMap((group) => group.candidates.map((candidate) => candidate.id)),
+    );
   } catch {
     /* 그림 없는 카드도 카드다 — 템플릿이 실어온 앞뒷면이 그대로 얼굴이 된다. 요청에
        실패한 것이 발급을 실패시킬 이유는 아니다.
@@ -161,6 +175,64 @@ async function drive(token: string, run: Run) {
 
   const startedAt = Date.now();
 
+  const isRequestedGroup = (group: {
+    candidateGroupId: string | null;
+    candidates: { id: string }[];
+  }) =>
+    requestedGroupIds.size > 0
+      ? requestedGroupIds.has(group.candidateGroupId ?? '')
+      : group.candidates.some((candidate) => requestedResourceIds.has(candidate.id));
+
+  const groupsForType = (
+    batch: Awaited<ReturnType<typeof fetchAiResources>>,
+    type: IssueResourceType,
+  ) =>
+    batch.groups.filter(
+      (group) => group.resourceType === type && isRequestedGroup(group),
+    );
+
+  const composeBackground = async (
+    batch: Awaited<ReturnType<typeof fetchAiResources>>,
+  ) => {
+    const background = groupsForType(batch, 'BACKGROUND')
+      .flatMap((group) => group.candidates)
+      .find(
+        (candidate) =>
+          candidate.status === 'COMPLETED' && Boolean(candidate.generatedImageUrl),
+      );
+
+    if (!background) return;
+
+    const layers: CardLayerRequest[] = [
+      {
+        id: 'issue-background',
+        type: 'BACKGROUND',
+        slot: 'BACKGROUND',
+        resourceId: background.id,
+        x: 0,
+        y: 0,
+        width: 1,
+        height: 1,
+        rotation: 0,
+        opacity: 1,
+        zIndex: 0,
+        visible: true,
+        locked: true,
+      },
+    ];
+
+    await composeAiResources(card.id, {
+      resourceIds: [background.id],
+      layers,
+    });
+
+    const refreshed = await run.refreshCard(card.id);
+    if (refreshed) {
+      card = refreshed;
+      patch(run, { card: refreshed });
+    }
+  };
+
   while (!run.disposed) {
     await sleep(POLL_MS);
     if (run.disposed) return;
@@ -170,12 +242,13 @@ async function drive(token: string, run: Run) {
       const resources = ISSUE_RESOURCE_TYPES.map<ResourceState>((type) => ({
         type,
         status: foldGroup(
-          batch.groups.filter((g) => g.resourceType === type).flatMap((g) => g.candidates),
+          groupsForType(batch, type).flatMap((group) => group.candidates),
         ),
       }));
       patch(run, { resources });
 
       if (settled(resources)) {
+        await composeBackground(batch);
         patch(run, { stage: 'ready' });
         return;
       }
@@ -202,10 +275,15 @@ async function loadPreview(token: string, run: Run) {
   }
 }
 
-function startRun(token: string, onIssued: (card: Card) => void): Run {
+function startRun(
+  token: string,
+  onIssued: (card: Card) => void,
+  refreshCard: (cardId: string) => Promise<Card | null>,
+): Run {
   const existing = runs.get(token);
   if (existing) {
     existing.onIssued = onIssued;
+    existing.refreshCard = refreshCard;
     return existing;
   }
 
@@ -216,6 +294,7 @@ function startRun(token: string, onIssued: (card: Card) => void): Run {
     issued: false,
     registrationStarted: false,
     onIssued,
+    refreshCard,
   };
   runs.set(token, run);
   void loadPreview(token, run);
@@ -237,8 +316,8 @@ function confirmRun(token: string, run: Run) {
  * Retrying an already-spent token would just spend it again.
  */
 export function useIssue(token: string) {
-  const { addCard } = useCards();
-  const [run, setRun] = useState(() => startRun(token, addCard));
+  const { addCard, refreshCard } = useCards();
+  const [run, setRun] = useState(() => startRun(token, addCard, refreshCard));
 
   const subscribe = useCallback(
     (listener: () => void) => {
@@ -255,8 +334,8 @@ export function useIssue(token: string) {
     const previous = runs.get(token);
     if (previous) previous.disposed = true;
     runs.delete(token);
-    setRun(startRun(token, addCard));
-  }, [token, addCard]);
+    setRun(startRun(token, addCard, refreshCard));
+  }, [token, addCard, refreshCard]);
 
   const confirm = useCallback(() => confirmRun(token, run), [run, token]);
 

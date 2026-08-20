@@ -49,19 +49,16 @@ const SEED_TEXT_FRAME: Frame = { x: 0.1, y: 0.74, width: 0.6, height: 0.06 };
 /** 계약이 정한 문구 레이어의 쌓임 순서. 배경 10, 테두리 20 위에 온다. */
 const TEXT_Z_INDEX = 30;
 
-/**
- * 서버로 보내는 문구 스타일 — **뜻을 보내지, hex 를 보내지 않는다.**
- *
- * 백엔드는 이 객체를 검증 없이 저장하고 그대로 돌려준다. 즉 **프론트가 정하면 그것이 계약이
- * 된다.** 그래서 값으로 `#E8DFD2` 같은 것을 넣지 않는다 — 나중에 서버가 이 카드를 이미지로
- * 굽게 되면 같은 키를 서버도 해석해야 하는데, 그때 필요한 것은 우리 팔레트의 한 지점이지
- * 어느 날의 색상값이 아니다. `backend-open-items.md` §4.
- */
-const FACE_TEXT_STYLE = {
-  fontFamily: 'PLATFORM_SANS',
-  color: 'INVERTED',
-  align: 'LEFT',
-} as const;
+const TEXT_COLOR_OPTIONS = [
+  { label: '화이트', value: '#FFFFFF' },
+  { label: '샴페인', value: '#E8DFD2' },
+  { label: '골드', value: '#C9A46C' },
+  { label: '실버', value: '#B8C0CC' },
+  { label: '블랙', value: '#15120F' },
+  { label: '와인', value: '#7B313D' },
+] as const;
+
+const DEFAULT_TEXT_COLOR = TEXT_COLOR_OPTIONS[0].value;
 
 type Step = 'fork' | 'pick' | 'text';
 type EditSide = 'front' | 'back';
@@ -82,7 +79,7 @@ export default function DesignCardScreen() {
   const { card, status: cardStatus } = useCard(id);
   const router = useRouter();
   const toast = useToast();
-  const { loadCard } = useCards();
+  const { refreshCard } = useCards();
 
   const [step, setStep] = useState<Step>('fork');
   const [options, setOptions] = useState<CustomizationOptions | null>(null);
@@ -90,7 +87,7 @@ export default function DesignCardScreen() {
   const [background, setBackground] = useState<DesignAsset | null>(null);
   const [border, setBorder] = useState<DesignAsset | null>(null);
   const [text, setText] = useState<CardLayer>(() =>
-    makeLayer('TEXT', { text: '', frame: SEED_TEXT_FRAME }),
+    makeLayer('TEXT', { text: '', frame: SEED_TEXT_FRAME, style: { color: DEFAULT_TEXT_COLOR } }),
   );
   const [editSide, setEditSide] = useState<EditSide>('front');
   const [saving, setSaving] = useState(false);
@@ -131,6 +128,8 @@ export default function DesignCardScreen() {
   }, [background, border]);
 
   const content = (text.text ?? '').trim();
+  const textColor =
+    typeof text.style?.color === 'string' ? text.style.color : DEFAULT_TEXT_COLOR;
   const canSave = Boolean(background && border && options?.backLayoutId && content);
 
   const nav = <NavBar title="카드 꾸미기" fallback="/" />;
@@ -164,7 +163,7 @@ export default function DesignCardScreen() {
     void (async () => {
       try {
         await restoreOriginalCard(card.id);
-        await loadCard(card.id);
+        await refreshCard(card.id);
         toast('원래 디자인으로 되돌렸습니다.');
         router.replace({ pathname: '/card/[id]', params: { id: card.id } });
       } catch {
@@ -192,12 +191,19 @@ export default function DesignCardScreen() {
             rotation: text.rotation,
             opacity: text.opacity,
             zIndex: TEXT_Z_INDEX,
-            style: FACE_TEXT_STYLE,
+            style: {
+              ...text.style,
+              color: textColor,
+              textAlign: 'left',
+            },
           },
         });
         /* 저장이 곧 선택이다 — 이 경로에는 `select` 왕복이 없다. 카드만 다시 불러오면
            컬렉션과 상세가 함께 새 얼굴을 갖는다. */
-        await loadCard(card.id);
+         const refreshed = await refreshCard(card.id);
+         if (!refreshed?.customization?.layers.some((layer) => layer.type === 'TEXT')) {
+           throw new Error('저장된 카드 상태를 확인하지 못했습니다.');
+         }
         toast('카드에 반영되었습니다');
         router.replace({ pathname: '/card/[id]', params: { id: card.id } });
       } catch (e) {
@@ -333,6 +339,37 @@ export default function DesignCardScreen() {
               style={styles.field}
             />
 
+            <View style={styles.colorSection}>
+              <Text variant="label">문구 색상</Text>
+              <View style={styles.colorOptions}>
+                {TEXT_COLOR_OPTIONS.map((option) => {
+                  const selected = textColor === option.value;
+                  return (
+                    <Pressable
+                      key={option.value}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${option.label} 색상`}
+                      accessibilityState={{ selected }}
+                      onPress={() =>
+                        setText((prev) => ({
+                          ...prev,
+                          style: { ...prev.style, color: option.value },
+                        }))
+                      }
+                      style={[
+                        styles.colorSwatch,
+                        { backgroundColor: option.value },
+                        selected && styles.colorSwatchSelected,
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+              <Text variant="caption" tone="muted">
+                {TEXT_COLOR_OPTIONS.find((option) => option.value === textColor)?.label ?? '사용자 지정 색상'}
+              </Text>
+            </View>
+
             <Text variant="caption" tone="muted" style={styles.note}>
               {content
                 ? '문구를 끌어 옮기고, 모서리를 잡아 크기를 바꿀 수 있습니다.'
@@ -464,6 +501,16 @@ const styles = StyleSheet.create({
   tileSkeleton: { flex: 1, aspectRatio: CARD_ASPECT, borderRadius: radius.base },
   faceSkeleton: { width: '100%', aspectRatio: CARD_ASPECT, borderRadius: radius.base },
   field: { marginTop: space[4] },
+  colorSection: { marginTop: space[4], gap: space[2] },
+  colorOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: space[2] },
+  colorSwatch: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  colorSwatchSelected: { borderWidth: 3, borderColor: colors.text },
   note: { marginTop: space[3] },
   action: { marginTop: space[4] },
 

@@ -115,6 +115,7 @@ export function faceTextStyle(
 ): TextStyle | null {
   const fontSize = Math.round(frameHeight * faceHeight);
   if (fontSize < 1) return null;
+  const color = resolveCardTextColor(style?.color);
   return {
     ...faceStyles.ink,
     fontSize,
@@ -122,11 +123,18 @@ export function faceTextStyle(
     ...(typeof style?.fontFamily === 'string' && {
       fontFamily: resolveCardFontFamily(style.fontFamily),
     }),
-    ...(typeof style?.color === 'string' && { color: style.color }),
+    ...(color && { color }),
     ...(typeof style?.fontWeight === 'string' && { fontWeight: style.fontWeight as never }),
     ...(typeof style?.textAlign === 'string' && { textAlign: style.textAlign as never }),
     ...(typeof style?.letterSpacing === 'number' && { letterSpacing: style.letterSpacing }),
   };
+}
+
+/** 이전 저장 데이터의 의미값도 실제 RN 색상으로 변환해 렌더링한다. */
+export function resolveCardTextColor(value: unknown): string | undefined {
+  if (value === 'INVERTED') return colors.textInverted;
+  if (typeof value !== 'string') return undefined;
+  return /^#[0-9A-Fa-f]{6}$/.test(value) ? value : undefined;
 }
 
 /** 0~1 을 백분율 문자열로. 이 컴포넌트가 픽셀을 몰라도 되는 이유가 이 한 줄이다. */

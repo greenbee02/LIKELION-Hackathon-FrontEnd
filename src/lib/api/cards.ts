@@ -95,10 +95,10 @@ export async function hydrateCard(res: CardResponse): Promise<Card> {
  * 무엇으로 꾸몄는지는 알려주지 않아서, 승인 에셋으로 꾸민 카드는 목록에서 얼굴이 비어 버린다.
  * 그래서 카드마다 한 번 더 묻는다.
  *
- * **왕복이 느는 것은 레이어로 꾸민 카드 수만큼이다.** 조건 셋이 동시에 맞아야 묻는다:
- * 커스텀이 있고, `COMPLETED` 이고, 그런데도 앞면 주소가 없다 — 그 조합은 레이어 커스텀에만
- * 성립한다. 만들다 만 AI 커스텀(`PENDING`·`PROCESSING`)도 주소가 없지만 아직 완료가 아니므로
- * 여기서 걸러진다. 그러지 않으면 생성 중인 카드가 목록을 열 때마다 헛된 요청을 하나씩 만든다.
+ * **왕복이 느는 것은 선택된 커스텀 카드마다 한 번이다.** AI 합성도 현재는 앞면 주소 칸에
+ * 템플릿 주소를 남기고 실제 AI 레이어를 `customizationData` 안에 저장하므로, 앞면 주소가
+ * 있다고 해서 레이어 조회를 건너뛰면 생성 완료 후에도 템플릿만 그려진다. 만들다 만 AI
+ * 커스텀(`PENDING`·`PROCESSING`)은 아직 완료가 아니므로 여기서 걸러진다.
  *
  * 실패해도 조용히 지나간다 — 얼굴 한 겹이 덜 그려지는 것과 카드가 통째로 사라지는 것 사이의
  * 선택이고, 나머지 필드는 이미 다 갖고 있다.
@@ -113,7 +113,6 @@ async function withLayers(
   if (
     !customization ||
     customization.status !== 'COMPLETED' ||
-    customization.frontImageUrl ||
     customization.layers.length > 0
   ) {
     return customization;

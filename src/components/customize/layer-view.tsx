@@ -201,7 +201,6 @@ function LayerBody({
         style={[
           styles.text,
           ink,
-          typeof style.color === 'string' && { color: style.color },
           typeof style.fontFamily === 'string' && {
             fontFamily: resolveCardFontFamily(style.fontFamily),
           },

@@ -378,7 +378,7 @@ function EditorPane({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { loadCard } = useCards();
+  const { refreshCard } = useCards();
   const [saving, setSaving] = useState(false);
   const bottomSpace = useSheetSpace();
 
@@ -407,7 +407,7 @@ function EditorPane({
 
       /* 응답이 비어 있어도(202) 카드를 다시 불러 확인한다 — 서버가 이미 만들었을 수 있고,
          아직이라면 카드 상세가 그때의 상태를 보여준다. */
-      await loadCard(card.id);
+      await refreshCard(card.id);
       setSaving(false);
       toast(
         result.customization
