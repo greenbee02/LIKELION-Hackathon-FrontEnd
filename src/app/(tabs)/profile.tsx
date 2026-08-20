@@ -52,7 +52,6 @@ export default function ProfileScreen() {
   const bottomSpace = useTabBarSpace();
   const router = useRouter();
   const toast = useToast();
-  const demoResetEnabled = typeof __DEV__ !== 'undefined' && __DEV__;
 
   /* 이름이 비면 이메일의 앞부분이 대신 선다 — 백엔드가 `users.name` 을 NOT NULL 로 두지만
      그 값이 이메일에서 시드된 경우가 있어, 둘 다 없을 때만 자리를 비운다. */
@@ -111,16 +110,14 @@ export default function ProfileScreen() {
         />
       </Panel>
 
-      {demoResetEnabled ? (
-        <View style={styles.demoTools}>
-          <Button
-            label="QR 초기화 (데모)"
-            variant="outline"
-            onPress={() => setConfirmingReset(true)}
-            loading={resetting}
-          />
-        </View>
-      ) : null}
+      <View style={styles.qrTools}>
+        <Button
+          label="QR 코드 내역 정리"
+          variant="outline"
+          onPress={() => setConfirmingReset(true)}
+          loading={resetting}
+        />
+      </View>
 
       <View style={styles.foot}>
         <Button label="로그아웃" variant="outline" onPress={signOut} loading={pending} />
@@ -145,18 +142,18 @@ export default function ProfileScreen() {
       <Dialog
         open={confirmingReset}
         onOpenChange={setConfirmingReset}
-        title="데모 QR 초기화"
-        description={'사용한 QR을 다시 사용할 수 있도록 초기화합니다.\n현재 데모 데이터에만 적용됩니다.'}
-        confirmLabel="초기화하기"
+        title="QR 코드 내역 정리"
+        description={'사용한 QR과 연결된 테스트 내역을 정리합니다.\n정리 후 QR을 다시 사용할 수 있습니다.'}
+        confirmLabel="정리하기"
         onConfirm={() => {
-          void handleDemoReset();
+          void handleQrHistoryReset();
         }}
         pending={resetting}
       />
     </Screen>
   );
 
-  async function handleDemoReset() {
+  async function handleQrHistoryReset() {
     setResetting(true);
     try {
       const result = await resetLocalDemo();
@@ -236,7 +233,7 @@ const styles = StyleSheet.create({
   email: { marginTop: space[1] },
 
   counts: { marginTop: space[3], flexDirection: 'row', alignItems: 'center' },
-  demoTools: { marginTop: space[4] },
+  qrTools: { marginTop: space[4] },
   count: { flex: 1, alignItems: 'center', paddingVertical: space[2], borderRadius: radius.small },
   countLabel: { marginTop: space[1] },
   countSkeleton: { width: 28, height: 24, borderRadius: radius.small },
