@@ -3,18 +3,13 @@ import { useCallback, useState, useSyncExternalStore } from 'react';
 import {
   ISSUE_RESOURCE_TYPES,
   fetchAiResources,
+  isPending,
   requestAiResources,
   type GenerationStatus,
   type IssueResourceType,
 } from './api/ai-resources';
 import { issueErrorCodeOf, registerCard, type IssueErrorCode } from './api/registrations';
-import {
-  fetchMockAiResources,
-  registerMockCard,
-  requestMockAiResources,
-} from './mock/registrations';
 import { useCards } from './cards-store';
-import { USE_MOCK } from './config';
 import type { Card } from './types';
 
 /**
@@ -27,16 +22,35 @@ import type { Card } from './types';
  * run in the map below, the screen subscribes to it, and unmounting drops the subscription rather
  * than the work. Re-entering the same token re-attaches to the run already in flight.
  *
- * Nothing above this file knows whether any of it was real — flip `EXPO_PUBLIC_USE_MOCK` and the
- * screens do not change.
+ * 화면은 이 모듈이 무엇을 어떻게 부르는지 모른다 — 스테이지와 리소스 상태만 읽는다.
  */
 
-/** How often we ask. Fast enough that resources land visibly one after another. */
-const POLL_MS = 800;
-/** When we stop claiming this is nearly done and offer a way out. */
-const PATIENCE_MS = 20_000;
-/** When we stop asking. The card exists either way; the artwork can catch up on the server. */
-const MAX_MS = 90_000;
+/**
+ * 얼마나 자주 묻는가.
+ *
+ * **워커의 박자에 맞춘 값이다.** 백엔드의 생성 워커는 5초에 한 번 큐를 집으므로, 그보다
+ * 훨씬 자주 묻는 것은 같은 답을 여러 번 사는 일이다 — 800ms 이던 시절에는 워커가 한 번
+ * 움직이는 동안 여섯 번을 물었다. 2초면 한 틱에 두어 번 묻게 되고, 리소스가 하나씩 도착하는
+ * 모습은 그대로 보인다.
+ */
+const POLL_MS = 2_000;
+/**
+ * 이보다 오래 걸리면 나갈 길을 연다.
+ *
+ * 발급 한 번이 만드는 그림은 **세 종류 × 후보 셋 = 아홉 장**이다(후보 수의 하한이 3이라
+ * "한 종류에 하나만"은 계약상 불가능하다). 20초는 그 아홉 장이 끝나기 전에 반드시 지나가는
+ * 시간이라, "예상보다 오래 걸리고 있습니다"가 예외가 아니라 기본 상태였다 — 늘 켜져 있는
+ * 경고는 경고가 아니다.
+ */
+const PATIENCE_MS = 45_000;
+/**
+ * 여기서 묻기를 멈춘다. 카드는 어느 쪽이든 이미 존재하고, 그림은 서버에서 계속 만들어진다.
+ *
+ * 아홉 장에 재시도 세 번(간격 10초)까지 있는 파이프라인이라 90초는 정상적인 생성 도중에
+ * 끊기는 값이었다. 편집 화면의 상한과 같은 3분으로 맞춘다 — 같은 워커를 기다리는 두 화면이
+ * 서로 다른 인내심을 가질 이유가 없다.
+ */
+const MAX_MS = 180_000;
 
 export type IssueStage = 'registering' | 'generating' | 'ready' | 'error';
 
@@ -58,7 +72,13 @@ export type IssueState = {
 type Run = {
   state: IssueState;
   listeners: Set<() => void>;
-  /** Set when the screen is done with this token — polling stops at the next tick. */
+  /**
+   * 이 run 을 버렸다는 표시 — 다음 틱에 폴링이 멈춘다.
+   *
+   * **화면이 이것을 켜지는 않는다.** 언마운트를 넘겨 살아남는 것이 이 모듈의 존재 이유이므로
+   * (앱을 잠깐 내렸다 올린 고객은 끝난 카드로 돌아와야 한다), 켜는 곳은 `retry` 하나뿐이다 —
+   * 새 run 을 세우기 전에 앞의 것을 확실히 재우는 자리.
+   */
   disposed: boolean;
   /** The card reaches the store exactly once, even if the screen mounts twice. */
   issued: boolean;
@@ -82,15 +102,27 @@ function patch(run: Run, next: Partial<IssueState>) {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const toResourceState = (status: GenerationStatus): ResourceState['status'] =>
-  status === 'COMPLETED' ? 'COMPLETED' : status === 'PENDING' ? 'PENDING' : 'FAILED';
+/**
+ * 한 종류의 진행 상태 — 그 종류의 후보들을 한 줄로 접는다.
+ *
+ * **발급은 고르게 하지 않으므로 후보 넷이 아니라 "됐는가"만 필요하다.** 그런데 계약상 한
+ * 종류는 최소 3개의 후보로 만들어지므로(`candidateCount` 의 하한), 그 셋을 한 상태로 접어야
+ * 한다. 하나라도 끝났으면 그 종류는 끝난 것이다 — 카드에 올라갈 것은 어차피 하나다.
+ * 하나도 안 끝났는데 아직 만드는 중인 것이 있으면 기다리고, 전부 실패했을 때만 실패다.
+ */
+const foldGroup = (candidates: { status: GenerationStatus }[]): ResourceState['status'] => {
+  if (candidates.length === 0) return 'PENDING';
+  if (candidates.some((c) => c.status === 'COMPLETED')) return 'COMPLETED';
+  if (candidates.some((c) => isPending(c.status))) return 'PENDING';
+  return 'FAILED';
+};
 
 const settled = (resources: ResourceState[]) => resources.every((r) => r.status !== 'PENDING');
 
 async function drive(token: string, run: Run) {
   let card: Card;
   try {
-    card = USE_MOCK ? registerMockCard(token) : await registerCard(token);
+    card = await registerCard(token);
   } catch (e) {
     patch(run, { stage: 'error', errorCode: issueErrorCodeOf(e) });
     return;
@@ -105,11 +137,16 @@ async function drive(token: string, run: Run) {
   patch(run, { stage: 'generating', card });
 
   try {
-    if (USE_MOCK) requestMockAiResources(card.id);
-    else await requestAiResources(card.id, ISSUE_RESOURCE_TYPES);
+    await requestAiResources(card.id, ISSUE_RESOURCE_TYPES);
   } catch {
-    // A card without generated artwork is still a card — it falls back to the template's own
-    // front and back. Failing to ask is not a reason to fail the issuance.
+    /* 그림 없는 카드도 카드다 — 템플릿이 실어온 앞뒷면이 그대로 얼굴이 된다. 요청에
+       실패한 것이 발급을 실패시킬 이유는 아니다.
+     
+       **다만 기다리지는 않는다.** 요청이 서버에 닿지 않았으면 만들어지고 있는 것도 없고,
+       그런데도 폴링을 시작하면 화면은 아무 일도 일어나지 않을 것을 3분 동안 기다린다.
+       발급은 이미 끝났으므로 끝났다고 말하는 것이 정확하다. */
+    patch(run, { stage: 'ready' });
+    return;
   }
 
   const startedAt = Date.now();
@@ -119,11 +156,13 @@ async function drive(token: string, run: Run) {
     if (run.disposed) return;
 
     try {
-      const raw = USE_MOCK ? fetchMockAiResources(card.id) : await fetchAiResources(card.id);
-      const resources = ISSUE_RESOURCE_TYPES.map<ResourceState>((type) => {
-        const match = raw.find((r) => r.resourceType === type);
-        return { type, status: match ? toResourceState(match.status) : 'PENDING' };
-      });
+      const batch = await fetchAiResources(card.id);
+      const resources = ISSUE_RESOURCE_TYPES.map<ResourceState>((type) => ({
+        type,
+        status: foldGroup(
+          batch.groups.filter((g) => g.resourceType === type).flatMap((g) => g.candidates),
+        ),
+      }));
       patch(run, { resources });
 
       if (settled(resources)) {

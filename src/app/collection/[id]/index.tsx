@@ -5,10 +5,9 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { CardTile } from '@/components/card/card-tile';
 import { CardTileSkeleton } from '@/components/card/card-tile-skeleton';
-import { BackButton } from '@/components/ui/back-button';
 import { Dialog } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { PageHeader } from '@/components/ui/page-header';
+import { NavBar } from '@/components/ui/nav-bar';
 import { allowPressOverflow } from '@/components/ui/press-scale';
 import { Screen } from '@/components/ui/screen';
 import { Sheet, useSheetSpace } from '@/components/ui/sheet';
@@ -47,18 +46,18 @@ export default function CollectionDetailScreen() {
   const bottomSpace = useSheetSpace();
   const [confirming, setConfirming] = useState(false);
 
-  const nav = (
-    <View style={styles.nav}>
-      <BackButton fallback="/collection" />
-    </View>
+  /* 이름이 여기 있으므로 본문에는 큰 제목이 없다 — 같은 말이 두 번 적히지 않는다.
+     아직 못 불러온 동안에는 이름 자리가 빈다: 스켈레톤을 세우면 한 글자짜리 회색 막대가
+     제목처럼 보이고, 그건 이름이 아니라 이름이 있을 자리라는 뜻이 되지 못한다. */
+  const nav = (title: string, action?: Parameters<typeof NavBar>[0]['action']) => (
+    <NavBar title={title} fallback="/collection" action={action} />
   );
 
   if (!collection) {
     if (status === 'loading') {
       return (
         <Screen contentContainerStyle={styles.head}>
-          {nav}
-          <PageHeader title="" />
+          {nav('')}
           <View style={styles.grid}>
             {['s1', 's2'].map((key) => (
               <View key={key} style={styles.row}>
@@ -72,7 +71,7 @@ export default function CollectionDetailScreen() {
     }
     return (
       <Screen contentContainerStyle={styles.head}>
-        {nav}
+        {nav('컬렉션')}
         <EmptyState
           icon={FolderOpen}
           title="컬렉션을 찾을 수 없습니다"
@@ -95,18 +94,6 @@ export default function CollectionDetailScreen() {
     rows.push(row);
   }
 
-  const header = (
-    <PageHeader
-      title={collection.name}
-      action={{
-        icon: Pencil,
-        onPress: () =>
-          router.push({ pathname: '/collection/[id]/edit', params: { id: collection.id } }),
-        accessibilityLabel: '컬렉션 편집',
-      }}
-    />
-  );
-
   const drop = () => {
     setConfirming(false);
     void (async () => {
@@ -126,8 +113,12 @@ export default function CollectionDetailScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {nav}
-        {header}
+        {nav(collection.name, {
+          icon: Pencil,
+          onPress: () =>
+            router.push({ pathname: '/collection/[id]/edit', params: { id: collection.id } }),
+          accessibilityLabel: '컬렉션 편집',
+        })}
 
         {held.length === 0 ? (
           <View style={styles.emptyBox}>
@@ -196,7 +187,6 @@ export default function CollectionDetailScreen() {
 const styles = StyleSheet.create({
   gutter: { paddingHorizontal: space[4], paddingTop: space[2] },
   head: { paddingTop: space[2] },
-  nav: { flexDirection: 'row' },
   grid: { marginTop: space[5], gap: space[5], ...allowPressOverflow },
   row: { flexDirection: 'row', gap: space[3], ...allowPressOverflow },
   blank: { flex: 1 },

@@ -4,15 +4,32 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { Text } from '@/components/ui/text';
-import { brandMarkSource, useCardArt } from '@/lib/card-art';
+import { brandMarkSource, cardArtSource } from '@/lib/card-art';
 import { formatPurchaseDate } from '@/lib/format';
 import type { Card } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
-/** Portrait, the proportion of a trading card rather than a credit card. */
-export const CARD_ASPECT = 3 / 4;
+/**
+ * 카드의 실제 규격, 픽셀로.
+ *
+ * 서버가 커스터마이징 이미지를 이 크기로 만들고, 편집기의 레이어 좌표(0~1)가 이 사각형을
+ * 기준으로 정규화된다. 화면은 폭만 정하고 높이는 비율이 정하므로 이 값이 픽셀로 쓰이는 곳은
+ * 없지만, **정규화의 기준이 무엇인지는 한 곳에 적혀 있어야 한다** — 그러지 않으면 편집기와
+ * 서버가 서로 다른 사각형 위에서 같은 숫자를 말하게 된다.
+ */
+export const CARD_SIZE = { width: 1000, height: 1586 } as const;
+
+/**
+ * Portrait, the proportion of a trading card rather than a credit card.
+ *
+ * 3:4 였던 것을 서버의 출력 규격에 맞췄다. 같은 폭에서 **26% 더 길어지므로**, 폭을 명시한
+ * 세 곳(카드 상세·발급·공유)이 함께 좁혀졌다 — 화면에서 카드가 차지하는 세로 길이를 보존하는
+ * 쪽이 각 화면의 레이아웃 예산을 지킨다. 그리드만 예외로 높이가 늘어나는데, 2열이라는 것이
+ * "컬렉션이 하나로 읽힌다"는 근거를 갖고 있어 열 수를 바꿀 수 없기 때문이다.
+ */
+export const CARD_ASPECT = CARD_SIZE.width / CARD_SIZE.height;
 
 /**
  * The card itself, with nothing around it.
@@ -38,7 +55,7 @@ export const CARD_ASPECT = 3 / 4;
 export function CardFace({ card, art }: { card: Card; art?: ImageSourcePropType | null }) {
   const { brand, store, purchaseDate } = card;
   /* 훅이므로 넘겨받았든 아니든 항상 부른다. 고르는 것은 결과뿐이다. */
-  const own = useCardArt(card);
+  const own = cardArtSource(card);
   /* `undefined` 는 "네가 정해라", `null` 은 "그림 없이 그려라". 둘을 구분하지 않으면 편집
      화면이 액센트만 남은 얼굴을 보여줄 방법이 없다. */
   const source = art === undefined ? own : art;

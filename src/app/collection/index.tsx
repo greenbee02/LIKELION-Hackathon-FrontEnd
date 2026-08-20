@@ -1,20 +1,15 @@
 import { useRouter } from 'expo-router';
-import { FolderOpen, Plus, Sparkles } from 'lucide-react-native';
+import { FolderOpen, Plus } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { CollectionRow } from '@/components/collection/collection-row';
-import { BackButton } from '@/components/ui/back-button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { PageHeader } from '@/components/ui/page-header';
-import { Panel } from '@/components/ui/panel';
+import { NavBar } from '@/components/ui/nav-bar';
 import { allowPressOverflow } from '@/components/ui/press-scale';
 import { Screen } from '@/components/ui/screen';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Text } from '@/components/ui/text';
-import { TextLink } from '@/components/ui/text-link';
 import { useCards } from '@/lib/cards-store';
 import { useCollections } from '@/lib/collections-store';
-import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
@@ -36,14 +31,9 @@ export default function CollectionListScreen() {
   const router = useRouter();
 
   const nav = (
-    <View style={styles.nav}>
-      <BackButton fallback="/" />
-    </View>
-  );
-
-  const header = (
-    <PageHeader
+    <NavBar
       title="내 컬렉션"
+      fallback="/"
       action={{
         icon: Plus,
         onPress: () => router.push('/collection/new'),
@@ -56,7 +46,6 @@ export default function CollectionListScreen() {
     return (
       <Screen contentContainerStyle={styles.content}>
         {nav}
-        {header}
         <EmptyState
           icon={FolderOpen}
           title="컬렉션을 불러오지 못했습니다"
@@ -70,7 +59,6 @@ export default function CollectionListScreen() {
     return (
       <Screen contentContainerStyle={styles.content}>
         {nav}
-        {header}
         <View style={styles.list}>
           {['s1', 's2', 's3'].map((key) => (
             <Skeleton key={key} style={styles.rowSkeleton} />
@@ -84,14 +72,11 @@ export default function CollectionListScreen() {
     return (
       <Screen contentContainerStyle={styles.content}>
         {nav}
-        {header}
         <EmptyState
           icon={FolderOpen}
           title="아직 만든 컬렉션이 없습니다"
-          note={'서울에서 산 것만 모으거나 첫 카드를 따로 두는 식으로\n원하는 대로 묶어보세요.'}
           action={{ label: '새 컬렉션 만들기', onPress: () => router.push('/collection/new') }}
         />
-        <Suggest onPress={() => router.push('/collection/suggest')} />
       </Screen>
     );
   }
@@ -99,7 +84,6 @@ export default function CollectionListScreen() {
   return (
     <Screen scroll contentContainerStyle={styles.content}>
       {nav}
-      {header}
 
       <View style={styles.list}>
         {collections.map((collection) => (
@@ -115,44 +99,13 @@ export default function CollectionListScreen() {
           />
         ))}
       </View>
-
-      <Suggest onPress={() => router.push('/collection/suggest')} />
     </Screen>
-  );
-}
-
-/**
- * 묶을 거리를 대신 찾아주는 두 번째 길.
- *
- * "AI" 라고 부르지 않는다. 이건 보유 카드를 도시·시즌·하우스로 묶어보는 규칙이고, 규칙을
- * AI 라고 부르기 시작하면 정말로 AI 인 카드 디자인 생성까지 같은 말이 되어 둘 다 신뢰를
- * 잃는다. 대신 하는 일을 그대로 적는다 — 그러면 설명이 곧 정확한 이름이 된다.
- */
-function Suggest({ onPress }: { onPress: () => void }) {
-  return (
-    <Panel style={styles.suggest}>
-      <View style={styles.suggestHead}>
-        <Sparkles size={18} color={colors.text} strokeWidth={1.75} />
-        <Text variant="heading">묶을 거리 찾아보기</Text>
-      </View>
-      <Text variant="body" tone="muted" style={styles.suggestNote}>
-        가진 카드에서 도시·시즌·하우스가 겹치는 것들을 찾아 묶음을 제안합니다.
-      </Text>
-      <TextLink label="제안 보기" onPress={onPress} align="start" style={styles.suggestLink} />
-    </Panel>
   );
 }
 
 const styles = StyleSheet.create({
   content: { paddingTop: space[2] },
-  nav: { flexDirection: 'row' },
   /** 행 사이는 간격이 아니라 각자의 세로 여백이 만든다 — `CollectionRow` 가 12씩 갖고 있다. */
   list: { marginTop: space[4], ...allowPressOverflow },
   rowSkeleton: { height: 56, borderRadius: radius.base, marginVertical: space[3] },
-
-  /** 32 — 목록과 다른 종류의 것이다. */
-  suggest: { marginTop: space[6] },
-  suggestHead: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
-  suggestNote: { marginTop: space[2] },
-  suggestLink: { marginTop: space[2], marginBottom: -space[3] },
 });

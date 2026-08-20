@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useTabBarSpace } from '@/components/navigation/tab-bar';
-import { BackButton } from '@/components/ui/back-button';
+import { NavBar } from '@/components/ui/nav-bar';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors } from '@/theme/colors';
@@ -16,9 +16,15 @@ import { space } from '@/theme/spacing';
 /**
  * The scan tab: a bar, the camera, and a line saying what to do with it.
  *
- * The camera runs full width between the two, which is the only element in the app allowed past
- * the gutter — it is a window onto the room rather than a picture placed on the page, and a 16pt
- * margin around a live scene reads as a photograph of one.
+ * The camera runs full width, which is the only element in the app allowed past the gutter — it
+ * is a window onto the room rather than a picture placed on the page, and a 16pt margin around a
+ * live scene reads as a photograph of one.
+ *
+ * **It is a square, not the leftover height.** A viewfinder stretched to fill the page puts the
+ * aiming mark at the middle of the window, which is where the hand holding the phone cannot
+ * comfortably reach past — and it makes the frame taller than anything it will ever read, since a
+ * QR code is square. Fixing the ratio pulls the whole scene up under the bar and leaves the
+ * bottom of the screen empty, which is the thumb's half of the phone.
  *
  * This screen never judges a token. Whatever it reads goes straight to `/issue/[token]`, which
  * owns the round trip and every way it can end — a scanner that reported "invalid code" would
@@ -65,14 +71,10 @@ export default function ScanScreen() {
 
   return (
     <Screen gutter={false}>
-      {/* A nav bar, not a screen header: the title is centred on the window rather than on the
-          space left over beside the arrow, so it stays put whatever sits to its left. That is why
-          the arrow is positioned rather than laid out in a row. */}
+      {/* 이 화면이 처음 쓰던 줄이고, 이제는 뒤로 가기가 있는 모든 화면이 같은 것을 쓴다.
+          `gutter={false}` 라 양옆 여백은 여기서 직접 준다. */}
       <View style={styles.bar}>
-        <View style={styles.barBack}>
-          <BackButton fallback="/" />
-        </View>
-        <Text variant="heading">코드 스캔</Text>
+        <NavBar title="코드 스캔" fallback="/" />
       </View>
 
       <View style={styles.stage}>
@@ -84,9 +86,12 @@ export default function ScanScreen() {
             barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
             onBarcodeScanned={({ data }) => {
               if (handled.current) return;
-              handled.current = true;
               const token = data.trim().toUpperCase();
+              /* 잠그는 것은 **보낼 것이 있을 때만**이다. 빈 코드에도 잠가버리면 그 뒤로는
+                 진짜 영수증을 비춰도 아무 일이 일어나지 않고, 푸는 방법은 탭을 떠났다
+                 돌아오는 것뿐이다. */
               if (!token) return;
+              handled.current = true;
               router.push({ pathname: '/issue/[token]', params: { token } });
             }}
           />
@@ -128,11 +133,16 @@ export default function ScanScreen() {
         ) : null}
       </View>
 
-      <View style={[styles.guide, { paddingBottom: tabBarSpace }]}>
+      <View style={styles.guide}>
         <Text variant="caption" tone="muted" style={styles.guideText}>
           QR 코드를 화면 중앙에 스캔하면 카드가 발급됩니다
         </Text>
       </View>
+
+      {/* 뷰파인더가 더 이상 남는 높이를 다 먹지 않으므로, 남는 높이는 여기가 갖는다. 탭 바가
+          이 화면 위에 떠 있어서 최소 높이만큼은 반드시 비어 있어야 한다 — 작은 화면에서
+          `flex` 가 0으로 눌려도 안내 문구가 탭 바 밑으로 들어가지 않는다. */}
+      <View style={[styles.rest, { minHeight: tabBarSpace }]} />
     </Screen>
   );
 }
@@ -142,16 +152,11 @@ const RETICLE = 56;
 const ARM = 14;
 
 const styles = StyleSheet.create({
-  bar: {
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space[4],
-  },
-  barBack: { position: 'absolute', left: space[4] },
+  bar: { paddingHorizontal: space[4] },
   /** Surface fill, so the frame is a shape on the page even before a preview arrives — or when
-      one never does, on a device without a camera. */
-  stage: { flex: 1, backgroundColor: colors.surface, overflow: 'hidden' },
+      one never does, on a device without a camera. Square because the code is: `aspectRatio` ties
+      the height to whatever width the device gives, so nothing here is a guessed number. */
+  stage: { width: '100%', aspectRatio: 1, backgroundColor: colors.surface, overflow: 'hidden' },
 
   reticle: {
     position: 'absolute',
@@ -173,5 +178,6 @@ const styles = StyleSheet.create({
   torchInner: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
 
   guide: { paddingHorizontal: space[4], paddingVertical: space[4] },
+  rest: { flex: 1 },
   guideText: { textAlign: 'center' },
 });

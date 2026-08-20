@@ -10,7 +10,11 @@ type EmptyStateProps = {
   /** A lucide icon component. Passed as a type, not an element, so the size and colour stay here. */
   icon?: ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
   title: string;
-  note: string;
+  /**
+   * 제목만으로 부족할 때의 한 줄. **없으면 그리지 않는다** — 제목이 이미 다 말한 화면에
+   * 설명을 덧붙이면 같은 말을 두 번 하게 되고, 빈 화면에서는 그 반복이 더 크게 보인다.
+   */
+  note?: string;
   /** The one thing that would fill this screen. Omit it when there is nothing the customer can do. */
   action?: { label: string; onPress: () => void };
 };
@@ -32,9 +36,11 @@ export function EmptyState({ icon: Icon, title, note, action }: EmptyStateProps)
       <Text variant="heading" style={styles.title}>
         {title}
       </Text>
-      <Text variant="body" tone="muted" style={styles.note}>
-        {note}
-      </Text>
+      {note ? (
+        <Text variant="body" tone="muted" style={styles.note}>
+          {note}
+        </Text>
+      ) : null}
       {action ? (
         <Button label={action.label} onPress={action.onPress} style={styles.action} />
       ) : null}

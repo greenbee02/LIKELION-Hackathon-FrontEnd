@@ -1,4 +1,20 @@
-/** Mirrors the backend's `CardResponse`, plus `brand` — see dev/active/scope-vs-backend.md §5-1. */
+/** Mirrors the backend's `CardResponse`, plus `brand` — see `dev/active/backend-contract.md` §2. */
+
+/**
+ * 백엔드가 uuid 라고 부르는 자리.
+ *
+ * **문서이지 방어가 아니다.** 브랜디드 타입(`string & {__uuid}`)이면 `cardId` 자리에
+ * `productId` 를 넣는 것을 컴파일러가 막아주지만, 이 앱의 모든 id 는 `request<T>()` 의
+ * `body?.data as T` 를 통과해 들어오므로 DTO 경계마다 캐스트가 필요해진다. 런타임 검증기가
+ * 없는 상태에서 그 캐스트는 안전을 사지 못하고 잡음만 늘린다.
+ *
+ * 별칭은 **도메인 타입과 새 모듈에만** 쓴다. 기존 DTO 파일들을 `string` 에서 일괄 치환하는
+ * 것은 구조적으로 동일한 타입 사이의 무의미한 diff다 — tsc 는 한 줄도 다르게 읽지 않는다.
+ */
+export type Uuid = string;
+
+/** ISO-8601 UTC 문자열. 사람이 읽는 것으로 바뀌는 곳은 `src/lib/format.ts` 하나뿐이다. */
+export type IsoDateTime = string;
 
 export type CardType = 'BASIC' | 'CUSTOMIZE' | 'COLLECTOR';
 export type CardStatus = 'ACTIVE' | 'BLOCKED' | 'REVOKED';
@@ -16,7 +32,7 @@ export type Brand = {
    * name set in type when it is null, so a brand without a mark is a supported state and not a
    * hole in the design.
    *
-   * The backend does not expose this yet — see `dev/active/scope-vs-backend.md` §5-1, which is
+   * The backend does not expose this yet — see `dev/active/backend-open-items.md` §5, which is
    * already waiting on `CardResponse.brand` at all.
    */
   logoUrl: string | null;
@@ -42,7 +58,7 @@ export type Product = {
   category: string;
   imageUrl: string | null;
   limited: boolean;
-  /** §5-2 — columns exist, DTO does not expose them yet. Mock until it does. */
+  /** `GET /products/{id}` 가 준다. 카드 응답의 `ProductSummary` 에는 없어 `hydrateCard()` 가 채운다. */
   material?: string;
   /**
    * `products.color` — 하우스가 부르는 색 이름이지 색상값이 아니다.
@@ -160,8 +176,68 @@ export type CardCustomization = {
   createdAt: string;
 };
 
-export type Card = {
+/**
+ * 카드 위의 한 칸, **카드 전체를 1로 놓은 좌표계**로.
+ *
+ * `x`/`y` 는 왼쪽 위 모서리다. 백엔드 스펙은 네 값이 0~1 이라는 것만 말하고 기준점이 어디인지
+ * 적지 않았다 — 중심점으로 읽을 수도 있었지만, 왼쪽 위가 CSS·RN·캔버스가 모두 쓰는 규약이고
+ * `{0,0,1,1}` 이 "전면"이라는 가장 흔한 값을 자연스럽게 표현한다. **미지수이므로 픽셀 변환을
+ * `card-layers.ts` 의 두 함수에만 가둬 두었다** — 뒤집어야 하면 고칠 곳이 그 둘뿐이다.
+ *
+ * 픽셀은 여기 없다. 화면 폭이 바뀌어도(웹 리사이즈, 회전) 배치가 그대로 살아남고, 서버로
+ * 나갈 때 변환이 필요 없는 이유다.
+ */
+export type Frame = { x: number; y: number; width: number; height: number };
+
+/**
+ * 백엔드 `CardLayerRequest.type` 의 여덟 값.
+ *
+ * 기획 메모에는 일곱으로 적혀 있었지만 실제 enum 은 `BASE_CARD` 를 하나 더 갖고 있다 —
+ * 카드 바탕, 즉 템플릿 도안 자체가 놓이는 칸이다.
+ */
+export type CardLayerType =
+  | 'BASE_CARD'
+  | 'BACKGROUND'
+  | 'PRODUCT'
+  | 'BORDER'
+  | 'PATTERN'
+  | 'DECORATION'
+  | 'TEXT'
+  | 'FINISH';
+
+/**
+ * 편집기가 다루는 레이어 하나.
+ *
+ * **`zIndex` 가 없는 것이 의도다.** 배열의 순서가 곧 쌓임 순서이고, 보낼 때 `index` 를
+ * `zIndex` 로 계산한다. 둘 다 들고 있으면 순서를 바꾸는 코드가 매번 두 곳을 맞춰야 하고,
+ * 언젠가 한 곳을 빠뜨린다.
+ *
+ * `frame` 을 네 값으로 펼치지 않고 묶은 것도 같은 이유다 — 제스처는 사각형을 통째로 옮기는데
+ * 도메인이 평평하면 호출부가 넷 중 셋만 갱신하는 버그가 반드시 생긴다. DTO 는 평평하므로
+ * 보낼 때 펼친다.
+ */
+export type CardLayer = {
+  /** 클라이언트가 만든다. DTO 의 optional `id` 로 나가 서버가 짝을 맞출 수 있게 한다. */
   id: string;
+  type: CardLayerType;
+  /** 이 칸의 이름. `COMPOSITION` 이 알려준 이름이 있으면 그것, 없으면 타입 소문자. */
+  slot?: string;
+  /** 이 칸을 채우는 AI 리소스. `COMPLETED` 인 것만 들어온다. TEXT 와 기본 PRODUCT 는 없다. */
+  resourceId?: Uuid;
+  frame: Frame;
+  /** −360~360. 계약의 범위이고, 보낼 때 접는다. */
+  rotation: number;
+  opacity: number;
+  visible: boolean;
+  locked: boolean;
+  /** `TEXT` 전용. 2000자까지. */
+  text?: string;
+  /** 서버로 그대로 넘어가는 `styleData`. 우리가 뜻을 아는 키만 넣는다. */
+  style?: Record<string, unknown>;
+};
+
+export type Card = {
+  id: Uuid;
   cardType: CardType;
   status: CardStatus;
   /** ISO-8601 UTC, as the backend sends it. Convert at the edge of the UI, not in the store. */

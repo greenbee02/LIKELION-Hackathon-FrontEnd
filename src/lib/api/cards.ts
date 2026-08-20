@@ -9,7 +9,7 @@ import type { Card, CardStatus, CardType, Product } from '../types';
 /**
  * `GET /cards` · `GET /cards/{id}` 와, 그 응답을 화면이 쓰는 `Card` 로 바꾸는 일.
  *
- * 자세한 배경은 `dev/active/backend-integration-plan.md` §2.
+ * 자세한 배경은 `dev/active/backend-contract.md` §2.
  */
 
 /** 백엔드의 `CardResponse` 그대로. 주지 않는 필드는 지어내지 않는다. */

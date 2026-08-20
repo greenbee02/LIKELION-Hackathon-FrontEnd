@@ -6,10 +6,9 @@ import { CARD_ASPECT } from '@/components/card/card-face';
 import { CardFlip } from '@/components/card/card-flip';
 import { ProductDetail, hasProductDetail } from '@/components/card/product-detail';
 import { Badge } from '@/components/ui/badge';
-import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { IconButton } from '@/components/ui/icon-button';
+import { NavBar } from '@/components/ui/nav-bar';
 import { Screen } from '@/components/ui/screen';
 import { Sheet, useSheetSpace } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -47,10 +46,10 @@ import { space } from '@/theme/spacing';
  * sibling of the list rather than a row in it: absolutely positioned inside a ScrollView it would
  * scroll away with the page, which is the one thing a floating panel must not do.
  *
- * Sharing is the screen's one action and sits under the card as a named button. What is still
- * absent is customisation, which is blocked on `GET /card-templates` (scope §4-C), and §9's
- * repair and care links, which have no column in the schema to hold them — a control that raises
- * a toast explaining why it does nothing is a control this screen cannot honour.
+ * Sharing is the screen's one action and sits under the card as a named button; customising is
+ * the icon at the right of the bar, close to the card because that is what it changes. What is
+ * still absent is §9's repair and care links, which have no endpoint behind them — a control
+ * that raises a toast explaining why it does nothing is a control this screen cannot honour.
  */
 export default function CardDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -61,20 +60,26 @@ export default function CardDetailScreen() {
      bar on every scrolling tab screen. */
   const bottomSpace = useSheetSpace();
 
-  /* 뒤로 가기만 있던 줄의 오른쪽 끝을 편집이 쓴다. 카드에 하는 일이라 카드 가까이 있어야
-     하고, 아이콘이라 화면의 마지막 말인 공유하기와 무게를 다투지 않는다. */
+  /* 줄의 오른쪽 끝을 편집이 쓴다. 카드에 하는 일이라 카드 가까이 있어야 하고, 아이콘이라
+     화면의 마지막 말인 공유하기와 무게를 다투지 않는다.
+
+     이름은 '카드'다. 제품 이름이 아니라 — 그건 카드 아래 제 자리에서 24pt 로 읽히고 있고,
+     같은 말을 줄 위에서 18pt 로 한 번 더 자르는 것은 이름을 두 번 적는 일이다. */
   const nav = (
-    <View style={styles.nav}>
-      <BackButton fallback="/" />
-      {card ? (
-        <IconButton
-          icon={Palette}
-          variant="glass"
-          accessibilityLabel="카드 꾸미기"
-          onPress={() => router.push({ pathname: '/card/[id]/edit', params: { id: card.id } })}
-        />
-      ) : null}
-    </View>
+    <NavBar
+      title="카드"
+      fallback="/"
+      action={
+        card
+          ? {
+              icon: Palette,
+              onPress: () =>
+                router.push({ pathname: '/card/[id]/edit', params: { id: card.id } }),
+              accessibilityLabel: '카드 꾸미기',
+            }
+          : undefined
+      }
+    />
   );
 
   if (status === 'loading') {
@@ -151,26 +156,21 @@ export default function CardDetailScreen() {
           style={styles.share}
         />
 
-        {/* 시트가 있으면 케어 링크는 그 안에 있다. 두 곳에 동시에 두지 않는다 — 같은 곳으로
-            가는 길이 한 화면에 둘이면 어느 쪽이 진짜인지 묻게 된다. */}
-        {detailed ? null : (
+        {/* 꾸민 적이 있을 때만 나온다. 기록이 없는 카드에 기록으로 가는 길을 두면 그 길은
+            빈 화면으로만 이어지고, 값 없는 행을 그리지 않는다는 규칙이 컨트롤에도 적용된다. */}
+        {card.customization ? (
           <TextLink
-            label="케어 서비스 안내"
-            onPress={() => router.push({ pathname: '/card/[id]/care', params: { id: card.id } })}
+            label="꾸민 기록"
+            onPress={() =>
+              router.push({ pathname: '/card/[id]/customizations', params: { id: card.id } })
+            }
           />
-        )}
+        ) : null}
       </ScrollView>
 
       {detailed ? (
         <Sheet title="제품 상세">
           <ProductDetail product={product} />
-          {/* 케어는 카드가 아니라 물건에 대한 것이고, 이 화면에서 물건에 대한 것이 사는 곳이
-              여기다. 시트가 그려지지 않는 카드에서는 아래 본문이 대신 받는다. */}
-          <TextLink
-            label="케어 서비스 안내"
-            align="start"
-            onPress={() => router.push({ pathname: '/card/[id]/care', params: { id: card.id } })}
-          />
         </Sheet>
       ) : null}
     </Screen>
@@ -183,8 +183,7 @@ const styles = StyleSheet.create({
      `Screen`'s own gutter instead and take `head` alone — applying both would pad them twice. */
   gutter: { paddingHorizontal: space[4], paddingTop: space[2] },
   head: { paddingTop: space[2] },
-  nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  hero: { width: '100%', maxWidth: 280, alignSelf: 'center', marginTop: space[5] },
+  hero: { width: '100%', maxWidth: 236, alignSelf: 'center', marginTop: space[5] },
   heroFace: { width: '100%', aspectRatio: CARD_ASPECT, borderRadius: radius.base },
   title: { marginTop: space[5] },
   /** 32 — the control is a separate subject from the name above it. */

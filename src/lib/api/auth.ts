@@ -2,7 +2,7 @@ import { request } from './client';
 
 /**
  * `/auth` 아래 다섯 개. 실제 서버(`http://1.201.117.14`)에 요청해 확인한 모양이다 —
- * 자세한 내용은 `dev/active/backend-integration-plan.md` §3-1.
+ * 자세한 내용은 `dev/active/backend-contract.md` §1.
  */
 
 /**
@@ -66,7 +66,7 @@ export const fetchMe = () => request<AuthUser>('/auth/me');
  * 소프트 탈퇴 — `users.deleted_at` 에 도장을 찍는다.
  *
  * **다만 서버가 그 도장을 읽지 않는다.** `AuthService.login()` 이 `deleted_at IS NULL` 을
- * 거르지 않아서 탈퇴한 계정으로 로그인이 그대로 된다 (연동 계획 §4-6, 실측). 프론트가 할 수
+ * 거르지 않아서 탈퇴한 계정으로 로그인이 그대로 된다 (실측). 프론트가 할 수
  * 있는 일은 없고, 로컬 세션을 확실히 끊는 것이 이 상황에서 할 수 있는 전부다.
  */
 export const deleteMe = () => request<void>('/auth/me', { method: 'DELETE' });

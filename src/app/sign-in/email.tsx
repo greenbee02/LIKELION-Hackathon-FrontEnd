@@ -1,10 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NavBar } from '@/components/ui/nav-bar';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { useToast } from '@/components/ui/toast';
@@ -48,15 +48,11 @@ export default function EmailSignInScreen() {
 
   return (
     <Screen scroll contentContainerStyle={styles.content}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <BackButton />
-
-        <View style={styles.header}>
-          <Text variant="title">이메일로 로그인</Text>
-        </View>
+        <NavBar title="이메일로 로그인" />
 
         <Input
           label="이메일"
+          style={styles.first}
           value={email}
           onChangeText={(v) => {
             setEmail(v);
@@ -126,14 +122,14 @@ export default function EmailSignInScreen() {
             <Text variant="label" tone="muted">비밀번호 재설정</Text>
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: space[3], paddingBottom: space[6] },
-  header: { marginTop: space[5], marginBottom: space[6] },
+  content: { paddingTop: space[2], paddingBottom: space[6] },
+  /** 이름 줄과 첫 입력 사이 — 32. 서로 다른 종류의 것이다. */
+  first: { marginTop: space[6] },
   field: { marginTop: space[4] },
   serverError: { marginTop: space[3] },
   submit: { marginTop: space[5] },

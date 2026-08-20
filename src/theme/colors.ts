@@ -29,8 +29,18 @@ export const scaleAlphaLight = whiteA;
 export const colors = {
   /** 1 — the app background. */
   background: gray.gray1,
-  /** 2 — a panel that should read as slightly inset from the page. */
-  backgroundSubtle: gray.gray2,
+  /**
+   * 3 — a surface that stands in for something not there yet, or holds one thing up.
+   *
+   * Not a panel: `Panel` draws a border and keeps the page's own brightness, because a list of
+   * filled boxes turns the whole page gray. What is left here is the opposite case — a square
+   * waiting for artwork to load, the plate a claim code is set on. Those have to read as *matter*
+   * rather than as an outline, so they take the step a fill has.
+   *
+   * The same value as `surface`, deliberately. They are one colour doing two jobs — a control at
+   * rest and a stand-in surface — and the day those need to differ, this is the one to move.
+   */
+  backgroundSubtle: gray.gray3,
 
   /** 3 — a control at rest. */
   surface: gray.gray3,

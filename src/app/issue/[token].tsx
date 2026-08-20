@@ -33,7 +33,6 @@ import { space } from '@/theme/spacing';
 export default function IssueScreen() {
   const params = useLocalSearchParams<{ token: string | string[] }>();
   const token = (Array.isArray(params.token) ? params.token[0] : params.token) ?? '';
-  const router = useRouter();
   const { stage, card, resources, slow, errorCode, retry } = useIssue(token);
 
   const holding = stage === 'registering' || (stage === 'generating' && !slow);
@@ -174,7 +173,12 @@ function IssueReady({ card, incomplete }: { card: Card; incomplete: boolean }) {
 type ErrorCopy = {
   icon: ComponentType<{ size?: number; color?: string }>;
   title: string;
-  body: string;
+  /**
+   * 제목이 다 말하지 못한 것만. **없을 수 있고, 없으면 그 줄을 그리지 않는다** — 이미 쓴
+   * 영수증처럼 제목 한 줄과 버튼 두 개로 상황과 갈 곳이 모두 정해지는 경우, 설명은 같은 말을
+   * 한 번 더 하는 자리가 된다.
+   */
+  body?: string;
   primary: { label: string; action: 'retry' | 'scan' | 'collection' };
   secondary?: { label: string; action: 'retry' | 'scan' | 'collection' };
 };
@@ -198,7 +202,6 @@ const ERROR_COPY: Record<ErrorCase, ErrorCopy> = {
   QR_ALREADY_USED: {
     icon: AlertCircle,
     title: '이미 발급된 영수증입니다',
-    body: '이 영수증으로 만든 카드가 컬렉션에 이미 있습니다. 영수증 한 장에 카드 한 장이 발급됩니다.',
     primary: { label: '컬렉션에서 보기', action: 'collection' },
     secondary: { label: '다른 영수증 스캔하기', action: 'scan' },
   },
@@ -247,9 +250,11 @@ function IssueError({ code, onRetry }: { code: IssueErrorCode; onRetry: () => vo
         <Text variant="title" style={styles.headline}>
           {copy.title}
         </Text>
-        <Text variant="body" tone="muted" style={styles.support}>
-          {copy.body}
-        </Text>
+        {copy.body ? (
+          <Text variant="body" tone="muted" style={styles.support}>
+            {copy.body}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.footer}>

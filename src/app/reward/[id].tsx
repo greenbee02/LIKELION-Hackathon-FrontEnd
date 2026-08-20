@@ -3,9 +3,9 @@ import { Gift } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { NavBar } from '@/components/ui/nav-bar';
 import { Screen } from '@/components/ui/screen';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
@@ -48,11 +48,9 @@ export default function RewardClaimScreen() {
   const toast = useToast();
   const [issuing, setIssuing] = useState(false);
 
-  const nav = (
-    <View style={styles.nav}>
-      <BackButton fallback="/" />
-    </View>
-  );
+  /* 이름은 '리워드'다. 리워드의 제목이 아니라 — 그건 본문 첫 줄에서 24pt 로 읽히고 있고,
+     화면의 주인공은 그 아래 코드다. */
+  const nav = <NavBar title="리워드" fallback="/" />;
 
   if (status === 'loading') {
     return (
@@ -198,7 +196,6 @@ const STATUS_LABEL: Record<Reward['status'], string> = {
 
 const styles = StyleSheet.create({
   content: { paddingTop: space[2], paddingBottom: space[7] },
-  nav: { flexDirection: 'row' },
   head: { marginTop: space[5] },
   title: { marginTop: space[1] },
   note: { marginTop: space[2] },

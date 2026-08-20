@@ -1,19 +1,16 @@
 import { Gift } from 'lucide-react-native';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { useTabBarSpace } from '@/components/navigation/tab-bar';
-import { EventEntry } from '@/components/reward/event-entry';
 import { RewardEntry } from '@/components/reward/reward-entry';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { useCards } from '@/lib/cards-store';
-import { fetchEvents, reasonFor, type BrandEvent } from '@/lib/events';
-import type { Card, Reward } from '@/lib/types';
-import { useResource } from '@/lib/use-resource';
+import type { Reward } from '@/lib/types';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
@@ -33,14 +30,11 @@ import { space } from '@/theme/spacing';
  * that does not categorise.
  */
 export default function RewardsScreen() {
-  const { status, rewards, cards, error } = useCards();
+  const { status, rewards, error } = useCards();
   const router = useRouter();
   const bottomSpace = useTabBarSpace();
 
   const groups = useMemo(() => groupByBrand(rewards), [rewards]);
-
-  const loadEvents = useCallback(() => fetchEvents(), []);
-  const events = useResource<BrandEvent[]>(loadEvents);
 
   const title = (
     <Text variant="title" style={styles.title}>
@@ -65,7 +59,8 @@ export default function RewardsScreen() {
     return (
       <Screen contentContainerStyle={{ paddingBottom: bottomSpace }}>
         {title}
-        <View style={styles.list}>
+        <View style={[styles.list, styles.group]}>
+          <Skeleton style={styles.panelSkeleton} />
           <Skeleton style={styles.panelSkeleton} />
           <Skeleton style={styles.panelSkeleton} />
         </View>
@@ -104,64 +99,7 @@ export default function RewardsScreen() {
           </View>
         ))}
       </View>
-
-      <Events events={events.data} status={events.status} cards={cards} />
     </Screen>
-  );
-}
-
-/**
- * 맞춤 행사 — 리워드와 나란하지만 다른 것.
- *
- * 위쪽 리워드는 **모으면 열리는 것**이고 여기는 **지금 열려 있어 신청하는 것**이다. 리워드
- * 목록에도 초대형(`UnlockTarget.type === 'EVENT'`)이 섞여 들어오는데 그쪽은 "당신이 이
- * 초대를 받았다"는 실데이터이고, 이 섹션은 아직 엔드포인트가 없어 목이다. 둘이 한 목록에
- * 섞이면 무엇이 진짜 내 것인지 알 수 없으므로 헤딩으로 갈라 놓는다.
- *
- * **비면 섹션 자체를 그리지 않는다.** `EmptyState` 는 `flex: 1` 부모를 요구해서 스크롤 안의
- * 한 절에는 들어갈 수 없고, 그보다도 — 보여줄 행사가 없다는 사실에 자리를 내줄 이유가 없다.
- */
-function Events({
-  events,
-  status,
-  cards,
-}: {
-  events: BrandEvent[] | null;
-  status: 'loading' | 'ready' | 'error';
-  cards: Card[];
-}) {
-  const router = useRouter();
-  if (status === 'error') return null;
-
-  if (status === 'loading') {
-    return (
-      <View style={styles.events}>
-        <Text variant="heading">맞춤 행사</Text>
-        <View style={styles.eventList}>
-          <Skeleton style={styles.eventSkeleton} />
-          <Skeleton style={styles.eventSkeleton} />
-        </View>
-      </View>
-    );
-  }
-
-  const list = events ?? [];
-  if (list.length === 0) return null;
-
-  return (
-    <View style={styles.events}>
-      <Text variant="heading">맞춤 행사</Text>
-      <View style={styles.eventList}>
-        {list.map((event) => (
-          <EventEntry
-            key={event.id}
-            event={event}
-            reason={reasonFor(event, cards)}
-            onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
-          />
-        ))}
-      </View>
-    </View>
   );
 }
 
@@ -183,15 +121,12 @@ function groupByBrand(rewards: Reward[]) {
 
 const styles = StyleSheet.create({
   title: { paddingTop: space[2] },
-  /** 24 between rewards: each is its own offer, not a row of one table. */
+  /* 12 — 각 리워드가 한 행이 되면서 24 는 목록을 흩어 놓는 간격이 됐다. 행들은 서로 붙어야
+     목록으로 읽히고, 절과 절 사이(브랜드 그룹)만 여전히 24 로 갈린다. */
   list: { marginTop: space[5], gap: space[5] },
-  group: { gap: space[5] },
+  group: { gap: space[3] },
   groupHead: { marginBottom: -space[2] },
-  /* Shaped like the panel it stands in for — head, note, bar and control, at the heights those
-     four land on — so the list does not resize under the customer when the data arrives. */
-  panelSkeleton: { height: 232, borderRadius: radius.base },
-  /** 32 — 모아서 여는 것과 지금 신청하는 것은 다른 절이다. */
-  events: { marginTop: space[6] },
-  eventList: { marginTop: space[4], gap: space[4] },
-  eventSkeleton: { height: 180, borderRadius: radius.base },
+  /* 대신 설 패널의 모양 그대로 — 패딩 16 둘에 이름과 컬렉션 두 줄. 데이터가 도착할 때
+     목록이 고객 아래에서 늘어나지 않도록 높이를 맞춰 둔다. */
+  panelSkeleton: { height: 84, borderRadius: radius.base },
 });

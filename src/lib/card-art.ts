@@ -1,168 +1,50 @@
-import { useEffect, useReducer } from 'react';
-import { Platform, type ImageSourcePropType } from 'react-native';
+import type { ImageSourcePropType } from 'react-native';
 
-import { getAccessToken } from './api/client';
-import { API_ORIGIN } from './config';
 import { MOCK_BRAND_MARKS } from './mock/brand-marks';
 import { MOCK_CARD_ART } from './mock/card-art';
 import type { Brand, Card } from './types';
 
 /**
- * Where a card's artwork comes from, resolved in one place.
+ * 카드의 그림이 어디서 오는지, 한 곳에서 정한다.
  *
- * The backend wins when it has something: `product.imageUrl` is a real URL and becomes a `uri`
- * source. Only when it has nothing does the bundled mock stand in. That order is what lets a card
- * move from mock to live without the face being rewritten — when the AI pipeline starts returning
- * images, this function stops falling through and nothing above it notices.
+ * 백엔드가 가진 것이 있으면 그것이 이긴다. 없을 때만 번들된 그림이 대신 선다. 그 순서 덕분에
+ * 카드가 목에서 실데이터로 옮겨가도 얼굴을 다시 쓰지 않는다 — 생성이 돌기 시작하면 이 함수가
+ * 폴백까지 내려가지 않게 되고, 위쪽은 아무것도 눈치채지 못한다.
  *
- * `null` is a real answer, not a failure: a card with no artwork shows the brand's own colour,
- * which is a finished state rather than a gap.
+ * `null` 은 실패가 아니라 답이다. 그림 없는 카드는 브랜드의 색으로 채워진, 완성된 상태다.
+ *
+ * **한때 여기 토큰을 실어 보내는 층이 있었다.** 백엔드가 `/images/**` 를 인증 뒤에 두던 시절,
+ * 웹에서는 `<img>` 에 헤더를 실을 수 없어 `fetch` 로 받아 `blob:` 으로 바꿔치기해야 했다.
+ * 그 경로는 이제 없다 — 두 경로 모두 permitAll 이고(`backend-open-items.md` 의 해결된 것),
+ * 남겨두면 손해만 본다: blob 을 받는 동안 그림 자리가 비고, 토큰이 없는 순간에는 공개 이미지
+ * 마저 영영 뜨지 않는다.
  */
 export function cardArtSource(card: Card): ImageSourcePropType | null {
   /* 꾸민 카드는 꾸민 얼굴을 갖는다. 이 한 줄이 편집 화면의 결과가 컬렉션에 반영되는 유일한
      지점이라, 없으면 저장이 끝난 뒤에도 카드가 그대로여서 편집 기능 전체가 무의미해진다. */
-  if (card.customization?.frontImageUrl) return authorized(card.customization.frontImageUrl);
-  if (card.product.imageUrl) return authorized(card.product.imageUrl);
+  if (card.customization?.frontImageUrl) return { uri: card.customization.frontImageUrl };
+  if (card.product.imageUrl) return { uri: card.product.imageUrl };
   return MOCK_CARD_ART[card.id] ?? null;
 }
 
 /**
- * 서버의 이미지에 토큰을 실어 보낸다.
- *
- * 상품 사진은 `/images/products/*.png` 에 있고 이 경로가 permitAll 목록에서 빠져 있어서,
- * 토큰 없이 부르면 401 이고 사진이 통째로 비어 보인다. 네이티브의 `<Image>` 는 헤더를 받으니
- * 여기서 끝나고, 웹은 `<img>` 에 헤더를 실을 수 없어 `useCardArt()` 가 이어받는다.
- *
- * 백엔드에 `/images/**` 공개를 요청해 둔 상태다 (연동 계획 §4-3). 열리면 이 함수와
- * `useCardArt()` 의 웹 경로가 함께 사라진다.
- */
-function authorized(uri: string): ImageSourcePropType {
-  const token = getAccessToken();
-  if (!token || Platform.OS === 'web') return { uri };
-  return { uri, headers: { Authorization: `Bearer ${token}` } };
-}
-
-/**
- * 백엔드가 준 주소인가. 외부 절대 URL 은 우리 인증과 무관하므로 건드리지 않는다.
- *
- * `API_ORIGIN` 은 프록시 뒤에서 빈 문자열이 된다(`EXPO_PUBLIC_API_URL=/api/v1`). 그때
- * 백엔드 자산은 `/images/...` 같은 루트 상대 경로로 오므로 `/` 로 시작하는지가 판별 기준이 되고,
- * AI 가 만든 외부 스토리지 URL(`https://...`)은 자연히 걸러진다.
- */
-function isBackendAsset(uri: string): boolean {
-  return API_ORIGIN ? uri.startsWith(API_ORIGIN) : uri.startsWith('/');
-}
-
-/** 웹에서만 쓰는 `uri → blob URL` 캐시. 같은 상품을 여러 카드가 공유해도 한 번만 받는다. */
-const blobUrls = new Map<string, string>();
-const inFlight = new Map<string, Promise<string | null>>();
-
-/**
- * 보호된 이미지를 토큰을 실어 받아 `blob:` 주소로 바꾼다.
- *
- * 실패는 `null` 로 끝내고 캐시하지 않는다 — 토큰이 아직 없거나 네트워크가 끊긴 순간일 수 있고,
- * 그런 이유로 이 세션 내내 사진을 포기할 필요는 없기 때문이다. 실패한 카드는 브랜드 액센트만
- * 남은 완성된 상태로 보인다.
- */
-function loadAuthorizedBlob(uri: string): Promise<string | null> {
-  const running = inFlight.get(uri);
-  if (running) return running;
-
-  const task = (async () => {
-    const token = getAccessToken();
-    if (!token) return null;
-    try {
-      const res = await fetch(uri, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) return null;
-      const url = URL.createObjectURL(await res.blob());
-      blobUrls.set(uri, url);
-      return url;
-    } catch {
-      return null;
-    } finally {
-      inFlight.delete(uri);
-    }
-  })();
-
-  inFlight.set(uri, task);
-  return task;
-}
-
-/** `{uri}` 형태이면서 백엔드 자산인 웹 소스만 골라낸다. 번들 목 이미지는 숫자라 여기서 걸러진다. */
-function protectedUri(source: ImageSourcePropType | null): string | null {
-  if (Platform.OS !== 'web' || !source) return null;
-  if (typeof source !== 'object' || Array.isArray(source)) return null;
-  const { uri } = source as { uri?: string };
-  if (!uri) return null;
-  return isBackendAsset(uri) ? uri : null;
-}
-
-/**
- * 보호된 이미지를 화면이 쓸 수 있는 소스로 바꾼다. 하는 일은 **웹의 401 문제 하나**뿐이다.
- *
- * 원래 카드 아트 전용이었는데 같은 벽에 부딪히는 것이 카드만이 아니다 — 템플릿 썸네일
- * (`/images/templates/*.png`)도, 아직 갖지 않은 상품의 사진도 같은 경로 아래 있고 똑같이
- * 401 이다. 기계는 소스가 무엇의 사진인지 알 필요가 없으므로 카드를 떼어내고 소스만 받는다.
- *
- * `<img>` 태그에는 `Authorization` 헤더를 실을 수 없다. 그래서 브라우저가 이미 들고 있는
- * 토큰으로 `fetch` 해서 받아온 뒤 `blob:` 주소로 바꿔 넘긴다 — 서비스 계정도, 프록시에 심는
- * 자격증명도 필요 없다. 요청이 프론트와 같은 출처(`/images/...`)로 나가므로 CORS 도 발생하지
- * 않는다.
- *
- * 받는 동안은 `null` 이고, 그동안 화면에는 브랜드 액센트가 채워진 얼굴이 보인다. 이건 로딩
- * 상태가 아니라 `CardFace` 가 원래 갖고 있던 "아트가 없는 카드"의 완성된 모습이고, 도착하면
- * `<Image transition>` 이 그 위로 페이드인한다. 스켈레톤이 필요 없는 이유다.
- *
- * `blob:` 주소는 세션 내내 유지하고 회수하지 않는다. 같은 사진을 여러 카드가 공유하므로 어느
- * 한 카드의 언마운트에서 회수하면 아직 떠 있는 다른 카드의 사진이 깨진다. 상품 수만큼만
- * 쌓이는 양이라 그대로 두는 편이 맞다.
- */
-export function useProtectedImage(source: ImageSourcePropType | null): ImageSourcePropType | null {
-  const uri = protectedUri(source);
-
-  // 캐시는 렌더 시점에 직접 읽고, 이 상태는 "도착했다"는 신호로만 쓴다. 값을 상태에 복사해 두면
-  // 캐시와 두 벌이 되고, 그걸 맞추려 effect 안에서 동기적으로 setState 하게 된다.
-  const [, arrived] = useReducer((n: number) => n + 1, 0);
-
-  useEffect(() => {
-    if (!uri || blobUrls.has(uri)) return;
-
-    let alive = true;
-    void loadAuthorizedBlob(uri).then((url) => {
-      if (alive && url) arrived();
-    });
-    return () => {
-      alive = false;
-    };
-  }, [uri]);
-
-  if (!uri) return source;
-  const blobUrl = blobUrls.get(uri);
-  return blobUrl ? { uri: blobUrl } : null;
-}
-
-/** 카드 한 장의 얼굴. 어느 그림인지는 `cardArtSource()` 가 정하고, 여기는 401 만 처리한다. */
-export function useCardArt(card: Card): ImageSourcePropType | null {
-  return useProtectedImage(cardArtSource(card));
-}
-
-/**
- * 주소 한 줄짜리 보호된 이미지 — 템플릿 썸네일, 아직 갖지 않은 상품의 사진처럼 `Card` 가
- * 없는 자리를 위한 것.
+ * 주소 한 줄을 `<Image>` 가 받는 소스로.
  *
  * 주소가 없으면 `null` 이고, 그건 오류가 아니라 그릴 그림이 없다는 사실이다. 부르는 쪽은
  * `CardFace` 가 마크 없는 브랜드에 하는 것과 같이 이름을 타이포로 세우면 된다.
+ *
+ * 주소를 절대 URL 로 만드는 일은 이미 API 층의 `assetUrl()` 이 끝냈다 — 여기까지 온 값은
+ * 부를 수 있는 주소이거나 `null` 둘 중 하나다.
  */
-export function useProtectedUrl(url: string | null | undefined): ImageSourcePropType | null {
-  return useProtectedImage(url ? authorized(url) : null);
+export function imageSource(url: string | null | undefined): ImageSourcePropType | null {
+  return url ? { uri: url } : null;
 }
 
 /**
- * The house's mark, resolved the same way and in the same order: the backend first, the bundled
- * mock only when it has nothing.
+ * 하우스의 마크. 카드 그림과 같은 순서로 정해진다 — 백엔드가 먼저, 번들은 없을 때만.
  *
- * `null` is a supported answer — a brand with no mark signs its cards with its name set in type,
- * which is what every brand did before any mark existed.
+ * `null` 도 지원되는 답이다. 마크 없는 브랜드는 이름을 타이포로 서명하고, 그건 어느 브랜드든
+ * 마크가 생기기 전까지 하던 일이다.
  */
 export function brandMarkSource(brand: Brand): ImageSourcePropType | null {
   if (brand.logoUrl) return { uri: brand.logoUrl };

@@ -42,6 +42,11 @@ export function Screen({
           style={styles.fill}
           contentContainerStyle={[allowPressOverflow, padding, contentContainerStyle]}
           keyboardShouldPersistTaps="handled"
+          /* 키보드가 올라오면 스크롤 뷰가 스스로 아래를 비운다. 폼 화면들이 각자
+             `KeyboardAvoidingView` 를 두르던 것을 여기로 모은 것이고, 그쪽은 스크롤 뷰
+             **안쪽**에 있어서 높이 제약이 없었다 — 즉 아무 일도 하지 않고 있었다.
+             iOS 전용 prop 이라 나머지 플랫폼에서는 무시된다. */
+          automaticallyAdjustKeyboardInsets
         >
           {children}
         </ScrollView>

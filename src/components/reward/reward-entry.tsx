@@ -1,13 +1,16 @@
 import { useRouter } from 'expo-router';
+import { Gift, Sparkles, Star } from 'lucide-react-native';
+import type { ComponentType } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/ui/panel';
-import { ProgressBar } from '@/components/ui/progress-bar';
 import { Text } from '@/components/ui/text';
+import { TicketProgress } from '@/components/ui/ticket-progress';
 import { formatPurchaseDate } from '@/lib/format';
 import type { Reward, RewardKind } from '@/lib/types';
+import { colors } from '@/theme/colors';
 import { space } from '@/theme/spacing';
 
 /**
@@ -25,54 +28,60 @@ const CLAIM_LABEL: Record<RewardKind, string> = {
 };
 
 /**
- * One reward, as a panel.
+ * 종류를 그리는 아이콘.
  *
- * A panel rather than a bare block, because unlike the collection — where the cards are the
- * subject and any chrome around them would compete — a reward has no picture of its own. What
- * would separate one from the next is nothing but a gap, and a gap at this density reads as one
- * long list of sentences.
+ * **표가 아니다.** 오른쪽 끝의 표는 얼마나 모았는지를 세는 것이고 이쪽은 무엇인지를 말하므로,
+ * 둘이 같은 그림이면 한 행에 같은 아이콘이 두 종류의 뜻으로 등장한다.
+ */
+const KIND_ICON: Record<RewardKind, ComponentType<{ size?: number; color?: string; strokeWidth?: number }>> = {
+  EVENT: Star,
+  BENEFIT: Sparkles,
+  GOODS: Gift,
+};
+
+/**
+ * 리워드 한 건, 한 행으로.
  *
- * **Locked rewards are shown, and that is the point of the screen.** A reward already in hand is
- * a receipt; a reward two cards away is the reason there is a third card to buy. So the locked
- * ones carry the bar and what is missing, and only the open ones carry a control.
+ * **아이콘 · 이름 · 값.** 목록의 줄이 읽히는 순서가 그것이고, 리워드에서 값에 해당하는 것은
+ * 얼마나 모았는가다. 이전에는 같은 사실이 세 번 적혀 있었다 — `0 / 3장` 과 빈 게이지와
+ * `앞으로 3장` 이 전부 "세 장이 필요하고 하나도 없다"는 한 문장이었고, 그 한 문장이 네 줄을
+ * 썼다. 표가 그 말을 하므로 숫자와 각주는 지웠다.
  *
- * The panel itself is not pressable, and that is deliberate rather than an omission. Every
- * pressable in this app grows 16% under the finger, which is right for a tile and wrong for a
- * full-width panel — it would swell past both gutters and get clipped by the scroll view on the
- * web export. A reward's action also has a name that changes with its kind, and a named button
- * says that where a tappable rectangle cannot.
+ * **잠긴 리워드를 보여주는 것이 이 화면의 목적이다.** 이미 받은 것은 영수증이고, 두 장 남은
+ * 것이 세 번째 카드를 살 이유다. 그래서 잠긴 것도 같은 줄에 서고, 열린 것만 아래에 버튼을
+ * 하나 더 갖는다.
+ *
+ * 패널은 눌리지 않는다. 앱의 모든 pressable 은 눌리는 동안 16% 자라는데, 타일에는 맞고 폭을
+ * 다 쓰는 패널에는 틀리다 — 양쪽 여백을 넘어 부풀고 웹 익스포트에서는 스크롤 뷰가 그 모서리를
+ * 잘라낸다. 게다가 리워드의 조작은 종류마다 이름이 다르고, 그 이름은 이름을 가진 버튼만이
+ * 말할 수 있다.
  */
 export function RewardEntry({ reward }: { reward: Reward }) {
   const router = useRouter();
+  const Icon = KIND_ICON[reward.kind];
+  const settled = reward.status === 'CLAIMED' || reward.status === 'EXPIRED';
 
   return (
     <Panel>
-      <View style={styles.head}>
-        <Text variant="heading" style={styles.title}>
-          {reward.title}
-        </Text>
-        {reward.status === 'CLAIMED' ? <Badge label="수령 완료" /> : null}
-        {reward.status === 'EXPIRED' ? <Badge label="기간 만료" /> : null}
-      </View>
+      <View style={styles.row}>
+        <Icon size={24} color={colors.text} strokeWidth={2} />
 
-      {/* 하우스가 이게 무엇인지 설명하는 줄. `rewards.description` 이 DTO 에 실리지 않아
-          실서버에서는 비어 있고, 없으면 줄을 그리지 않는다 — 빈 문단은 설명이 아니라 구멍이다. */}
-      {reward.note ? (
-        <Text variant="body" tone="muted" style={styles.note}>
-          {reward.note}
-        </Text>
-      ) : null}
-
-      <View style={styles.progress}>
-        <View style={styles.progressHead}>
+        <View style={styles.body}>
+          <Text variant="body" numberOfLines={2}>
+            {reward.title}
+          </Text>
+          {/* 어느 세트를 모아야 하는지. 이름 아래 회색 한 줄로, 이름과 다투지 않는다. */}
           <Text variant="caption" tone="muted" numberOfLines={1} style={styles.collection}>
             {reward.collection.name}
           </Text>
-          <Text variant="caption">
-            {reward.progress} / {reward.total}장
-          </Text>
         </View>
-        <ProgressBar value={reward.progress} total={reward.total} />
+
+        {/* 값의 자리. 끝난 리워드에는 셀 것이 없고 언제 끝났는지가 값이 된다. */}
+        {settled ? (
+          <Badge label={reward.status === 'CLAIMED' ? '수령 완료' : '기간 만료'} />
+        ) : (
+          <TicketProgress progress={reward.progress} total={reward.total} />
+        )}
       </View>
 
       {reward.status === 'UNLOCKED' ? (
@@ -81,48 +90,40 @@ export function RewardEntry({ reward }: { reward: Reward }) {
           onPress={() => router.push({ pathname: '/reward/[id]', params: { id: reward.id } })}
           style={styles.action}
         />
-      ) : (
+      ) : null}
+
+      {settled ? (
         <Text variant="caption" tone="muted" style={styles.foot}>
           {footnote(reward)}
         </Text>
-      )}
+      ) : null}
     </Panel>
   );
 }
 
 /**
- * 조작할 것이 없는 리워드의 마지막 줄.
+ * 끝난 리워드의 마지막 줄.
  *
- * 잠긴 것에는 가진 것이 아니라 모자란 것을 말한다 — 위의 숫자가 이미 가진 것을 말했고,
- * 행동으로 옮길 수 있는 형태는 "앞으로 2장"뿐이다. 수령한 것에는 날짜를 말한다: 쓴 혜택에
- * 대해 사람이 묻는 것은 언제 썼는지 하나뿐이다.
+ * 수령한 것에는 날짜를 말한다 — 쓴 혜택에 대해 사람이 묻는 것은 언제 썼는지 하나뿐이다.
+ * 잠긴 것에는 아무 줄도 붙지 않는다: 오른쪽 표가 이미 몇 장이 남았는지 말했고, 같은 말을
+ * 문장으로 한 번 더 적으면 그것이 이 패널을 네 줄로 만들던 각주다.
  *
  * 수령 매장은 적지 않는다. 어느 매장에서 받았는지는 **스키마 어디에도 열이 없고**, 직원
- * 도메인이 생기기 전까지는 생기지도 않는다(백엔드 운영 정책). 채워질 수 없는 자리를 비워두는
- * 것보다 그 자리를 만들지 않는 편이 낫다.
+ * 도메인이 생기기 전까지는 생기지도 않는다(백엔드 운영 정책).
  */
 function footnote(reward: Reward): string {
-  switch (reward.status) {
-    case 'LOCKED':
-      return `앞으로 ${Math.max(0, reward.total - reward.progress)}장`;
-    case 'CLAIMED':
-      return reward.claimedAt
-        ? `${formatPurchaseDate(reward.claimedAt)} 수령`
-        : '수령이 완료되었습니다';
-    default:
-      return reward.expiresAt ? `${formatPurchaseDate(reward.expiresAt)} 만료` : '기간이 지났습니다';
+  if (reward.status === 'CLAIMED') {
+    return reward.claimedAt ? `${formatPurchaseDate(reward.claimedAt)} 수령` : '수령이 완료되었습니다';
   }
+  return reward.expiresAt ? `${formatPurchaseDate(reward.expiresAt)} 만료` : '기간이 지났습니다';
 }
 
 const styles = StyleSheet.create({
-  head: { flexDirection: 'row', alignItems: 'flex-start', gap: space[2] },
-  title: { flexShrink: 1 },
-  note: { marginTop: space[1] },
-  /* 24 from the words above it: the bar is a different kind of statement from the sentence, and
-     at 16 the two would read as one paragraph with a rule drawn through it. */
-  progress: { marginTop: space[5], gap: space[2] },
-  progressHead: { flexDirection: 'row', justifyContent: 'space-between', gap: space[3] },
-  collection: { flexShrink: 1 },
+  /* 아이콘과 값은 세로 가운데, 이름은 두 줄이 될 수 있으므로 그 가운데에 맞춘다. */
+  row: { flexDirection: 'row', alignItems: 'center', gap: space[3] },
+  /* 이름이 길어도 표를 밀어내지 않는다 — 값은 언제나 오른쪽 끝에 있어야 목록으로 읽힌다. */
+  body: { flex: 1 },
+  collection: { marginTop: space[1] },
   action: { marginTop: space[4] },
   foot: { marginTop: space[3] },
 });

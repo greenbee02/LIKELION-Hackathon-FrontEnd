@@ -38,7 +38,7 @@ export type ButtonProps = {
  * this height and merely rounded at any other, so the height is fixed rather than derived from
  * padding.
  *
- * A press does two things at once: the fill steps and the control grows by 4%. The fill is what
+ * A press does two things at once: the fill steps and the control grows. The fill is what
  * the control looks like; the growth is what it feels like, and it is the same growth every
  * pressable in the app uses — see `usePressScale`.
  *

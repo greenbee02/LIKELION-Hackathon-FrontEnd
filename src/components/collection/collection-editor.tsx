@@ -3,11 +3,10 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { CardSelectTile } from '@/components/card/card-select-tile';
-import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { PageHeader } from '@/components/ui/page-header';
+import { NavBar } from '@/components/ui/nav-bar';
 import { allowPressOverflow } from '@/components/ui/press-scale';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
@@ -74,10 +73,7 @@ export function CollectionEditor({
 
   return (
     <Screen scroll gutter={false} contentContainerStyle={styles.content}>
-      <View style={styles.nav}>
-        <BackButton fallback="/collection" />
-      </View>
-      <PageHeader title={title} />
+      <NavBar title={title} fallback="/collection" />
 
       <Input
         label="컬렉션 이름"
@@ -131,7 +127,6 @@ const styles = StyleSheet.create({
   /* 거터를 내용이 진다 — 타일이 눌리면 자라는데, 스크롤 뷰는 자기 가장자리에서 자르므로
      가장자리에 붙은 타일은 자랄 곳이 없다. `Screen gutter={false}` 가 이것을 위해 있다. */
   content: { paddingHorizontal: space[4], paddingTop: space[2], paddingBottom: space[7] },
-  nav: { flexDirection: 'row' },
   field: { marginTop: space[5] },
   pickLabel: { marginTop: space[6] },
   /** 줄 사이 24, 줄 안 12 — 한 줄은 하나의 선반이고 줄끼리는 다른 선반이다. */

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { failureCopy } from './api/errors';
+
 /**
  * 한 번 불러오고 세 상태로 답하는 것.
  *
@@ -34,7 +36,9 @@ export function useResource<T>(load: () => Promise<T>) {
       })
       .catch((e: unknown) => {
         if (!alive) return;
-        setError(e instanceof Error ? e.message : '불러오지 못했습니다.');
+        /* 우리 문장으로 옮긴 뒤에 담는다. `e.message` 를 그대로 두면 화면의 설명 줄에
+           `HTTP 404` 가 적힌다 — 실패의 모양을 정하는 일은 `api/errors.ts` 의 것이다. */
+        setError(failureCopy(e).note);
         setStatus('error');
       });
     return () => {
