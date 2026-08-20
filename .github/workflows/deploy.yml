@@ -1,0 +1,42 @@
+# main 에 코드가 올라가면 Vercel 프로덕션으로 배포한다.
+#
+# 이 레포는 다른 사람 계정 소유라 Vercel GitHub App 을 설치할 수 없다. App 은 레포가
+# 아니라 계정에 설치되기 때문이다. 하지만 Actions 는 App 이 필요 없다 — VERCEL_TOKEN
+# 하나로 CLI 가 배포하고, 그 토큰은 이쪽 계정 것이다. 그래서 오너 협조 없이 성립한다.
+#
+# 소스를 올려 Vercel 이 빌드하게 둔다. 로컬에서 `npx vercel --prod` 로 하던 것과 정확히
+# 같은 경로라, 러너에서만 깨지는 빌드가 생기지 않는다. .vercelignore 도 그대로 적용된다.
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+    # 문서만 바뀐 커밋은 웹 산출물을 바꾸지 않는다.
+    paths-ignore:
+      - '**.md'
+      - 'dev/**'
+  workflow_dispatch:
+
+# 연달아 push 하면 앞선 배포는 버린다. 마지막 것만 프로덕션이 되면 된다.
+concurrency:
+  group: vercel-prod
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy
+        id: deploy
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          # 인자로 넘기면 러너의 프로세스 목록에 토큰이 그대로 드러난다. CLI 는 이
+          # 환경변수를 그대로 읽으므로 --token 을 쓸 이유가 없다.
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          url=$(npx --yes vercel@59 deploy --prod --yes)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### 배포 완료: $url" >> "$GITHUB_STEP_SUMMARY"
