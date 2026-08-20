@@ -23,6 +23,7 @@ Expo SDK 57 + Expo Router + React Native 0.86 + React Native Web + TypeScript. O
 - Headless primitives: **`@rn-primitives/*` only.** Radix UI proper is DOM-only — never install `@radix-ui/react-*`.
 - Blur: `expo-blur` everywhere, `expo-glass-effect` on iOS 26+, degrading to `expo-blur`.
 - Web is secondary to the phone demo, but every screen must remain usable on React Native Web.
+- **The dev server is never started on a fixed port** — run the `dev-up` skill (`.claude/skills/dev-up/`), which walks up from 8081 so parallel worktrees each get their own. `expo start` on a busy port *prompts*, and with no TTY that prompt aborts the command instead of picking another port. **`--clear` is never the fix**: Metro's transform cache is one directory in `os.tmpdir()` shared by every worktree and every Expo project on the machine.
 
 ## Design
 

@@ -58,11 +58,13 @@
 
 브라우저가 요구하는 것은 하나, **secure context** 다 (`getUserMedia`):
 
+포트는 고정이 아니다 — `dev-up` 이 8081 부터 비어 있는 자리를 잡아 찍어 준 값을 쓴다.
+
 | 주소 | 카메라 |
 |---|---|
-| `http://localhost:8082` (Mac 브라우저) | ✅ localhost 는 secure context |
-| `exp://192.168.219.101:8082` (Expo Go) | ✅ 네이티브 |
-| `http://192.168.219.101:8082` (폰 브라우저) | ❌ 평문 LAN 주소는 secure context 가 아님 |
+| `http://localhost:<포트>` (Mac 브라우저) | ✅ localhost 는 secure context |
+| `exp://192.168.0.15:<포트>` (Expo Go) | ✅ 네이티브 |
+| `http://192.168.0.15:<포트>` (폰 브라우저) | ❌ 평문 LAN 주소는 secure context 가 아님 |
 
 폰 브라우저로 봐야 하면 `npx expo start --tunnel`(https) 이나 로컬 https 프록시가 필요하다.
 
@@ -71,7 +73,7 @@
 같은 상태라 별도 분기를 두지 않았다.
 
 개발 중 발급 이후 화면만 확인하려면 주소로 직접 들어간다 —
-`http://localhost:8082/issue/MCM-DEMO-2026-001`. 라우트가 토큰을 param 으로 받으므로
+`http://localhost:<포트>/issue/MCM-DEMO-2026-001`. 라우트가 토큰을 param 으로 받으므로
 스캔 화면을 거치지 않아도 플로우 전체가 그대로 돈다.
 
 ---
