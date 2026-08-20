@@ -15,7 +15,7 @@ import {
 } from './api/ai-resources';
 import { selectCustomization } from './api/customizations';
 import { assetUrl } from './config';
-import { failureMessage } from './api/errors';
+import { aiFailureMessage } from './api/errors';
 import { buildComposeBody, validateComposeBody } from './card-compose';
 import {
   applyComposition,
@@ -95,7 +95,7 @@ export type GroupState = {
 };
 
 /* 워커가 5초에 한 번 큐를 집으므로 그 박자에 맞춘다. 더 자주 물어도 새 답은 나오지 않는다. */
-const POLL_MS = 2_000;
+const POLL_DELAYS = [2_000, 4_000, 8_000, 16_000, 30_000] as const;
 /** 이보다 오래 걸리면 그 그룹에 한 줄이 붙는다. 붙잡아두는 화면이 아니므로 나갈 길은 늘 있다. */
 const PATIENCE_MS = 30_000;
 /** 여기까지 오면 그 그룹의 폴링을 멈춘다. 서버는 계속 만들고 있을 수 있다. */
@@ -186,7 +186,7 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
             [type]: { ...(prev[type] ?? emptyGroup()), groupId },
           }));
         } catch (e) {
-          setError(failureMessage(e));
+          setError(aiFailureMessage(e));
           /* 그룹 하나가 실패했다고 화면 전체를 오류로 만들지 않는다 — 다른 그룹은 멀쩡하고,
              이 그룹은 '다시 만들기'로 되살릴 수 있다. */
           setGroups((prev) => ({ ...prev, [type]: { ...emptyGroup(), requestedAt: null } }));
@@ -274,11 +274,27 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
       }
     };
 
-    void ask();
-    const timer = setInterval(() => void ask(), POLL_MS);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let delayIndex = 0;
+    const schedule = () => {
+      if (!alive) return;
+      timer = setTimeout(() => {
+        void (async () => {
+          await ask();
+          if (!alive) return;
+          delayIndex = Math.min(delayIndex + 1, POLL_DELAYS.length - 1);
+          schedule();
+        })();
+      }, POLL_DELAYS[delayIndex]);
+    };
+
+    void (async () => {
+      await ask();
+      schedule();
+    })();
     return () => {
       alive = false;
-      clearInterval(timer);
+      if (timer) clearTimeout(timer);
     };
   }, [cardId, waiting]);
 
@@ -435,7 +451,7 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
       }
       return { ok: true, customization: made };
     } catch (e) {
-      setError(failureMessage(e));
+      setError(aiFailureMessage(e));
       return { ok: false };
     }
   }, [cardId, draft]);

@@ -76,6 +76,26 @@ export function failureMessage(e: unknown): string {
   return COPY[shape].title;
 }
 
+const AI_COPY: Record<string, string> = {
+  AI_RESOURCE_TYPE_DUPLICATED: '같은 리소스 종류는 한 번에 중복 생성할 수 없습니다.',
+  AI_RESOURCE_TYPE_UNSUPPORTED: '현재 지원하지 않는 AI 리소스 종류입니다.',
+  AI_RESOURCE_OPTIONS_INVALID: '선택한 리소스 옵션을 확인해 주세요.',
+  AI_RESOURCE_NOT_FOUND: 'AI 리소스를 찾을 수 없습니다.',
+  AI_RESOURCE_NOT_COMPLETED: '생성이 끝난 리소스만 카드에 배치할 수 있습니다.',
+  AI_RESOURCE_DUPLICATED: '같은 AI 리소스는 한 번만 선택할 수 있습니다.',
+  AI_RESOURCE_CANDIDATE_DUPLICATED: '같은 후보 그룹에서는 하나만 선택해 주세요.',
+  AI_COMPOSITION_INVALID: '카드에 배치한 AI 리소스를 확인해 주세요.',
+  PRODUCT_IMAGE_REQUIRED: '상품 이미지가 있어야 배경을 만들 수 있습니다.',
+  PRODUCT_IMAGE_NOT_FOUND: '상품 이미지가 없어 AI 합성을 진행할 수 없습니다.',
+  CARD_NOT_ACTIVE: '현재 상태의 카드에는 AI 편집을 적용할 수 없습니다.',
+};
+
+/** AI 생성·합성 API가 주는 도메인 코드별 고객 안내 문구. */
+export function aiFailureMessage(e: unknown): string {
+  if (e instanceof ApiError && AI_COPY[e.code]) return AI_COPY[e.code];
+  return failureMessage(e);
+}
+
 /** 다시 시도가 의미 있는 실패인가. 네트워크와 서버의 나쁜 날만 해당한다. */
 export const isTransient = (e: unknown) =>
   failureShapeOf(e) === 'offline' || failureShapeOf(e) === 'server';

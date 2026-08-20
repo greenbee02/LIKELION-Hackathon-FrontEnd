@@ -43,6 +43,44 @@ const COLUMNS = 2;
 /** 미리보기 카드의 폭. 상세보다 좁다 — 여기서는 카드가 주인공이 아니라 작업 대상이다. */
 const PREVIEW_WIDTH = 220;
 
+type AiOptionField = { key: string; label: string; placeholder: string };
+
+const AI_OPTION_FIELDS: Record<AiResourceType, readonly AiOptionField[]> = {
+  BACKGROUND: [
+    { key: 'mood', label: '분위기', placeholder: '예: 차분한 밤, 따뜻한 오후' },
+    { key: 'color', label: '색감', placeholder: '예: 딥 네이비, 모노톤' },
+    { key: 'texture', label: '질감', placeholder: '예: 종이 질감, 부드러운 그라데이션' },
+  ],
+  BORDER: [
+    { key: 'shape', label: '모양', placeholder: '예: 얇은 선, 둥근 모서리' },
+    { key: 'color', label: '색감', placeholder: '예: 실버, 따뜻한 브라운' },
+  ],
+  PATTERN: [
+    { key: 'motif', label: '모티프', placeholder: '예: 기하학, 잎사귀' },
+    { key: 'density', label: '밀도', placeholder: '예: 여백 많게, 촘촘하게' },
+    { key: 'color', label: '색감', placeholder: '예: 흑백, 낮은 채도' },
+  ],
+  PRODUCT_ANGLE: [],
+  DECORATION: [
+    { key: 'subject', label: '주제', placeholder: '예: 작은 별, 리본' },
+    { key: 'mood', label: '분위기', placeholder: '예: 우아하게, 장난스럽게' },
+    { key: 'color', label: '색감', placeholder: '예: 골드, 파스텔' },
+  ],
+  COLOR_PALETTE: [
+    { key: 'mood', label: '분위기', placeholder: '예: 고요한 새벽, 빈티지' },
+    { key: 'temperature', label: '색온도', placeholder: '예: 따뜻하게, 차갑게' },
+  ],
+  TEXT_STYLE: [
+    { key: 'fontStyle', label: '글꼴 분위기', placeholder: '예: 클래식 세리프, 모던 산세리프' },
+    { key: 'weight', label: '굵기', placeholder: '예: 가볍게, 또렷하게' },
+    { key: 'alignment', label: '정렬', placeholder: '예: 가운데, 왼쪽' },
+  ],
+  COMPOSITION: [
+    { key: 'layout', label: '배치', placeholder: '예: 중앙 집중, 비대칭' },
+    { key: 'emphasis', label: '강조 대상', placeholder: '예: 상품을 크게, 여백을 강조' },
+  ],
+};
+
 /**
  * 카드 꾸미기 — 하우스가 승인한 범위 안에서.
  *
@@ -289,24 +327,23 @@ function CandidatesPane({
      종류가 골라진 채로 화면이 열린다. */
   const [type, setType] = useState<AiResourceType>(design.generatableTypes[0] ?? 'DECORATION');
   const [prompt, setPrompt] = useState('');
-  const [styleOption, setStyleOption] = useState('');
-  const [colorOption, setColorOption] = useState('');
-  const [densityOption, setDensityOption] = useState('');
+  const [optionValues, setOptionValues] = useState<Record<string, string>>({});
   const [candidateCount, setCandidateCount] = useState<3 | 4>(4);
   const group = design.groups[type];
   const chosenCount = Object.keys(design.selected).length;
   const promptError = prompt.length > 2000 ? '프롬프트는 2000자 이하여야 합니다.' : null;
+  const optionFields = AI_OPTION_FIELDS[type];
   const generationOptions = useMemo(
     () => ({
       prompt: prompt.trim() || undefined,
       candidateCount,
       options: Object.fromEntries(
-        Object.entries({ style: styleOption, color: colorOption, density: densityOption }).filter(
-          ([, value]) => value.trim().length > 0,
-        ),
+        optionFields
+          .map(({ key }) => [key, optionValues[`${type}:${key}`] ?? ''] as const)
+          .filter(([, value]) => value.trim().length > 0),
       ),
     }),
-    [candidateCount, colorOption, densityOption, prompt, styleOption],
+    [candidateCount, optionFields, optionValues, prompt, type],
   );
   const generateCurrent = () => {
     if (promptError) return;
@@ -337,27 +374,18 @@ function CandidatesPane({
         {`${prompt.length}/2000`}
       </Text>
 
-      <Input
-        label="스타일 옵션"
-        value={styleOption}
-        onChangeText={setStyleOption}
-        placeholder="예: 미니멀, 손그림"
-        style={styles.field}
-      />
-      <Input
-        label="색상 옵션"
-        value={colorOption}
-        onChangeText={setColorOption}
-        placeholder="예: 따뜻한 베이지, 흑백"
-        style={styles.field}
-      />
-      <Input
-        label="밀도 옵션"
-        value={densityOption}
-        onChangeText={setDensityOption}
-        placeholder="예: 여백 많게, 풍성하게"
-        style={styles.field}
-      />
+      {optionFields.map((field) => (
+        <Input
+          key={field.key}
+          label={field.label}
+          value={optionValues[`${type}:${field.key}`] ?? ''}
+          onChangeText={(value) =>
+            setOptionValues((prev) => ({ ...prev, [`${type}:${field.key}`]: value }))
+          }
+          placeholder={field.placeholder}
+          style={styles.field}
+        />
+      ))}
 
       <View style={styles.optionRow}>
         <Text variant="label" tone="muted" style={styles.optionLabel}>
@@ -517,7 +545,13 @@ function EditorPane({
           ? '카드에 반영되었습니다'
           : '저장을 시작했습니다. 완료되면 카드에 반영됩니다.',
       );
-      router.replace({ pathname: '/card/[id]', params: { id: card.id } });
+      router.replace({
+        pathname: '/card/[id]/ai-result',
+        params: {
+          id: card.id,
+          ...(result.customization?.id && { customizationId: result.customization.id }),
+        },
+      });
     })();
   };
 
