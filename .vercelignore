@@ -1,0 +1,10 @@
+# Vercel 은 .gitignore 가 아니라 이 파일을 본다. 없으면 gitignore 된 ios/ 까지 업로드에
+# 딸려 들어가고, 파일 수가 15000 개 제한을 넘겨 배포가 missing_archive 로 거절된다
+# (ios/ 하나가 27000 개다). 웹 배포에 필요한 것은 소스와 설정뿐이므로 네이티브 산출물과
+# 로컬 빌드 결과는 전부 뺀다.
+node_modules
+ios
+android
+.expo
+dist
+web-build
