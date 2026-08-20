@@ -8,7 +8,13 @@ import {
   type GenerationStatus,
   type IssueResourceType,
 } from './api/ai-resources';
-import { issueErrorCodeOf, registerCard, type IssueErrorCode } from './api/registrations';
+import {
+  fetchPurchaseQrPreview,
+  issueErrorCodeOf,
+  registerCard,
+  type IssueErrorCode,
+  type PurchaseQrPreview,
+} from './api/registrations';
 import { useCards } from './cards-store';
 import type { Card } from './types';
 
@@ -52,13 +58,14 @@ const PATIENCE_MS = 45_000;
  */
 const MAX_MS = 180_000;
 
-export type IssueStage = 'registering' | 'generating' | 'ready' | 'error';
+export type IssueStage = 'previewing' | 'preview' | 'registering' | 'generating' | 'ready' | 'error';
 
 /** The three states a tile can be in. `REJECTED` is a failure to the customer, so it reads as one. */
 export type ResourceState = { type: IssueResourceType; status: 'PENDING' | 'COMPLETED' | 'FAILED' };
 
 export type IssueState = {
   stage: IssueStage;
+  preview: PurchaseQrPreview | null;
   card: Card | null;
   resources: ResourceState[];
   /**
@@ -82,13 +89,16 @@ type Run = {
   disposed: boolean;
   /** The card reaches the store exactly once, even if the screen mounts twice. */
   issued: boolean;
+  /** The customer has confirmed the preview, so registration should only start once. */
+  registrationStarted: boolean;
   onIssued: (card: Card) => void;
 };
 
 const runs = new Map<string, Run>();
 
 const initialState = (): IssueState => ({
-  stage: 'registering',
+  stage: 'previewing',
+  preview: null,
   card: null,
   resources: ISSUE_RESOURCE_TYPES.map((type) => ({ type, status: 'PENDING' })),
   slow: false,
@@ -120,6 +130,8 @@ const foldGroup = (candidates: { status: GenerationStatus }[]): ResourceState['s
 const settled = (resources: ResourceState[]) => resources.every((r) => r.status !== 'PENDING');
 
 async function drive(token: string, run: Run) {
+  patch(run, { stage: 'registering' });
+
   let card: Card;
   try {
     card = await registerCard(token);
@@ -182,6 +194,16 @@ async function drive(token: string, run: Run) {
   }
 }
 
+async function loadPreview(token: string, run: Run) {
+  try {
+    const preview = await fetchPurchaseQrPreview(token);
+    if (run.disposed) return;
+    patch(run, { stage: 'preview', preview });
+  } catch (e) {
+    if (!run.disposed) patch(run, { stage: 'error', errorCode: issueErrorCodeOf(e) });
+  }
+}
+
 function startRun(token: string, onIssued: (card: Card) => void): Run {
   const existing = runs.get(token);
   if (existing) {
@@ -194,11 +216,19 @@ function startRun(token: string, onIssued: (card: Card) => void): Run {
     listeners: new Set(),
     disposed: false,
     issued: false,
+    registrationStarted: false,
     onIssued,
   };
   runs.set(token, run);
-  void drive(token, run);
+  void loadPreview(token, run);
   return run;
+}
+
+function confirmRun(token: string, run: Run) {
+  if (run.disposed || run.registrationStarted || run.state.stage !== 'preview') return;
+  if (!run.state.preview?.usable) return;
+  run.registrationStarted = true;
+  void drive(token, run);
 }
 
 /**
@@ -230,5 +260,7 @@ export function useIssue(token: string) {
     setRun(startRun(token, addCard));
   }, [token, addCard]);
 
-  return { ...state, retry };
+  const confirm = useCallback(() => confirmRun(token, run), [run, token]);
+
+  return { ...state, confirm, retry };
 }

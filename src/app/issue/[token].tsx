@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { AlertCircle, Clock, ScanLine, Wifi } from 'lucide-react-native';
 import type { ComponentType } from 'react';
@@ -7,10 +8,12 @@ import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 import { IssueCard } from '@/components/issue/issue-card';
 import { Checklist } from '@/components/ui/checklist';
 import { Button } from '@/components/ui/button';
+import { NavBar } from '@/components/ui/nav-bar';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { RESOURCE_LABELS } from '@/lib/api/ai-resources';
-import { isIssueBlocked, type IssueErrorCode } from '@/lib/api/registrations';
+import { assetUrl } from '@/lib/config';
+import { isIssueBlocked, type IssueErrorCode, type PurchaseQrPreview } from '@/lib/api/registrations';
 import { formatPurchaseDate } from '@/lib/format';
 import { useIssue } from '@/lib/issue-flow';
 import type { Card } from '@/lib/types';
@@ -33,7 +36,7 @@ import { space } from '@/theme/spacing';
 export default function IssueScreen() {
   const params = useLocalSearchParams<{ token: string | string[] }>();
   const token = (Array.isArray(params.token) ? params.token[0] : params.token) ?? '';
-  const { stage, card, resources, slow, errorCode, retry } = useIssue(token);
+  const { stage, preview, card, resources, slow, errorCode, confirm, retry } = useIssue(token);
 
   const holding = stage === 'registering' || (stage === 'generating' && !slow);
 
@@ -51,6 +54,10 @@ export default function IssueScreen() {
 
       {stage === 'error' ? (
         <IssueError code={errorCode ?? 'UNKNOWN'} onRetry={retry} />
+      ) : stage === 'previewing' ? (
+        <IssuePreviewLoading />
+      ) : stage === 'preview' && preview ? (
+        <IssuePreview preview={preview} onConfirm={confirm} />
       ) : stage === 'ready' && card ? (
         <IssueReady card={card} incomplete={resources.some((r) => r.status !== 'COMPLETED')} />
       ) : stage === 'generating' && card ? (
@@ -59,6 +66,115 @@ export default function IssueScreen() {
         <IssueRegistering />
       )}
     </Screen>
+  );
+}
+
+function IssuePreviewLoading() {
+  return (
+    <View style={styles.page}>
+      <NavBar title="카드 발급" fallback="/scan" />
+      <View style={styles.body}>
+        <IssueCard card={null} />
+        <Text variant="title" style={styles.headline}>
+          QR 정보를 확인하는 중입니다
+        </Text>
+        <Text variant="body" tone="muted" style={styles.support}>
+          구매 정보와 카드 발급 가능 여부를 확인하고 있습니다.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function IssuePreview({
+  preview,
+  onConfirm,
+}: {
+  preview: PurchaseQrPreview;
+  onConfirm: () => void;
+}) {
+  const router = useRouter();
+  const image = assetUrl(preview.product.imageUrl);
+  const unavailable = !preview.usable;
+  const title = preview.status === 'USED'
+    ? '이미 발급된 영수증입니다'
+    : preview.status === 'EXPIRED'
+      ? '발급 기한이 지났습니다'
+      : '이 상품으로 카드를 발급할까요?';
+
+  return (
+    <View style={styles.page}>
+      <NavBar title="카드 발급" fallback="/scan" />
+
+      <View style={styles.previewContent}>
+        <View style={styles.productPreview}>
+          {image ? (
+            <Image source={image} style={styles.productImage} contentFit="cover" transition={200} />
+          ) : (
+            <View style={styles.productPlaceholder}>
+              <ScanLine size={28} color={colors.textMuted} />
+            </View>
+          )}
+          <View style={styles.productCopy}>
+            <Text variant="label" tone="muted">
+              {preview.store.name}
+            </Text>
+            <Text variant="title" numberOfLines={2} style={styles.productName}>
+              {preview.product.name}
+            </Text>
+            <Text variant="caption" tone="muted">
+              {preview.store.city} · {formatPurchaseDate(preview.purchaseDate)}
+            </Text>
+          </View>
+        </View>
+
+        <Text variant="title" style={styles.previewTitle}>
+          {title}
+        </Text>
+
+        <View style={styles.details}>
+          <PreviewRow label="구매 매장" value={preview.store.name} />
+          <PreviewRow label="구매일" value={formatPurchaseDate(preview.purchaseDate)} />
+          {preview.serialNumber ? <PreviewRow label="구매 번호" value={preview.serialNumber} /> : null}
+          {preview.expiresAt ? (
+            <PreviewRow label="발급 기한" value={formatPurchaseDate(preview.expiresAt)} />
+          ) : null}
+        </View>
+
+        <Text variant="body" tone="muted" style={styles.support}>
+          {unavailable
+            ? '사용할 수 없는 QR 코드입니다. 다른 영수증을 확인해주세요.'
+            : '구매 정보를 확인한 뒤 카드 발급을 진행합니다.'}
+        </Text>
+      </View>
+
+      <View style={styles.footer}>
+        {unavailable ? (
+          <Button label="다른 QR 스캔하기" onPress={() => router.replace('/scan')} />
+        ) : (
+          <Button label="이 정보로 카드 발급" onPress={onConfirm} />
+        )}
+        <Button
+          label="코드를 직접 입력하기"
+          variant="outline"
+          style={styles.cta}
+          onPress={() => router.replace('/issue/input')}
+        />
+      </View>
+    </View>
+  );
+}
+
+function PreviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.previewRow}>
+      <Text variant="caption" tone="muted">
+        {label}
+      </Text>
+      <Text variant="label" numberOfLines={1} style={styles.previewValue}>
+        {value}
+      </Text>
+    </View>
   );
 }
 
@@ -277,6 +393,46 @@ const styles = StyleSheet.create({
   body: { flex: 1, justifyContent: 'center', paddingVertical: space[5] },
   headline: { marginTop: space[5], textAlign: 'center' },
   support: { marginTop: space[2], textAlign: 'center' },
+  previewContent: { flex: 1, justifyContent: 'center', paddingVertical: space[5] },
+  productPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 360,
+  },
+  productImage: {
+    width: 88,
+    height: 88,
+    borderRadius: radius.base,
+    backgroundColor: colors.surface,
+  },
+  productPlaceholder: {
+    width: 88,
+    height: 88,
+    borderRadius: radius.base,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  productCopy: { flex: 1, marginLeft: space[4] },
+  productName: { marginTop: space[1] },
+  previewTitle: { marginTop: space[6], textAlign: 'center' },
+  details: {
+    marginTop: space[5],
+    paddingVertical: space[2],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  previewRow: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space[4],
+  },
+  previewValue: { flex: 1, textAlign: 'right' },
   note: { marginTop: space[4], textAlign: 'center' },
   checklist: { paddingBottom: space[5] },
   footer: { paddingBottom: space[5] },

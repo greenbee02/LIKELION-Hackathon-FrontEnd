@@ -46,6 +46,41 @@ export const isIssueBlocked = (code: IssueErrorCode) =>
 
 export type { CardResponse };
 
+/** `GET /purchase-qrs/preview` — 등록 전에 영수증이 가리키는 상품을 확인한다. */
+export type PurchaseQrPreview = {
+  status: 'AVAILABLE' | 'USED' | 'EXPIRED';
+  usable: boolean;
+  purchaseDate: string;
+  serialNumber: string | null;
+  expiresAt: string | null;
+  product: {
+    id: string;
+    productCode: string | null;
+    name: string;
+    imageUrl: string | null;
+    limited: boolean;
+  };
+  store: {
+    id: string;
+    name: string;
+    country: string;
+    city: string;
+  };
+};
+
+/**
+ * 등록 전에 QR을 확인한다.
+ *
+ * 운영 서버의 미리보기는 로그인된 사용자가 호출하며, 사용된 QR이나 만료된 QR도 오류 대신
+ * `usable: false` 상태로 돌려준다. 그래서 화면은 응답을 받은 뒤 등록 버튼을 결정한다.
+ */
+export async function fetchPurchaseQrPreview(qrToken: string): Promise<PurchaseQrPreview> {
+  const token = qrToken.trim();
+  return request<PurchaseQrPreview>(
+    `/purchase-qrs/preview?qrToken=${encodeURIComponent(token)}`,
+  );
+}
+
 /** 등록하고, 곧바로 상품 상세까지 채운 카드를 돌려준다. */
 export async function registerCard(qrToken: string) {
   const res = await request<CardResponse>('/cards/registrations', {

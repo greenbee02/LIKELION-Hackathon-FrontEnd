@@ -9,6 +9,7 @@ import { useTabBarSpace } from '@/components/navigation/tab-bar';
 import { NavBar } from '@/components/ui/nav-bar';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
+import { TextLink } from '@/components/ui/text-link';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
@@ -137,6 +138,11 @@ export default function ScanScreen() {
         <Text variant="caption" tone="muted" style={styles.guideText}>
           QR 코드를 화면 중앙에 스캔하면 카드가 발급됩니다
         </Text>
+        <TextLink
+          label="코드를 직접 입력하기"
+          onPress={() => router.push('/issue/input')}
+          style={styles.manual}
+        />
       </View>
 
       {/* 뷰파인더가 더 이상 남는 높이를 다 먹지 않으므로, 남는 높이는 여기가 갖는다. 탭 바가
@@ -180,4 +186,5 @@ const styles = StyleSheet.create({
   guide: { paddingHorizontal: space[4], paddingVertical: space[4] },
   rest: { flex: 1 },
   guideText: { textAlign: 'center' },
+  manual: { marginTop: space[1] },
 });
