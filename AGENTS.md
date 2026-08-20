@@ -23,9 +23,21 @@ Expo SDK 57 + Expo Router + React Native 0.86 + React Native Web + TypeScript. O
 - Headless primitives: **`@rn-primitives/*` only.** Radix UI proper is DOM-only — never install `@radix-ui/react-*`.
 - Blur: `expo-blur` everywhere, `expo-glass-effect` on iOS 26+, degrading to `expo-blur`.
 - Web is secondary to the phone demo, but every screen must remain usable on React Native Web.
-- **The dev server is never started on a fixed port** — run the `dev-up` skill (`.claude/skills/dev-up/`), which walks up from 8081 so parallel worktrees each get their own. `expo start` on a busy port *prompts*, and with no TTY that prompt aborts the command instead of picking another port. **`--clear` is never the fix**: Metro's transform cache is one directory in `os.tmpdir()` shared by every worktree and every Expo project on the machine.
+
+## Running it locally
+
+**Start the dev server with the `dev-up` skill** (`.claude/skills/dev-up/`), never a bare `expo start`. It binds the first free port from 8081 upward, so worktrees running side by side each get their own.
+
+- **A busy port does not make `expo start` move to the next one — it prompts.** With no TTY that prompt aborts the command, so a backgrounded start on a taken port does not pick another port, it silently does not start. `--port 0` is the one path that walks upward without asking, and it is what the skill launches.
+- **`--clear` is never the fix.** Metro's transform cache is one directory in `os.tmpdir()` shared by every worktree and every Expo project on the machine, keyed by content rather than by path — a fresh worktree starts warm off another's work, and clearing throws that away for all of them. If a crawl is genuinely stale, delete only the per-worktree `$TMPDIR/metro-file-map-expo-*`.
+- **Worktrees live at `.claude/worktrees/<name>`, and `node_modules` is the only thing a fresh one lacks** — `.env` is committed, so nothing has to be copied in. The skill runs `npm ci` when it finds none.
+- **A port holder is reported, never killed.** Skipping to the next port is cheap; killing a server somebody is using is not. The skill prints the `kill` command only when the holder's worktree is gone.
+- **The iOS dev build pins its port at build time** (`ios/Curio/AppDelegate.swift`, currently 8082), and `ios/` is gitignored so it never shows in a diff. For a native build take that port explicitly.
+- **A person checks screens; tools hand back URLs.** Verify with `curl`.
 
 ## Design
+
+Design is **mobile-first** — native phone screens are primary, web is the same app widened.
 
 **Never write a raw value where a token exists.**
 
@@ -77,7 +89,7 @@ A scroll view clips at its own edge and no overflow rule reaches it, so a list w
 
 `Checkbox` and text links are deliberately excluded from press growth.
 
-### Auth
+## Auth
 
 `AuthProvider` (`src/lib/auth-store.tsx`) holds `restoring | signed-out | signed-in`; the gate in `src/app/_layout.tsx` redirects on it and holds the splash until it resolves, so neither a returning nor a new customer flashes the wrong screen.
 
@@ -95,7 +107,7 @@ Google is wired to `signInWithProvider`; Apple is a stub, and is not optional on
 - **RN applies `letterSpacing` after the last glyph too**, so a centred line of tracked caps is drawn half a track to the left of where the eye puts it. `Wordmark` cancels it with one track of left padding. That is why the mark is a component and why nothing else uses the role directly.
 - **The app icon is the same mark in the same face** (`scripts/make-app-icon.py`, Jost 400 — 300's strokes vanish at home-screen size). Change one and change the other: the same name in two faces is two logos.
 
-### The card
+## The card
 
 The face carries **two lines of type along the top and nothing else** — the city in caps with the purchase date under it on the left, the house's mark on the right. The product's name is not on the face; it goes in the caption under it.
 
@@ -122,12 +134,16 @@ The face carries **two lines of type along the top and nothing else** — the ci
 - **`vercel link` adds `.env*` to `.gitignore` — delete that line.** It swallows `.env`, which holds an address rather than a secret. Keep `.vercel` and the existing `.env*.local`.
 - **Verify with `curl`, not a browser** — `/` and a deep link for the SPA fallback; a proxied path against the same path called on the backend directly (identical status = faithful proxy).
 
-## Current Scope
+## Backend and data
 
-- I own the **frontend**. The backend is live at `http://1.201.117.14` (`/api/v1`) and the app is wired to it. Three documents divide the ground and **none of them overlaps another**, because the one that used to mix them went stale without anyone noticing and the app broke against a server it no longer described:
-  - `dev/active/backend-contract.md` — what the API *is*. Every endpoint, request, response field in declaration order, and error code. No plans, no to-dos, nothing that expires. Re-sweep the backend and replace it wholesale rather than patching it.
-  - `dev/active/backend-open-items.md` — what is blocked and what to ask the backend for. This is the only file that carries intent, and a resolved line gets deleted, not marked resolved.
-  - `dev/active/db-schema-draft.md` — the database read off the Flyway migrations. **A column existing there does not mean the API returns it**; the contract wins on that question.
+I own the **frontend**. The backend is live at `http://1.201.117.14` (`/api/v1`) and the app is wired to it.
+
+Three documents divide the ground and **none of them overlaps another**, because the one that used to mix them went stale without anyone noticing and the app broke against a server it no longer described:
+
+- `dev/active/backend-contract.md` — what the API *is*. Every endpoint, request, response field in declaration order, and error code. No plans, no to-dos, nothing that expires. Re-sweep the backend and replace it wholesale rather than patching it.
+- `dev/active/backend-open-items.md` — what is blocked and what to ask the backend for. This is the only file that carries intent, and a resolved line gets deleted, not marked resolved.
+- `dev/active/db-schema-draft.md` — the database read off the Flyway migrations. **A column existing there does not mean the API returns it**; the contract wins on that question.
+
 - **The backend moves without telling us.** V8 and V9 landed after the integration doc was written and changed the AI resource response from a flat array to a grouped one — the frontend kept calling `.map` on an object, the failure was swallowed by a catch, and card customisation simply stopped working with no error on screen. Before trusting any of these documents, check the migration list and `/v3/api-docs` against what they claim.
 - **There is no mock data and no switch.** Everything a screen shows came from the backend, so an empty screen means the server has nothing and an error screen means it did not answer — neither is ever a stand-in. **A domain with no controller gets no screen**: care services and brand events were built on mocks and were removed with them, rather than kept as pages that lie. When an endpoint lands, the screen comes back with it.
 - **The one exception is bundled artwork** (`src/lib/mock/card-art.ts`, `brand-marks.ts`), which is a fallback asset rather than data: `cardArtSource()` and `brandMarkSource()` take the backend's URL whenever there is one and fall back to the bundle only when a card has no art yet. A card face is never blank; nothing else in the app substitutes.
@@ -137,5 +153,7 @@ The face carries **two lines of type along the top and nothing else** — the ci
 - **Card customization is AI-generated, not preset.** Generation is async (202 + `PENDING`) with no push channel, so the frontend polls `GET /cards/{id}/ai-resources`. The waiting state is part of the design.
 - **Candidate grouping belongs to the server, not to us.** One `POST /cards/{id}/ai-resources` with `candidateCount` (3 or 4) creates one group, and every response carries `candidateGroupId` · `candidateIndex` · `candidateCount`. Never send the same `resourceType` twice in one `/batch` call to fake a group — that is a 400 (`AI_RESOURCE_TYPE_DUPLICATED`), and reconstructing groups on the client from timestamps is guessing at something the server already states. `PRODUCT_ANGLE` is retired and answers 400; `BACKGROUND` needs the product's image and answers 409 without it.
 - **The generation status has six values**, `PENDING` · `PROCESSING` · `COMPLETED` · `FAILED` · `REJECTED` · `ARCHIVED`. A switch over them that ends in `assertNever` throws on the day the backend adds a seventh, which is exactly how `PROCESSING` would have crashed the editor — exhaustiveness is a compile-time tool, and the network is not compile time.
-- Design is **mobile-first** — native phone screens are primary, web is the same app widened.
-- **Write decisions here as they land — rules only.** Not implementation records: if it explains why an existing screen looks the way it does rather than constraining the next one, it belongs in `dev/active/`, not here.
+
+## Writing here
+
+**Rules only, written as they land.** Not implementation records: if it explains why an existing screen looks the way it does rather than constraining the next one, it belongs in `dev/active/`, not here.
