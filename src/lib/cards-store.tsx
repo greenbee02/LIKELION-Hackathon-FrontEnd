@@ -50,6 +50,19 @@ type CardsValue = {
    * 상태이므로, 화면이 혼자 들고 있으면 목록으로 돌아갔을 때 사라진다.
    */
   claim: (reward: Reward) => Promise<boolean>;
+  /**
+   * 리워드만 다시 받아 조용히 갈아 끼운다.
+   *
+   * 진행도는 **서버가 매 요청마다 다시 세는 값**이다(계약 §6 — 보유 `ACTIVE` 카드의 상품
+   * 집합과 컬렉션의 필수 상품 집합을 교집합). 그러니 카드가 한 장 늘면 다음 요청부터 곧바로
+   * 다른 답이 오는데, 목록을 앱이 뜰 때 한 번만 받아 두면 그 다른 답을 아무도 물어보지 않는다
+   * — 발급 직후 리워드 탭이 옛 숫자를 그대로 들고 있고, 앱을 다시 켜야 맞는 값이 되던 이유다.
+   *
+   * `reload()` 와 달리 `status` 를 건드리지 않는다. 이미 목록을 보고 있는 화면을 스켈레톤으로
+   * 되돌리는 것은 갱신이 아니라 깜빡임이고, 실패해도 조용하다 — 화면에 있는 진행도가 갱신되지
+   * 않을 뿐, 지우면 그것이 더 나쁜 거짓말이다.
+   */
+  refreshRewards: () => void;
 };
 
 const CardsContext = createContext<CardsValue | null>(null);
@@ -75,6 +88,26 @@ export function CardsProvider({ children }: { children: ReactNode }) {
 
   const signedIn = authStatus === 'signed-in';
 
+  /* 리워드 요청 하나에 붙는 번호. 늦게 도착한 앞의 응답이 뒤의 것을 덮어쓰지 않게 한다 —
+     발급 직후의 갱신과 탭 복귀의 갱신이 겹치는 것은 평범한 일이고, 그때 먼저 떠난 쪽이
+     나중에 도착하면 화면은 방금 산 카드가 빠진 진행도로 되돌아간다. */
+  const rewardsRun = useRef(0);
+
+  /**
+   * 리워드 한 벌을 받아 상태에 반영한다. **실패를 삼키지 않는다** — 최초 로드가 이 함수를
+   * 그대로 쓰고, 그 자리의 실패는 화면 전체의 오류 상태여야 한다. 조용한 쪽은
+   * `refreshRewards` 가 감싼다.
+   */
+  const takeRewards = useCallback(async () => {
+    const run = ++rewardsRun.current;
+    const earned = await fetchRewards();
+    if (run === rewardsRun.current) setRewards(earned);
+  }, []);
+
+  const refreshRewards = useCallback(() => {
+    void takeRewards().catch(() => {});
+  }, [takeRewards]);
+
   useEffect(() => {
     if (!signedIn) return;
 
@@ -85,10 +118,9 @@ export function CardsProvider({ children }: { children: ReactNode }) {
       try {
         // 카드와 리워드는 서로를 기다리지 않는다. 리워드 쪽이 컬렉션 색인까지 만드느라 더
         // 오래 걸리는데, 그것 때문에 카드 그리드가 늦게 뜰 이유가 없다.
-        const [live, earned] = await Promise.all([fetchCards(), fetchRewards()]);
+        const [live] = await Promise.all([fetchCards(), takeRewards()]);
         if (!alive) return;
         setCards(live);
-        setRewards(earned);
         if (alive) setStatus('ready');
       } catch (e) {
         if (!alive) return;
@@ -102,7 +134,7 @@ export function CardsProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, [epoch, signedIn]);
+  }, [epoch, signedIn, takeRewards]);
 
   const reload = useCallback(() => setEpoch((n) => n + 1), []);
 
@@ -176,11 +208,17 @@ export function CardsProvider({ children }: { children: ReactNode }) {
       rewards: signedIn ? rewards : [],
       error: signedIn ? error : null,
       reload,
-      addCard: (card) => setCards((prev) => [card, ...prev]),
+      /* 카드 한 장이 늘면 진행도도 늘 수 있다. 발급이 끝난 그 자리에서 함께 갱신해 두면,
+         고객이 리워드 탭으로 옮겨갔을 때 이미 맞는 숫자가 서 있다. */
+      addCard: (card) => {
+        setCards((prev) => [card, ...prev]);
+        refreshRewards();
+      },
       loadCard,
       claim,
+      refreshRewards,
     }),
-    [signedIn, status, cards, rewards, error, reload, loadCard, claim],
+    [signedIn, status, cards, rewards, error, reload, loadCard, claim, refreshRewards],
   );
 
   return <CardsContext.Provider value={value}>{children}</CardsContext.Provider>;
