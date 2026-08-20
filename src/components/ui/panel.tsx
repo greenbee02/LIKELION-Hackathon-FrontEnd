@@ -9,6 +9,12 @@ import { space } from '@/theme/spacing';
 /**
  * 한 덩어리의 내용을 배경에서 떼어놓는 상자.
  *
+ * **면이 아니라 테두리로 떼어놓는다.** 이 팔레트에서 페이지는 이미 가장 밝은 단계(1)라,
+ * 카드를 밝게 해서 띄우는 흔한 방법 — 회색 페이지 위의 흰 카드 — 을 쓸 수 없다. 남는 방향은
+ * 어둡게 하는 것뿐인데, 상자를 채우면 목록 전체가 회색 덩어리가 되어 정작 안에 든 글자가
+ * 눌린다. 테두리 한 겹은 경계만 말하고 밝기는 건드리지 않으므로, 여러 개가 세로로 쌓여도
+ * 페이지가 어두워지지 않는다.
+ *
  * 컬렉션 화면이 카드를 아무 틀 없이 늘어놓는 것과 대비된다 — 거기서는 카드가 그림을 갖고
  * 있어서 서로 구분되지만, **그림이 없는 것들은 간격만으로는 나뉘지 않는다.** 리워드 하나,
  * 행사 하나, 케어 서비스 하나는 전부 문장 몇 줄이고, 그것들을 24 간격으로 늘어놓으면 하나의
@@ -30,7 +36,11 @@ const styles = StyleSheet.create({
   panel: {
     padding: space[4],
     borderRadius: radius.base,
-    backgroundColor: colors.backgroundSubtle,
+    backgroundColor: colors.background,
+    /* 6단계 — "거의 등록되지 않는" 선. 목록에서 열 개가 쌓여도 선들이 무늬가 되지 않아야
+       하므로 기본 테두리(7)가 아니라 그 아래를 쓴다. */
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     ...allowPressOverflow,
   },
 });

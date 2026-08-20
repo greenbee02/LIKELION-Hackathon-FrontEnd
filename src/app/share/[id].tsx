@@ -6,9 +6,9 @@ import { StyleSheet, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 
 import { CARD_ASPECT, CardFace } from '@/components/card/card-face';
-import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { NavBar } from '@/components/ui/nav-bar';
 import { Screen } from '@/components/ui/screen';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
@@ -44,11 +44,7 @@ export default function ShareScreen() {
   const frame = useRef<View>(null);
   const [sharing, setSharing] = useState(false);
 
-  const nav = (
-    <View style={styles.nav}>
-      <BackButton fallback="/" />
-    </View>
-  );
+  const nav = <NavBar title="카드 공유" fallback="/" />;
 
   const share = async () => {
     if (!frame.current) return;
@@ -129,7 +125,6 @@ export default function ShareScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingTop: space[2], paddingBottom: space[7] },
-  nav: { flexDirection: 'row' },
   /* Gray 1 rather than transparent: a captured image carries whatever was behind it, and
      "whatever was behind it" on a screen with no explicit ground is undefined. */
   frame: {

@@ -9,7 +9,6 @@ import {
   signup as signupRequest,
   type AuthUser,
 } from './api/auth';
-import { USE_MOCK } from './config';
 
 /**
  * Who is signed in, and whether we are still finding out.
@@ -23,12 +22,6 @@ export type AuthStatus = 'restoring' | 'signed-out' | 'signed-in';
 /** The backend exposes google and kakao; apple is the one to request when these get wired. */
 export type SocialProvider = 'google' | 'apple';
 
-/**
- * Development bypass. `true` starts the app already signed in, so the screens built after this
- * one are not gated behind a login on every reload. It must be false in anything demoed.
- */
-const SKIP_AUTH = false;
-
 const TOKEN_KEY = 'curio.auth.accessToken';
 /**
  * 토큰이 언제 죽는지. 리프레시가 없어서 따로 적어둬야 한다 — JWT 를 열어보면 알 수 있지만,
@@ -36,8 +29,6 @@ const TOKEN_KEY = 'curio.auth.accessToken';
  * 편이 정직하다.
  */
 const EXPIRY_KEY = 'curio.auth.expiresAt';
-
-const MOCK_USER: AuthUser = { id: 'u1', email: 'demo@curio.app', name: 'Demo', role: 'CUSTOMER' };
 
 type AuthValue = {
   status: AuthStatus;
@@ -48,10 +39,9 @@ type AuthValue = {
   error: string | null;
   signIn: (email: string, password: string) => Promise<boolean>;
   /**
-   * The social path. While `USE_MOCK` holds it mints the same session the email path does, so a
-   * demo can walk the whole product from one tap; once the real flow lands, only this function
-   * changes — it opens `/oauth2/authorization/{provider}`, waits for the redirect back on the
-   * `curio://` scheme, and trades the one-shot code through `POST /auth/oauth/exchange`.
+   * The social path. Not wired yet — it will open `/oauth2/authorization/{provider}`, wait for
+   * the redirect back on the `curio://` scheme, and trade the one-shot code through
+   * `POST /auth/oauth/exchange`. Until then it reports that, rather than minting a session.
    */
   signInWithProvider: (provider: SocialProvider) => Promise<boolean>;
   signUp: (email: string, password: string, name: string) => Promise<boolean>;
@@ -97,14 +87,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let alive = true;
 
     const restore = async () => {
-      if (SKIP_AUTH) {
-        if (alive) {
-          setUser(MOCK_USER);
-          setStatus('signed-in');
-        }
-        return;
-      }
-
       try {
         const [token, expiresAt] = await Promise.all([
           AsyncStorage.getItem(TOKEN_KEY),
@@ -127,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setAccessToken(token);
         // 저장된 토큰은 아무것도 증명하지 않는다 — 서버가 계정을 지웠을 수도 있다.
-        const me = USE_MOCK ? MOCK_USER : await fetchMe();
+        const me = await fetchMe();
         if (!alive) return;
         setUser(me);
         setStatus('signed-in');
@@ -158,22 +140,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  /** 목 세션의 수명. 실서버가 주는 24시간과 같게 둬서 두 모드가 다르게 굴지 않도록 한다. */
-  const MOCK_TTL = 60 * 60 * 24;
-
   const signIn = useCallback<AuthValue['signIn']>(
     async (email, password) => {
       setPending(true);
       setError(null);
       try {
-        if (USE_MOCK) {
-          await new Promise((r) => setTimeout(r, 600));
-          await persist('mock-token', { ...MOCK_USER, email }, MOCK_TTL);
-        } else {
-          // 로그인 응답이 사용자까지 준다 — `/auth/me` 를 이어 부를 이유가 없다.
-          const session = await loginRequest(email, password);
-          await persist(session.accessToken, session.user, session.expiresInSeconds);
-        }
+        // 로그인 응답이 사용자까지 준다 — `/auth/me` 를 이어 부를 이유가 없다.
+        const session = await loginRequest(email, password);
+        await persist(session.accessToken, session.user, session.expiresInSeconds);
         return true;
       } catch (e) {
         setError(messageFor(e));
@@ -185,48 +159,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
-  const signInWithProvider = useCallback<AuthValue['signInWithProvider']>(
-    async (provider) => {
-      setPending(true);
-      setError(null);
-      try {
-        if (USE_MOCK) {
-          await new Promise((r) => setTimeout(r, 600));
-          await persist(
-            'mock-token',
-            { ...MOCK_USER, email: `demo.${provider}@curio.app` },
-            MOCK_TTL,
-          );
-          return true;
-        }
-        // No OAuth round trip yet — see dev/active/scope-vs-backend.md §1 on the redirect scheme.
-        setError('소셜 로그인은 준비 중입니다.');
-        return false;
-      } catch (e) {
-        setError(messageFor(e));
-        return false;
-      } finally {
-        setPending(false);
-      }
-    },
-    [persist],
-  );
+  /* OAuth 왕복이 아직 없다 — `dev/active/backend-open-items.md` 의 리다이렉트 스킴 문제.
+     그래서 이 함수는 아무 데도 다녀오지 않고 그 사실만 말한다. */
+  const signInWithProvider = useCallback<AuthValue['signInWithProvider']>(async () => {
+    setError('소셜 로그인은 준비 중입니다.');
+    return false;
+  }, []);
 
   const signUp = useCallback<AuthValue['signUp']>(
     async (email, password, name) => {
       setPending(true);
       setError(null);
       try {
-        if (USE_MOCK) {
-          await new Promise((r) => setTimeout(r, 600));
-          await persist('mock-token', { ...MOCK_USER, email, name }, MOCK_TTL);
-        } else {
-          // 가입은 계정만 만들고 토큰을 주지 않는다. 세션은 곧바로 이어지는 로그인이 연다 —
-          // 화면은 이미 두 값을 들고 있으므로 고객에게는 한 번의 제출로 보인다.
-          await signupRequest(email, password, name);
-          const session = await loginRequest(email, password);
-          await persist(session.accessToken, session.user, session.expiresInSeconds);
-        }
+        // 가입은 계정만 만들고 토큰을 주지 않는다. 세션은 곧바로 이어지는 로그인이 연다 —
+        // 화면은 이미 두 값을 들고 있으므로 고객에게는 한 번의 제출로 보인다.
+        await signupRequest(email, password, name);
+        const session = await loginRequest(email, password);
+        await persist(session.accessToken, session.user, session.expiresInSeconds);
         return true;
       } catch (e) {
         setError(messageFor(e));
@@ -264,8 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPending(true);
     setError(null);
     try {
-      if (USE_MOCK) await new Promise((r) => setTimeout(r, 600));
-      else await deleteMe();
+      await deleteMe();
       await signOut();
       return true;
     } catch (e) {
