@@ -5,7 +5,8 @@
 Curio는 플랫폼의 이름이고, 카드에 서명하는 것은 각 브랜드다. MCM은 데모 브랜드일 뿐 앱의 색·서체·카피는 어느 브랜드에도 속하지 않는다.
 
 - 기획서: [`dev/active/product-brief.md`](dev/active/product-brief.md)
-- 구현 범위 · 백엔드 대조: [`dev/active/scope-vs-backend.md`](dev/active/scope-vs-backend.md)
+- 백엔드 계약: [`dev/active/backend-contract.md`](dev/active/backend-contract.md)
+- 백엔드 미결: [`dev/active/backend-open-items.md`](dev/active/backend-open-items.md)
 - 작업 규칙 · 디자인 결정: [`AGENTS.md`](AGENTS.md)
 
 ## 스택

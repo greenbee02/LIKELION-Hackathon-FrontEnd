@@ -106,108 +106,59 @@
 
 ---
 
-## 3. 에러 4종 — 한 덩어리로 묶지 않는 이유
+## 3. 에러 5종 — 한 덩어리로 묶지 않는 이유
 
-실패에서 쓸모 있는 부분은 "다음에 뭘 하느냐"뿐이고, 여기선 그게 네 가지 다 다르다.
+실패에서 쓸모 있는 부분은 "다음에 뭘 하느냐"뿐이고, 여기선 그게 다섯 가지 다 다르다.
 
-| 코드 | 1차 행동 | 2차 |
+| 화면이 쓰는 코드 | 1차 행동 | 2차 |
 |---|---|---|
 | `QR_TOKEN_INVALID` | 다시 스캔하기 | — |
 | `QR_ALREADY_USED` | 컬렉션에서 보기 | 다른 영수증 스캔하기 |
 | `QR_EXPIRED` | 다른 영수증 스캔하기 | — |
-| `CARD_TEMPLATE_NOT_FOUND` | 다시 시도하기 (retry) | 컬렉션으로 가기 |
+| `BLOCKED` | 다시 시도하기 (retry) | 컬렉션으로 가기 |
 | `UNKNOWN` (네트워크·서버) | 다시 시도하기 (retry) | 컬렉션으로 가기 |
 
-- `CARD_TEMPLATE_NOT_FOUND` 와 `UNKNOWN` 만 **고객 잘못이 아님**을 문구에 명시하고 재시도를
-  건다. 나머지 셋은 재시도해도 결과가 같으므로 재시도 버튼을 주지 않는다 —
-  특히 `QR_ALREADY_USED` 는 다시 시도하면 또 같은 답을 준다.
+- **`BLOCKED` 은 화면의 코드이지 서버의 코드가 아니다.** 백엔드의 발급 오류는 아홉인데
+  (`backend-contract.md` §2), 그중 다섯 — `CARD_TEMPLATE_NOT_FOUND` `TEMPLATE_INACTIVE`
+  `TEMPLATE_CARD_TYPE_NOT_ALLOWED` `TEMPLATE_BRAND_MISMATCH` `PRODUCT_INACTIVE` — 은 고객이
+  할 수 있는 일이 같다. 다섯 문장을 쓰면 다섯 다 "저희 쪽 문제입니다"의 변주가 되고,
+  고객은 무엇이 다른지 알 길이 없다. `src/lib/api/registrations.ts` 의 `ISSUE_BLOCKED_CODES`.
+- `BLOCKED` 와 `UNKNOWN` 만 **고객 잘못이 아님**을 문구에 명시하고 재시도를 건다. 나머지
+  셋은 재시도해도 결과가 같으므로 재시도 버튼을 주지 않는다 — 특히 `QR_ALREADY_USED` 는
+  다시 시도하면 또 같은 답을 준다.
+- **`QR_ALREADY_USED` 에는 설명 문구가 없다.** 제목 한 줄이 이미 다 말하고, 두 개의 행동이
+  아래에 서 있다. `ErrorCopy.body` 가 옵셔널인 이유가 이 한 경우다.
+- 어느 코드든 **리다이렉트는 없다.** 스캔 화면은 읽은 값을 판단하지 않고 그대로
+  `/issue/[token]` 으로 넘기며, 오류는 그 경로에서 제자리로 그려진다. 화면을 떠나는 것은
+  고객이 버튼을 눌렀을 때뿐이다.
 - 완료 화면의 `display` 는 앱 전체에서 여기 한 번만 쓴다("발급 완료").
 
 ---
 
-## 4. 목 계층과 데모 토큰
+## 4. 데모 토큰
 
-`src/lib/mock/registrations.ts`. `mock/cards.ts` 는 이미 가진 컬렉션이고 이쪽은 영수증이
-무엇으로 바뀌는지라 파일을 나눴다(`BRANDS` 만 읽어 씀).
+시드(`V7`)의 `MCM-DEMO-2026-001` ~ `-011` 열한 개가 전부다. **한 번 쓰면 소멸하고**, 지금은
+소진된 상태라 스캔하면 `QR_ALREADY_USED` 가 돌아온다. 되살릴 방법은 프론트에 없다 —
+`POST /local/demo/reset` 은 `@Profile({"local","test"})` 라 실서버에 존재하지 않는다.
+`backend-open-items.md` §3.
 
-| 토큰 | 결과 |
-|---|---|
-| `MCM-DEMO-2026-001` ~ `-010` | 정상 발급 (블루프린트 5종 순환, 2개 하우스·3개 매장) |
-| 같은 토큰 재사용 | `QR_ALREADY_USED` — 소비 집합이 기억한다 |
-| 그 외 아무 문자열 | `QR_TOKEN_INVALID` |
-| `MCM-DEMO-EXPIRED-001` | `QR_EXPIRED` |
-| `MCM-DEMO-NOTMPL-001` | `CARD_TEMPLATE_NOT_FOUND` |
-| `MCM-DEMO-2026-010` | 정상 발급이지만 **패턴 생성만 실패** — 부분 실패 연출 확인용 |
-
-AI 생성은 큐가 아니라 **시계**다. `POST` 는 시작 시각만 적고 매 `GET` 이 경과 시간을 읽어
-그때까지 끝났을 것을 보고한다. 스케줄 1.5s / 2.8s / 4.2s / 5.6s — 넷이 동시에 뜨면 스피너로
-대체 가능해지고, 이 화면이 존재하는 이유가 바로 그게 아니라는 점이다.
-
-`USE_MOCK` 스위치는 `src/lib/issue-flow.ts` 하나뿐이다. 화면은 어느 쪽인지 모른다.
+목 계층은 없다. `src/lib/mock/` 에 남은 것은 카드 그림과 브랜드 마크 두 파일뿐이고, 그것은
+데이터가 아니라 **폴백 에셋**이다 — 서버가 주소를 주면 그쪽이 이긴다.
 
 ---
 
-## 5. 백엔드에 확인/요청할 것
+## 5. 아직 쓰지 않는 것 — `GET /purchase-qrs/preview`
 
-1. **`POST /cards/{id}/ai-resources` 의 요청 바디 스펙이 문서에 없다.** 프론트는
-   `{ resourceTypes: ['BACKGROUND','BORDER','PATTERN','PRODUCT_ANGLE'] }` 로 가정했다.
-   실서버 붙일 때 제일 먼저 깨질 자리.
-2. `CardResponse.brand` (scope §5-1). 없는 동안 `toCard()` 가 시리얼 접두사(`MCM-SE-0042` → MCM)
-   에서 브랜드를 유추한다. 수명 짧은 임시방편이고, 필드가 오면 세 줄이 지워질 뿐 화면은 그대로다.
-   액센트는 알 수 없으므로 hex 대신 `colors.solid` 토큰을 넣는다.
-3. 발급 왕복이 실제로 위 4종 코드를 그대로 주는지. 프론트는 그 문자열에 직접 분기한다.
+백엔드에 **토큰을 태우지 않고 무엇이 발급될지 미리 보는** 엔드포인트가 있다:
 
----
+```
+GET /api/v1/purchase-qrs/preview?qrToken=…   (인증 필요)
+→ { status, usable, purchaseDate, serialNumber, expiresAt, product, store }
+```
 
-## 5-1. 다른 세션(컬렉션)과의 접점 — 2026-08-19
+지금 흐름은 스캔한 값을 그대로 `/issue/[token]` 으로 넘기고 거기서 바로 발급을 시도하므로,
+**되돌릴 수 없다.** `usable` 을 먼저 물으면 쓸 수 없는 코드를 토큰을 태우지 않고 가려낼 수
+있고, 발급 전에 "무엇이 발급되는지"를 보여주는 확인 단계도 가능해진다.
 
-컬렉션 화면의 시각 언어에 맞추라는 지시로 두 화면을 정렬했다. 그쪽 브랜치가 아직 push 되지
-않아 **그 컴포넌트와 토큰은 이 브랜치에 없다.** 복사하면 머지 때 충돌하므로 가져오지 않고,
-구조만 같게 맞춰 나중에 갈아끼울 때 레이아웃이 안 흔들리게 했다.
-
-그쪽에만 있는 것 (이 브랜치에서 쓸 수 없음):
-
-| 항목 | 정체 |
-|---|---|
-| `components/card/card-face.tsx` · `card-tile.tsx` | 진짜 카드 |
-| `components/ui/icon-button.tsx` · `glass-surface.tsx` · `empty-state.tsx` · `dropdown.tsx` | 새 프리미티브 |
-| `components/navigation/tab-bar.tsx` | 떠 있는 탭바 + `useTabBarSpace()` |
-| `engraving` 타입 역할 | 카드 면의 도시명 (Cormorant Garamond) |
-| `glassFill` `glassEdge` `glassShadow` `scrimInk` 색 역할 | 유리와 스크림 |
-| `lib/card-art.ts` · `lib/format.ts` | 카드 아트·마크 소스, 날짜 포맷 |
-
-맞춘 것:
-
-- **스캔 화면 헤더** — 컬렉션과 같은 `paddingTop: space[2]`, `title` 한 단어("스캔"), 본문은
-  `space[5]` 아래. 두 탭이 같은 선에서 시작한다.
-- **카드 플레이스홀더** — `CardFace` + `CardTile` 구조를 그대로 흉내낸다. 3:4 면, 좌상단
-  도시명 + 날짜, 우측 하우스명, 상품명과 매장은 면 위가 아니라 **아래 캡션**. 도시명은
-  `engraving` 이 없어 `heading` 으로 대신했고, 카드 아트가 없어 면은 `Brand.accent` 단색이다
-  — 그쪽 `CardFace` 도 이 상태를 "사진이 디코딩되는 동안 보이는 완성된 상태"로 취급한다.
-- 생성 중에는 면에 아무것도 새기지 않고, `ready` 에서 도시명·날짜·하우스명이 올라온다.
-  카드가 맨몸으로 도착해 각인되는 순간이 대기 시간을 쓴 대가다.
-
-**`src/lib/format.ts` 와 `src/lib/card-art.ts` 경로는 이 브랜치에서 만들지 않는다.** 그쪽이
-같은 경로를 쓰고 있어 한 줄짜리 함수 때문에 충돌을 살 이유가 없다. 날짜 포맷은
-`card-placeholder.tsx` 안에 로컬로 둔다.
-
-**머지 후 할 일:** `CardPlaceholder` 삭제 → `CardFace` 로 교체(호출부 3곳). 발급 순간에
-진짜 카드 아트가 뜨는 편이 훨씬 강하다. 스캔 화면은 `useTabBarSpace()` 검토.
-
----
-
-## 6. 공용으로 승격 후보 (지금은 로컬)
-
-다른 세션이 `src/components/card/` 와 공용 컴포넌트를 작업 중이라 직접 만들지 않고 자리만
-잡아둔 것들:
-
-- `src/components/issue/card-placeholder.tsx` — **`<Card>` 가 오면 삭제.** 호출부 3곳만 교체.
-- `src/components/issue/resource-checklist.tsx` — 커스텀 화면이 같은 모양을 원할 가능성이 높다.
-
-(수동 입력 모드와 함께 있던 `TextLink` 는 화면이 정리되면서 사라졌다.)
-
-## 7. 개발 서버 포트
-
-이 워크트리는 **8082** 를 쓴다 (`npx expo start --port 8082`). 다른 워크트리 세션이 기본
-8081 을 잡고 있어 충돌을 피하기 위함이다. 백엔드 base URL 은 기존 그대로
-`EXPO_PUBLIC_API_URL ?? http://localhost:8080/api/v1`.
+붙일지 말지는 결정되지 않았다. 확인 단계를 하나 더 두면 **스캔 → 카드**라는 이 화면의 요점이
+흐려지고, 왕복도 하나 는다. 여기 적어두는 것은 선택지가 있다는 사실이다.
