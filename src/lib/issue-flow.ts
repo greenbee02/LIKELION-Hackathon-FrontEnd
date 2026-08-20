@@ -163,13 +163,9 @@ async function drive(token: string, run: Run) {
       requestedBatch.groups.flatMap((group) => group.candidates.map((candidate) => candidate.id)),
     );
   } catch {
-    /* 그림 없는 카드도 카드다 — 템플릿이 실어온 앞뒷면이 그대로 얼굴이 된다. 요청에
-       실패한 것이 발급을 실패시킬 이유는 아니다.
-     
-       **다만 기다리지는 않는다.** 요청이 서버에 닿지 않았으면 만들어지고 있는 것도 없고,
-       그런데도 폴링을 시작하면 화면은 아무 일도 일어나지 않을 것을 3분 동안 기다린다.
-       발급은 이미 끝났으므로 끝났다고 말하는 것이 정확하다. */
-    patch(run, { stage: 'ready' });
+    /* 카드 등록은 끝났지만 AI 요청은 실패했다. 템플릿 카드를 완성된 결과처럼 보여주면
+       고객은 AI 디자인이 반영됐다고 오해하므로, 생성 실패를 명시한다. */
+    patch(run, { stage: 'error', errorCode: 'AI_GENERATION_FAILED' });
     return;
   }
 
@@ -193,7 +189,7 @@ async function drive(token: string, run: Run) {
 
   const composeBackground = async (
     batch: Awaited<ReturnType<typeof fetchAiResources>>,
-  ) => {
+  ): Promise<boolean> => {
     const background = groupsForType(batch, 'BACKGROUND')
       .flatMap((group) => group.candidates)
       .find(
@@ -201,7 +197,7 @@ async function drive(token: string, run: Run) {
           candidate.status === 'COMPLETED' && Boolean(candidate.generatedImageUrl),
       );
 
-    if (!background) return;
+    if (!background) return false;
 
     const layers: CardLayerRequest[] = [
       {
@@ -230,7 +226,9 @@ async function drive(token: string, run: Run) {
     if (refreshed) {
       card = refreshed;
       patch(run, { card: refreshed });
+      return true;
     }
+    return false;
   };
 
   while (!run.disposed) {
@@ -248,7 +246,16 @@ async function drive(token: string, run: Run) {
       patch(run, { resources });
 
       if (settled(resources)) {
-        await composeBackground(batch);
+        let composed = false;
+        try {
+          composed = await composeBackground(batch);
+        } catch {
+          /* 생성은 끝났지만 합성 API가 실패한 경우에도 기본 템플릿을 성공처럼 보여주지 않는다. */
+        }
+        if (!composed) {
+          patch(run, { stage: 'error', errorCode: 'AI_GENERATION_FAILED' });
+          return;
+        }
         patch(run, { stage: 'ready' });
         return;
       }
@@ -259,7 +266,7 @@ async function drive(token: string, run: Run) {
     const elapsed = Date.now() - startedAt;
     if (elapsed > PATIENCE_MS && !run.state.slow) patch(run, { slow: true });
     if (elapsed > MAX_MS) {
-      patch(run, { stage: 'ready', slow: true });
+      patch(run, { stage: 'error', errorCode: 'AI_GENERATION_FAILED', slow: true });
       return;
     }
   }

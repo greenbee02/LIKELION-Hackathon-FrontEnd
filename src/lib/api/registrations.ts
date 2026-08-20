@@ -31,7 +31,7 @@ export const REGISTRATION_ERROR_CODES = [...QR_ERROR_CODES, ...ISSUE_BLOCKED_COD
 export type RegistrationErrorCode = (typeof REGISTRATION_ERROR_CODES)[number];
 
 /** 흐름이 끝날 수 있는 지점 전부. `UNKNOWN` 은 네트워크와 서버의 나쁜 날을 덮는다. */
-export type IssueErrorCode = RegistrationErrorCode | 'UNKNOWN';
+export type IssueErrorCode = RegistrationErrorCode | 'AI_GENERATION_FAILED' | 'UNKNOWN';
 
 export function issueErrorCodeOf(e: unknown): IssueErrorCode {
   if (e instanceof ApiError && (REGISTRATION_ERROR_CODES as readonly string[]).includes(e.code)) {

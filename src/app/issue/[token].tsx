@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { AlertCircle, Clock, ScanLine, Wifi } from 'lucide-react-native';
+import { AlertCircle, Clock, ScanLine, Sparkles, Wifi } from 'lucide-react-native';
 import type { ComponentType } from 'react';
 import { useEffect } from 'react';
 import { BackHandler, Platform, ScrollView, StyleSheet, View } from 'react-native';
@@ -314,7 +314,13 @@ type ErrorCopy = {
  * 불일치·브랜드 불일치·비활성 상품)는 전부 브랜드 쪽 설정 문제이고 고객이 할 수 있는 일이
  * 같아서, `BLOCKED` 하나로 모인다 — 다섯 개의 사과문을 쓰는 대신 하나를 정확히 쓴다.
  */
-type ErrorCase = 'QR_TOKEN_INVALID' | 'QR_ALREADY_USED' | 'QR_EXPIRED' | 'BLOCKED' | 'UNKNOWN';
+type ErrorCase =
+  | 'QR_TOKEN_INVALID'
+  | 'QR_ALREADY_USED'
+  | 'QR_EXPIRED'
+  | 'BLOCKED'
+  | 'AI_GENERATION_FAILED'
+  | 'UNKNOWN';
 
 const ERROR_COPY: Record<ErrorCase, ErrorCopy> = {
   QR_TOKEN_INVALID: {
@@ -341,6 +347,12 @@ const ERROR_COPY: Record<ErrorCase, ErrorCopy> = {
     body: '이 상품의 카드가 아직 등록되지 않았습니다. 영수증에는 문제가 없으니 잠시 후 다시 시도해주세요.',
     primary: { label: '다시 시도하기', action: 'retry' },
     secondary: { label: '컬렉션으로 가기', action: 'collection' },
+  },
+  AI_GENERATION_FAILED: {
+    icon: Sparkles,
+    title: '카드 디자인 생성에 실패했습니다',
+    body: '기본 카드로 대신 표시하지 않았습니다. 잠시 후 컬렉션에서 다시 확인해주세요.',
+    primary: { label: '컬렉션에서 보기', action: 'collection' },
   },
   UNKNOWN: {
     icon: Wifi,
