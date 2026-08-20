@@ -31,6 +31,14 @@ const host = cleartextHost();
  * ATS 예외. 도메인 단위로만 열고 `NSAllowsArbitraryLoads` 는 쓰지 않는다 — 서버 하나 때문에
  * 앱 전체의 평문 통신을 여는 것은 필요한 것보다 훨씬 넓고, App Store 심사에서 사유를 요구받는
  * 설정이기도 하다.
+ *
+ * `NSAllowsLocalNetworking` 은 빼면 안 된다. 이 키를 쓰는 순간 `NSAppTransportSecurity` 는
+ * 템플릿 기본값을 병합하는 게 아니라 통째로 갈아치우고, 기본값에 들어 있던 이 항목이 같이
+ * 사라진다. 그러면 기기 개발 빌드가 Metro 의 `http://<사설IP>:<포트>/status` 에 못 닿고,
+ * RN 은 응답이 없으면 `jsLocation` 을 버린 뒤 (`RCTBundleURLProvider.mm`
+ * `packagerServerHostPort`) 번들 URL 자체를 nil 로 만든다 — 화면에는 주소가 틀렸다는 말
+ * 대신 "No script URL provided" 만 뜨므로 원인이 ATS 라는 흔적이 어디에도 남지 않는다.
+ * 이 키가 여는 범위는 RFC 1918 사설 대역과 `.local` 뿐이라 공개망 평문과는 무관하다.
  */
 const ios = {
   icon: './assets/images/icon.png',
@@ -41,6 +49,7 @@ const ios = {
   ...(host && {
     infoPlist: {
       NSAppTransportSecurity: {
+        NSAllowsLocalNetworking: true,
         NSExceptionDomains: {
           [host]: {
             NSExceptionAllowsInsecureHTTPLoads: true,
