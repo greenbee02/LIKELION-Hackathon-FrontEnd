@@ -10,7 +10,7 @@ import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
-const CARD_BACK_GOLD = '#D8CEC1';
+const CARD_BACK_INK = '#F5F3EE';
 
 /**
  * The other side of the card — the same object, turned over.
@@ -45,7 +45,13 @@ export function CardBack({ card }: { card: Card }) {
      않는다: 스냅샷은 값의 출처를 바꿀 뿐 무엇을 적을지는 바꾸지 않는다. */
   const snapshot = card.customization?.back ?? null;
   const serialNumber = snapshot?.serialNumber ?? card.serialNumber;
-  const generatedBack = imageSource(card.customization?.backImageUrl);
+  const generatedBackUrl = card.customization?.backImageUrl;
+  /* `common_back_black_info` is a blank card stock, not a finished render. Some existing
+     customizations point at it as their back asset, so treating every backImageUrl as a final
+     PNG hid the purchase-information overlay completely. Only a separately rendered image
+     replaces the live text layer. */
+  const hasCommonBack = Boolean(generatedBackUrl?.includes('common_back_black_info.png'));
+  const generatedBack = hasCommonBack ? null : imageSource(generatedBackUrl);
   const templateBack = card.template?.backImageUrl?.includes('common_back_black_info.png')
     ? imageSource(card.template.backImageUrl)
     : null;
@@ -118,7 +124,7 @@ export function CardBack({ card }: { card: Card }) {
             style={styles.mark}
             contentFit="contain"
             contentPosition="top right"
-            tintColor={hasImageBack ? CARD_BACK_GOLD : colors.text}
+            tintColor={hasImageBack ? CARD_BACK_INK : colors.text}
             accessibilityLabel={brand.name}
           />
         ) : (
@@ -167,7 +173,7 @@ const styles = StyleSheet.create({
   },
   imageBack: { backgroundColor: colors.solid },
   generatedBack: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
-  imageInk: { color: CARD_BACK_GOLD },
+  imageInk: { color: CARD_BACK_INK },
   head: {
     flexDirection: 'row',
     alignItems: 'flex-start',

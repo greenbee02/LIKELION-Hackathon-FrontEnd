@@ -46,7 +46,9 @@ export function CollectionTile({
 }
 
 const styles = StyleSheet.create({
-  tile: { flex: 1, minWidth: 0 },
+  /* `flex: 1` let every collection shrink onto one row when five items arrived.
+     A fixed percentage makes the catalog intentionally two columns on a phone. */
+  tile: { width: '47%' },
   pressed: { opacity: 0.72 },
   imageBox: {
     aspectRatio: 1.45,

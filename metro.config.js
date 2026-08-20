@@ -1,6 +1,7 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const http = require('node:http');
 const https = require('node:https');
+const path = require('node:path');
 
 /**
  * 개발 서버에 API 프록시를 붙인다.
@@ -71,6 +72,24 @@ function forwardHeaders(headers, hostname) {
 }
 
 const config = getDefaultConfig(__dirname);
+
+/* react-native-web 0.21 imports this legacy module, but fbjs 3 no longer ships it.
+   Keep the compatibility shim in our source tree instead of modifying node_modules. */
+const originalResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === 'fbjs/lib/warning') {
+    return {
+      filePath: path.resolve(__dirname, 'src/shims/fbjs-warning.ts'),
+      type: 'sourceFile',
+    };
+  }
+
+  if (originalResolveRequest) {
+    return originalResolveRequest(context, moduleName, platform);
+  }
+
+  return context.resolveRequest(context, moduleName, platform);
+};
 
 if (upstream) {
   const { protocol, hostname, port, agent } = upstream;
