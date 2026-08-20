@@ -21,6 +21,23 @@ const family = Platform.select({
 
 const base = { fontFamily: family, color: colors.text } satisfies TextStyle;
 
+/**
+ * 카드 얼굴 위, 고객이 새긴 문구가 쓰는 얼굴.
+ *
+ * **크기가 없는 것이 이 토큰의 요점이다.** 문구의 크기는 우리가 고른 값이 아니라 카드에
+ * 저장된 레이어 상자의 높이이고(`card-layer-stack.tsx`), 카드가 그리드 타일로 작아지면 함께
+ * 작아져야 한다. 그래서 크기만 데이터에서 오고 얼굴·굵기·자간은 여기서 온다 — 역할 하나를
+ * 쪼갠 것이 아니라, 처음부터 크기를 갖지 않는 역할이다.
+ *
+ * 도시(`engraving`)와 일부러 다른 얼굴을 쓴다. 하우스가 새긴 것과 고객이 새긴 것이 같은
+ * 글씨체면 카드 위에 두 개의 서명이 아니라 하나의 서명이 두 번 있는 것처럼 읽힌다.
+ */
+export const faceInk = {
+  fontFamily: family,
+  fontWeight: '600',
+  letterSpacing: 0.5,
+} satisfies TextStyle;
+
 export const type = {
   /** 32 — the issuance moment, and nothing else. One per screen at most. */
   display: { ...base, fontSize: 32, lineHeight: 38, fontWeight: '700', letterSpacing: -0.5 },

@@ -73,8 +73,10 @@ export default function CardDetailScreen() {
         card
           ? {
               icon: Palette,
+              /* 꾸미기의 입구는 하나다. 어느 방법으로 꾸밀지는 그 안에서 고른다 —
+                 카드 상세의 액션 두 개는 이 화면이 무엇에 관한 것인지를 흐린다. */
               onPress: () =>
-                router.push({ pathname: '/card/[id]/edit', params: { id: card.id } }),
+                router.push({ pathname: '/card/[id]/design', params: { id: card.id } }),
               accessibilityLabel: '카드 꾸미기',
             }
           : undefined

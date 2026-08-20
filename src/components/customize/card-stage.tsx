@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
 import { LayerView } from './layer-view';
@@ -12,9 +12,15 @@ import { radius } from '@/theme/radius';
 /**
  * 레이어가 놓이는 카드 크기의 무대.
  *
- * **`CardFace` 를 쓰지 않는다.** 그 컴포넌트의 계약은 "위쪽 두 줄과 하우스 마크, 그 외
- * 아무것도 없음"이고 파일 전체의 주석이 그 근거다. 레이어를 받는 prop 을 붙이는 순간 같은
- * 이름의 다른 컴포넌트가 되고, 여섯 군데에서 쓰이던 원래 계약이 흐려진다. 비율만 물려받는다.
+ * **`CardFace` 를 스스로 부르지는 않는다 — 바닥으로 받는다.** 한때 여기에는 "`CardFace` 에
+ * 레이어 prop 을 붙이지 말라"고 적혀 있었고, AI 경로만 있던 동안은 맞는 말이었다. 승인 에셋
+ * 경로가 생기면서 **레이어가 곧 카드의 얼굴이 되었고**, 얼굴을 그리는 컴포넌트가 레이어를
+ * 모르면 여섯 화면 전부가 빈 카드를 그린다. 그래서 `CardFace` 는 레이어를 알게 되었다.
+ *
+ * 그렇다고 이 무대가 `CardFace` 를 부를 이유는 없다. **`ground` 로 받으면 무대는 여전히
+ * 얼굴을 모른다** — 바닥에 무엇이 깔리든 그 위에 움직이는 레이어를 얹는 일만 한다. 승인 에셋
+ * 편집기는 굳은 두 겹을 담은 `CardFace` 를 바닥으로 넘기고 움직이는 문구 하나만 여기 맡기며,
+ * 그래서 편집 중에 보는 것과 저장 후에 보는 것이 같은 컴포넌트에서 나온다.
  *
  * **잘라내지 않는다(`overflow: 'hidden'` 이 없다).** 좌표가 매 프레임 0~1 로 접히므로 레이어는
  * 카드 밖으로 나갈 수 없고, 잘라낼 것이 애초에 없다. 대신 잘라내지 않기 때문에 **선택 핸들이
@@ -29,6 +35,7 @@ export function CardStage({
   layers,
   activeId,
   interactive = false,
+  ground,
   imageForResource,
   onSelect,
   onCommitFrame,
@@ -37,6 +44,8 @@ export function CardStage({
   layers: CardLayer[];
   activeId?: string | null;
   interactive?: boolean;
+  /** 레이어 밑에 깔 것. 넘기지 않으면 브랜드의 색이 깔린다. */
+  ground?: ReactNode;
   /** 레이어에 붙은 AI 리소스의 그림 주소를 찾아준다. 없으면 `null`. */
   imageForResource: (resourceId: string) => string | null;
   onSelect?: (id: string | null) => void;
@@ -53,7 +62,11 @@ export function CardStage({
     <View style={styles.stage} onLayout={onLayout}>
       {/* 바닥. 아무 레이어도 없거나 그림이 아직 안 왔을 때 보이는 것은 브랜드의 색이고,
           그건 로딩 상태가 아니라 `CardFace` 가 원래 갖고 있던 완성된 모습이다. */}
-      <View style={[styles.ground, { backgroundColor: card.brand.accent }]} />
+      {ground ? (
+        <View style={styles.ground}>{ground}</View>
+      ) : (
+        <View style={[styles.ground, { backgroundColor: card.brand.accent }]} />
+      )}
 
       {/* 빈 곳을 누르면 선택이 풀린다. 레이어 밑에 깔려 있으므로 레이어를 가리지 않는다. */}
       {interactive ? (

@@ -117,8 +117,19 @@ export default function SitemapScreen() {
               onPress={card ? () => router.push({ pathname: '/card/[id]', params: { id: card.id } }) : undefined}
             />
             <RouteRow
+              path="/card/[id]/design"
+              title="카드 꾸미기"
+              note="승인된 디자인"
+              onPress={
+                card
+                  ? () => router.push({ pathname: '/card/[id]/design', params: { id: card.id } })
+                  : undefined
+              }
+            />
+            <RouteRow
               path="/card/[id]/edit"
               title="카드 꾸미기"
+              note="AI"
               onPress={
                 card
                   ? () => router.push({ pathname: '/card/[id]/edit', params: { id: card.id } })

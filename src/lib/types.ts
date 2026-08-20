@@ -32,7 +32,7 @@ export type Brand = {
    * name set in type when it is null, so a brand without a mark is a supported state and not a
    * hole in the design.
    *
-   * The backend does not expose this yet — see `dev/active/backend-open-items.md` §5, which is
+   * The backend does not expose this yet — see `dev/active/backend-open-items.md` §8, which is
    * already waiting on `CardResponse.brand` at all.
    */
   logoUrl: string | null;
@@ -162,10 +162,53 @@ export type CardTemplate = CardTemplateRef & {
 };
 
 /**
+ * 저장된 얼굴을 이루는 한 겹. 백엔드 `LayeredCustomizationResponse.frontLayers` 한 줄.
+ *
+ * **`CardLayer` 와 헷갈리지 말 것.** 저쪽은 AI compose DTO 의 여덟 값짜리 편집용 모양이고,
+ * 이쪽은 브랜드가 승인한 에셋으로 이미 굳은 세 겹이다. 둘은 `Frame` 만 공유한다 — 좌표계가
+ * 같다는 것이 이 둘 사이의 유일한 약속이고, 그래서 편집기의 무대를 그대로 재사용할 수 있다.
+ *
+ * 항상 세 줄이고 순서가 정해져 있다: `PRODUCT_BACKGROUND` → `BORDER` → `TEXT`. 앞의 둘은
+ * 서버가 `{0,0,1,1}` 로 굳혀 저장하므로 **고객이 옮길 수 있는 것은 문구 하나뿐**이다.
+ */
+export type CardFaceLayerType = 'PRODUCT_BACKGROUND' | 'BORDER' | 'TEXT';
+
+export type CardFaceLayer = {
+  type: CardFaceLayerType;
+  /** 이미지 레이어만. 문구 레이어는 `null`. */
+  assetId: Uuid | null;
+  /** `assetUrl()` 을 이미 지난 절대 주소. 문구 레이어는 `null`. */
+  imageUrl: string | null;
+  /** 문구 레이어만. 이미지 레이어는 `null`. */
+  text: string | null;
+  frame: Frame;
+  rotation: number;
+  opacity: number;
+  /** `CardLayer` 와 달리 배열 순서가 아니라 값으로 온다 — 서버가 정한 것이므로 그대로 쓴다. */
+  zIndex: number;
+  style: Record<string, unknown>;
+};
+
+/**
+ * 발급 당시 뒷면에 적힌 값의 스냅샷 (`back.contentData`).
+ *
+ * 나중에 매장 이름이 바뀌어도 카드에 적힌 것은 그날의 값으로 남는다 — 카드가 기록이라는
+ * 전제가 데이터에 들어온 자리다. 없으면 `CardBack` 이 지금처럼 카드에서 직접 읽는다.
+ */
+export type CardBackSnapshot = {
+  store: string | null;
+  date: string | null;
+  location: string | null;
+  product: string | null;
+  serialNumber: string | null;
+};
+
+/**
  * 고객이 만든 커스텀 한 벌. `card_customizations` 한 행.
  *
- * **`frontImageUrl` 이 이 타입의 존재 이유다.** 커스텀이 적용된 카드 앞면은 서버가 합성해
- * 이 주소로 돌려주므로, 편집 화면의 결과물이자 컬렉션에 보이는 얼굴이 된다.
+ * **두 가지 방식이 한 타입에 들어 있다.** AI 경로는 서버가 앞면을 합성해 `frontImageUrl` 로
+ * 돌려주고, 승인 에셋 경로는 아무것도 굽지 않고 `layers` 세 줄만 남긴다 — 후자의
+ * `frontImageUrl` 은 끝까지 `null` 이다. 얼굴을 그리는 쪽은 `layers` 가 비었는지로 갈린다.
  */
 export type CardCustomization = {
   id: string;
@@ -174,6 +217,9 @@ export type CardCustomization = {
   backImageUrl: string | null;
   message: string | null;
   createdAt: string;
+  /** 승인 에셋 경로로 만든 것이면 세 줄, AI 경로면 비어 있다. */
+  layers: CardFaceLayer[];
+  back: CardBackSnapshot | null;
 };
 
 /**

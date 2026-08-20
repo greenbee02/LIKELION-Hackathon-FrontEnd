@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
+import { faceTextStyle } from '@/components/card/card-layer-stack';
 import { Text } from '@/components/ui/text';
 import { allowPressOverflow } from '@/components/ui/press-scale';
 import { imageSource } from '@/lib/card-art';
@@ -144,6 +145,7 @@ export function LayerView({
       <Animated.View style={[styles.layer, isFullBleed(layer.type) && styles.rounded, box]}>
         <LayerBody
           layer={layer}
+          size={size}
           productImageUrl={productImageUrl}
           resourceImageUrl={resourceImageUrl}
         />
@@ -166,13 +168,22 @@ export function LayerView({
   );
 }
 
-/** 레이어의 속. 그림이 없으면 아무것도 그리지 않는다 — 자리 표시자는 카드에 남는다. */
+/**
+ * 레이어의 속. 그림이 없으면 아무것도 그리지 않는다 — 자리 표시자는 카드에 남는다.
+ *
+ * **문구는 `faceTextStyle()` 로 그린다 — 저장된 카드와 같은 함수다.** 한때 여기는 고정 크기의
+ * `engraving` 이었는데, 그러면 상자를 키워도 글씨가 그대로여서 **편집기가 결과에 대해 거짓말을
+ * 했다**: 좌표가 0~1 로 나가는 이상 글자 크기도 상자에 매여야 하고, 실제로 얼굴은 그렇게
+ * 그린다. 두 화면이 한 함수를 부르면 어긋날 방법이 없다.
+ */
 function LayerBody({
   layer,
+  size,
   productImageUrl,
   resourceImageUrl,
 }: {
   layer: CardLayer;
+  size: Size;
   productImageUrl?: string | null;
   resourceImageUrl?: string | null;
 }) {
@@ -181,12 +192,14 @@ function LayerBody({
 
   if (layer.type === 'TEXT') {
     const style = layer.style ?? {};
+    const ink = faceTextStyle(layer.frame.height, size.height);
     return (
       <Text
-        variant="engraving"
+        variant="body"
         numberOfLines={2}
         style={[
           styles.text,
+          ink,
           typeof style.color === 'string' && { color: style.color },
           typeof style.letterSpacing === 'number' && { letterSpacing: style.letterSpacing },
           typeof style.fontWeight === 'string' && { fontWeight: style.fontWeight as never },

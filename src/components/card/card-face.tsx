@@ -3,10 +3,11 @@ import type { ImageSourcePropType } from 'react-native';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
+import { CardLayerStack } from './card-layer-stack';
 import { Text } from '@/components/ui/text';
-import { brandMarkSource, cardArtSource } from '@/lib/card-art';
+import { brandMarkSource, cardArtSource, cardFaceLayers } from '@/lib/card-art';
 import { formatPurchaseDate } from '@/lib/format';
-import type { Card } from '@/lib/types';
+import type { Card, CardFaceLayer } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
@@ -43,27 +44,50 @@ export const CARD_ASPECT = CARD_SIZE.width / CARD_SIZE.height;
  * room to read them. What the face has to do is be recognisable across a grid at a glance, and it
  * does that on the artwork alone.
  *
- * Two ways it can look. With artwork it is a photograph — the product standing in the city it was
- * bought in — and the brand's accent survives only as the ground behind it, which is what shows
- * while the image decodes. Without artwork the accent fills the face on its own, and that is a
- * finished state rather than a placeholder.
+ * Three ways it can look. With artwork it is a photograph — the product standing in the city it
+ * was bought in — and the brand's accent survives only as the ground behind it, which is what
+ * shows while the image decodes. Without artwork the accent fills the face on its own, and that
+ * is a finished state rather than a placeholder.
+ *
+ * **The third is a stack of layers**, and it arrived with the approved-asset path: a background
+ * the house approved for that product, a border over it, and one line the customer placed. There
+ * is no image to fetch because the server composes nothing — the card stores an arrangement, and
+ * the arrangement is drawn here, at every size the card is shown.
+ *
+ * Everything above the artwork is unchanged in all three. The scrim, the city, the date and the
+ * house's mark are the card's anatomy, and the anatomy belongs to the platform — a brand's
+ * approved artwork fills the face, it does not redraw the face.
  *
  * The accent is the one colour in the app that comes from outside the token file, and the rule
  * holds because it is data travelling with the card rather than a decision the design system
  * made — onboarding a house changes this file's output without changing this file.
  */
-export function CardFace({ card, art }: { card: Card; art?: ImageSourcePropType | null }) {
+export function CardFace({
+  card,
+  art,
+  layers,
+}: {
+  card: Card;
+  art?: ImageSourcePropType | null;
+  /** `undefined` 면 카드에서 스스로 구한다. `art` 와 같은 규약이고, 넘기면 이것만 그린다. */
+  layers?: CardFaceLayer[];
+}) {
   const { brand, store, purchaseDate } = card;
   /* 훅이므로 넘겨받았든 아니든 항상 부른다. 고르는 것은 결과뿐이다. */
   const own = cardArtSource(card);
+  const ownLayers = cardFaceLayers(card);
   /* `undefined` 는 "네가 정해라", `null` 은 "그림 없이 그려라". 둘을 구분하지 않으면 편집
      화면이 액센트만 남은 얼굴을 보여줄 방법이 없다. */
   const source = art === undefined ? own : art;
+  const stack = layers === undefined ? ownLayers : layers;
   const mark = brandMarkSource(brand);
 
   return (
     <View style={[styles.face, { backgroundColor: brand.accent }]}>
-      {source ? (
+      {/* 겹이 있으면 그림 한 장은 없다 — 둘은 배타적이고, `cardArtSource()` 가 그렇게 답한다. */}
+      {stack.length > 0 ? (
+        <CardLayerStack layers={stack} />
+      ) : source ? (
         <Image source={source} style={styles.art} contentFit="cover" transition={200} />
       ) : null}
       <Scrim />

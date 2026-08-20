@@ -2,7 +2,7 @@ import type { ImageSourcePropType } from 'react-native';
 
 import { MOCK_BRAND_MARKS } from './mock/brand-marks';
 import { MOCK_CARD_ART } from './mock/card-art';
-import type { Brand, Card } from './types';
+import type { Brand, Card, CardFaceLayer } from './types';
 
 /**
  * 카드의 그림이 어디서 오는지, 한 곳에서 정한다.
@@ -15,16 +15,30 @@ import type { Brand, Card } from './types';
  *
  * **한때 여기 토큰을 실어 보내는 층이 있었다.** 백엔드가 `/images/**` 를 인증 뒤에 두던 시절,
  * 웹에서는 `<img>` 에 헤더를 실을 수 없어 `fetch` 로 받아 `blob:` 으로 바꿔치기해야 했다.
- * 그 경로는 이제 없다 — 두 경로 모두 permitAll 이고(`backend-open-items.md` 의 해결된 것),
+ * 그 경로는 이제 없다 — 두 경로 모두 permitAll 이고(실측 200 image/png),
  * 남겨두면 손해만 본다: blob 을 받는 동안 그림 자리가 비고, 토큰이 없는 순간에는 공개 이미지
  * 마저 영영 뜨지 않는다.
  */
 export function cardArtSource(card: Card): ImageSourcePropType | null {
+  /* 레이어로 꾸민 카드에는 그림 한 장이라는 것이 없다. `CardLayerStack` 이 세 겹을 그리므로
+     밑에 깔 것도 없다 — 여기서 상품 사진을 돌려주면 배경 뒤에서 아무도 못 보는 이미지를
+     한 장 더 받게 된다. */
+  if (cardFaceLayers(card).length > 0) return null;
   /* 꾸민 카드는 꾸민 얼굴을 갖는다. 이 한 줄이 편집 화면의 결과가 컬렉션에 반영되는 유일한
      지점이라, 없으면 저장이 끝난 뒤에도 카드가 그대로여서 편집 기능 전체가 무의미해진다. */
   if (card.customization?.frontImageUrl) return { uri: card.customization.frontImageUrl };
   if (card.product.imageUrl) return { uri: card.product.imageUrl };
   return MOCK_CARD_ART[card.id] ?? null;
+}
+
+/**
+ * 카드의 얼굴을 이루는 겹들. 승인 에셋으로 꾸민 카드만 갖는다.
+ *
+ * `cardArtSource()` 와 짝이다 — 둘 중 하나만 값을 갖고, 어느 쪽인지는 이 함수가 먼저 답한다.
+ * 비어 있는 배열은 "레이어가 없다"는 사실이고 오류가 아니다.
+ */
+export function cardFaceLayers(card: Card): CardFaceLayer[] {
+  return card.customization?.layers ?? [];
 }
 
 /**

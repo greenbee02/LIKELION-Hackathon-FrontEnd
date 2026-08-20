@@ -1,4 +1,5 @@
 import { request } from './client';
+import { fetchCustomizations } from './customizations';
 import { fetchProduct, type ProductResponse } from './products';
 import { fetchCollectionIndex } from './product-collections';
 import { assetUrl } from '../config';
@@ -61,9 +62,10 @@ export type CardResponse = {
  * 없는 것은 뒷면과 시트의 몇 줄뿐이다 — 값 없는 행은 원래 렌더하지 않는다.
  */
 export async function hydrateCard(res: CardResponse): Promise<Card> {
-  const [detail, index] = await Promise.all([
+  const [detail, index, customization] = await Promise.all([
     fetchProduct(res.product.id).catch(() => null),
     fetchCollectionIndex(),
+    withLayers(res.id, toCustomization(res.selectedCustomization)),
   ]);
 
   return {
@@ -82,8 +84,44 @@ export async function hydrateCard(res: CardResponse): Promise<Card> {
     product: toProduct(res, detail, index.byProduct.get(res.product.id)),
     store: res.store,
     template: res.template ?? undefined,
-    customization: toCustomization(res.selectedCustomization),
+    customization,
   };
+}
+
+/**
+ * 레이어로 꾸민 카드의 얼굴을 마저 가져온다.
+ *
+ * **`CustomizationSummary` 에는 레이어가 없다.** `GET /cards` 는 꾸몄다는 사실만 알려주고
+ * 무엇으로 꾸몄는지는 알려주지 않아서, 승인 에셋으로 꾸민 카드는 목록에서 얼굴이 비어 버린다.
+ * 그래서 카드마다 한 번 더 묻는다.
+ *
+ * **왕복이 느는 것은 레이어로 꾸민 카드 수만큼이다.** 조건 셋이 동시에 맞아야 묻는다:
+ * 커스텀이 있고, `COMPLETED` 이고, 그런데도 앞면 주소가 없다 — 그 조합은 레이어 커스텀에만
+ * 성립한다. 만들다 만 AI 커스텀(`PENDING`·`PROCESSING`)도 주소가 없지만 아직 완료가 아니므로
+ * 여기서 걸러진다. 그러지 않으면 생성 중인 카드가 목록을 열 때마다 헛된 요청을 하나씩 만든다.
+ *
+ * 실패해도 조용히 지나간다 — 얼굴 한 겹이 덜 그려지는 것과 카드가 통째로 사라지는 것 사이의
+ * 선택이고, 나머지 필드는 이미 다 갖고 있다.
+ *
+ * **`backend-open-items.md` §2 가 해결되면 이 함수를 통째로 지운다.** `CustomizationSummary`
+ * 가 `frontLayers` 를 실어 오면 왕복 자체가 없어진다.
+ */
+async function withLayers(
+  cardId: string,
+  customization: Card['customization'],
+): Promise<Card['customization']> {
+  if (
+    !customization ||
+    customization.status !== 'COMPLETED' ||
+    customization.frontImageUrl ||
+    customization.layers.length > 0
+  ) {
+    return customization;
+  }
+  const list = await fetchCustomizations(cardId).catch(() => null);
+  const found = list?.find((c) => c.id === customization.id);
+  if (!found?.layers.length) return customization;
+  return { ...customization, layers: found.layers, back: found.back };
 }
 
 /**
@@ -104,6 +142,9 @@ function toCustomization(
     backImageUrl: assetUrl(res.generatedBackImageUrl),
     message: res.generatedMessage,
     createdAt: res.createdAt,
+    /* 요약에는 레이어가 없다. `withLayers()` 가 필요할 때만 채운다. */
+    layers: [],
+    back: null,
   };
 }
 

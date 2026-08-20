@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CARD_ASPECT } from '@/components/card/card-face';
+import { CardLayerStack } from '@/components/card/card-layer-stack';
 import { Dialog } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { NavBar } from '@/components/ui/nav-bar';
@@ -211,13 +212,18 @@ function CustomizationRow({
   onPress: () => void;
 }) {
   const source = imageSource(customization.frontImageUrl);
+  const layers = customization.layers;
   const pending = customization.status === 'PENDING' || customization.status === 'PROCESSING';
   const failed = customization.status === 'FAILED';
 
   const body = (
     <Panel style={styles.row}>
       <View style={styles.thumb}>
-        {source ? (
+        {/* 승인 에셋으로 만든 것은 이미지가 없다 — 카드 얼굴과 같은 방식으로 여기서도 겹친다.
+            64pt 짜리 문구는 읽히지 않지만, 무엇을 골랐는지는 배경과 테두리가 이미 말한다. */}
+        {layers.length > 0 ? (
+          <CardLayerStack layers={layers} />
+        ) : source ? (
           <Image source={source} style={styles.thumbImage} contentFit="cover" transition={200} />
         ) : pending ? (
           <Skeleton style={styles.thumbImage} />

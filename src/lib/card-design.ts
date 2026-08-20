@@ -418,6 +418,9 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
         backImageUrl: assetUrl(raw.generatedBackImageUrl),
         message: raw.generatedMessage,
         createdAt: raw.createdAt,
+        /* AI 경로는 레이어를 남기지 않는다 — 서버가 이미 한 장으로 구웠고, 그 주소가 얼굴이다. */
+        layers: [],
+        back: null,
       };
 
       try {

@@ -40,12 +40,19 @@ export function CardBack({ card }: { card: Card }) {
   const { product, store, brand } = card;
   const mark = brandMarkSource(brand);
 
+  /* 꾸민 카드는 **발급 당시의 값**을 스냅샷으로 갖고 있다(`back.contentData`). 나중에 매장이
+     이름을 바꿔도 이 카드에 적힌 것은 그날의 이름이어야 한다 — 카드가 기록이라는 전제가
+     데이터에 들어온 자리이고, 없으면 지금처럼 카드에서 직접 읽는다. 행이 늘지도 줄지도
+     않는다: 스냅샷은 값의 출처를 바꿀 뿐 무엇을 적을지는 바꾸지 않는다. */
+  const snapshot = card.customization?.back ?? null;
+  const serialNumber = snapshot?.serialNumber ?? card.serialNumber;
+
   /* `warrantyMonths` 는 `GET /products/{id}` 가 주지만 null 일 수 있다. 그때 두 줄은 대시가
      아니라 **아예 그려지지 않는다** — 대시는 카드가 스스로 답하지 못한 질문을 했다고 자백하는
      것이고, 보증이 없는 상품에서는 애초에 질문이 아니다. 뒷면이 짧아질 뿐이다. */
   const entries: { label: string; value?: string | null }[] = [
-    { label: '구매일', value: formatPurchaseDate(card.purchaseDate) },
-    { label: '매장', value: store.name },
+    { label: '구매일', value: snapshot?.date ?? formatPurchaseDate(card.purchaseDate) },
+    { label: '매장', value: snapshot?.store ?? store.name },
     {
       label: '보증 기간',
       value: product.warrantyMonths ? `${product.warrantyMonths}개월` : null,
@@ -65,7 +72,7 @@ export function CardBack({ card }: { card: Card }) {
           front keeps for the city. The mark answers from the corner it signs the front from. */}
       <View style={styles.head}>
         <Text variant="caption" numberOfLines={1}>
-          {card.serialNumber}
+          {serialNumber}
         </Text>
         {mark ? (
           <Image
