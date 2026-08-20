@@ -168,7 +168,7 @@ export default function ScanScreen() {
           style={styles.guideText}
         >
           {cameraBlocked
-            ? 'QR 코드를 스캔하려면 카메라 권한을 허용해주세요'
+            ? 'QR 코드를 스캔하려면 카메라 권한을 허용해주세요.'
             : 'QR 코드를 화면 중앙에 스캔하면 카드가 발급됩니다'}
         </Text>
       </View>
