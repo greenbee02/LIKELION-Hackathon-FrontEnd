@@ -8,6 +8,26 @@ module.exports = defineConfig([
     ignores: ['dist/*'],
   },
   {
+    /**
+     * `api/` 는 앱이 아니라 Vercel 의 Node 함수다.
+     *
+     * 저장소의 나머지는 React Native 환경이라 `Buffer` 도 `process` 도 없는 것이 맞지만,
+     * 이 한 디렉터리만은 서버에서 돌기 때문에 있다. 파일에 `eslint-disable` 을 다는 대신
+     * 여기서 환경을 밝히는 이유는, 그 주석이 "이 줄은 예외"라고 말하게 되기 때문이다 —
+     * 예외가 아니라 **다른 런타임**이라는 것이 정확하다.
+     */
+    files: ['api/**'],
+    languageOptions: {
+      globals: {
+        Buffer: 'readonly',
+        URL: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        process: 'readonly',
+      },
+    },
+  },
+  {
     rules: {
       /**
        * Reanimated 의 shared value 는 이 규칙이 다루는 값이 아니다.

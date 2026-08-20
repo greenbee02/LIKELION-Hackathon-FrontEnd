@@ -9,7 +9,7 @@
 
 ---
 
-## 1. 🔴 CORS 허용 목록에 Vercel 오리진이 없다
+## 1. 🟡 CORS 허용 목록에 Vercel 오리진이 없다
 
 CORS 자체는 이제 있다 (`SecurityConfig.corsConfigurationSource`). 다만 허용 목록이
 `CORS_ALLOWED_ORIGINS` 환경변수이고 실서버는 기본값 그대로다:
@@ -26,9 +26,19 @@ Access-Control-Allow-Origin: http://localhost:8081
 
 **요청:** `CORS_ALLOWED_ORIGINS` 에 `https://curio-xi-lovat.vercel.app` 추가.
 
-**다만 그것만으로는 웹 배포가 낫지 않는다.** 배포본은 HTTPS 이고 백엔드는 평문 HTTP 라,
-CORS 가 열려도 브라우저가 mixed content 로 끊는다. 그래서 `vercel.json` 의 리라이트 프록시는
-CORS 와 무관하게 계속 필요하다 (AGENTS.md 에 적힌 그대로). CORS 는 로컬 웹 개발을 위한 것.
+**이 항목은 한때 "CORS 는 로컬 웹 개발을 위한 것"이라고 적혀 있었다. 틀렸다.** 리라이트는
+요청 헤더를 그대로 넘기고, 브라우저는 same-origin 이어도 POST 에 `Origin` 을 붙인다. 그래서
+배포 웹의 로그인이 `403 Invalid CORS request` 로 잘렸다 — `Origin` 이 붙지 않는 GET 은
+통과했으므로 증상은 "카드는 보이는데 로그인만 안 됨"이었다 (2026-08-20 실측).
+
+```
+POST https://curio-xi-lovat.vercel.app/api/v1/auth/login   Origin 없음 → 200 · 있음 → 403
+GET  https://curio-xi-lovat.vercel.app/images/…/prod_001.png  Origin 없음 → 200 · 있음 → 403
+```
+
+**프론트가 `api/proxy.mjs` 로 우회했다** — 헤더를 지울 수 있는 것은 리라이트가 아니라 함수뿐
+이다. 그래서 🔴 이 아니라 🟡 다: 배포 웹은 지금 동작한다. 백엔드가 오리진을 넣으면 그 파일과
+`vercel.json` 의 리라이트 세 줄을 지우고 원래의 단순한 리라이트로 돌아갈 수 있다.
 
 ## 2. 🟡 평문 HTTP — iOS ATS
 

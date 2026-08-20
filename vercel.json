@@ -2,18 +2,21 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npx expo export -p web",
   "outputDirectory": "dist",
+  "functions": {
+    "api/proxy.mjs": { "maxDuration": 30 }
+  },
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "http://1.201.117.14/api/:path*"
+      "destination": "/api/proxy?upstream=/api/:path*"
     },
     {
       "source": "/images/:path*",
-      "destination": "http://1.201.117.14/images/:path*"
+      "destination": "/api/proxy?upstream=/images/:path*"
     },
     {
       "source": "/generated/:path*",
-      "destination": "http://1.201.117.14/generated/:path*"
+      "destination": "/api/proxy?upstream=/generated/:path*"
     },
     {
       "source": "/(.*)",
