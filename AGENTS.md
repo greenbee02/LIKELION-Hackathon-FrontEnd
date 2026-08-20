@@ -105,6 +105,7 @@ The face carries **two lines of type along the top and nothing else** — the ci
 
 **A push to `main` ships it** — `.github/workflows/deploy.yml` runs `vercel deploy --prod` for the project `curio`, live at `https://curio-xi-lovat.vercel.app`. Why it is built the way it is, is commented in the workflow itself. `npx vercel --prod` from the repo root is the way to ship without pushing.
 
+- **`main` is production, and shipping is asynchronous.** What is pushed there is live within two minutes whoever pushed it, and a deploy that fails does so in Actions rather than in the terminal that pushed — `gh run list` is where it is seen, not the push output.
 - **`vercel link` is refused, and that is expected.** The Vercel GitHub App installs on an *account*, never on a repo, and this one belongs to someone else's — which is why the workflow carries a `VERCEL_TOKEN` of ours instead. Three repo secrets hold it: `VERCEL_TOKEN` · `VERCEL_ORG_ID` · `VERCEL_PROJECT_ID`, the last two being what `.vercel/project.json` keeps locally and gitignores.
 - **Write access is enough to set repo secrets here**, though the Settings UI that would show them is admin-only — `gh secret set` is the way in.
 - **`web.output` is `single`, not `static`.** Static rendering spells a dynamic segment `dist/card/[id].html`, which static hosting cannot resolve; the deep link then falls through the catch-all onto the wrong screen's markup.
