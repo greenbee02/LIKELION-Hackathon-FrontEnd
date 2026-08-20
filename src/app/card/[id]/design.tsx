@@ -54,7 +54,7 @@ const TEXT_Z_INDEX = 30;
  * 백엔드는 이 객체를 검증 없이 저장하고 그대로 돌려준다. 즉 **프론트가 정하면 그것이 계약이
  * 된다.** 그래서 값으로 `#E8DFD2` 같은 것을 넣지 않는다 — 나중에 서버가 이 카드를 이미지로
  * 굽게 되면 같은 키를 서버도 해석해야 하는데, 그때 필요한 것은 우리 팔레트의 한 지점이지
- * 어느 날의 색상값이 아니다. `backend-open-items.md` §3.
+ * 어느 날의 색상값이 아니다. `backend-open-items.md` §4.
  */
 const FACE_TEXT_STYLE = {
   fontFamily: 'PLATFORM_SANS',
@@ -95,9 +95,8 @@ export default function DesignCardScreen() {
   /**
    * 옵션은 **갈래에서 기본을 고른 뒤에** 부른다.
    *
-   * 갈래 화면에서 미리 불러두면 AI 로 가는 고객의 몫까지 요청이 나가고, 무엇보다 이
-   * 엔드포인트는 지금 실서버에 없어서(`backend-open-items.md` §1) 실패가 갈래 화면을
-   * 덮어버린다. 고를 화면에 들어온 사람에게만 필요한 데이터다.
+   * 갈래 화면에서 미리 불러두면 AI 로 가는 고객의 몫까지 요청이 나가고, 실패가 고를 화면이
+   * 아니라 갈래 화면을 덮어버린다. 고를 화면에 들어온 사람에게만 필요한 데이터다.
    */
   useEffect(() => {
     if (step !== 'pick' || options || loadFailed) return;

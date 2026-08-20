@@ -1,16 +1,19 @@
 # 백엔드 계약 — 지금 API가 무엇인가
 
-기준: `greenbee02/LIKELION-Hackathon-BackEnd` @ `9188d7d` (2026-08-20 21:14 KST) · 마이그레이션 V1~V12
+기준: `greenbee02/LIKELION-Hackathon-BackEnd` @ `f7ce5f1` (2026-08-21 00:54 KST) · 마이그레이션 V1~V13
 확인: `http://1.201.117.14` · Base `/api/v1` · OpenAPI `http://1.201.117.14/v3/api-docs`
-갱신일: 2026-08-20
+갱신일: 2026-08-21
 
-> **실서버가 저장소보다 뒤에 있다 — 이 문서에서 처음 벌어진 일이다.** 배포된 빌드는
-> `c99def4`(06:18Z) 이상 `b5f9690`(06:42Z) 미만이다: 새 정적 이미지는 서빙되는데
-> (`/images/templates/common_back_black_info.png` 200, 이름을 고치기 전의 `…blank…` 은 404)
-> `/v3/api-docs` 에 새 엔드포인트 둘이 없다. 정적 리소스는 jar 에 구워지므로 이 두 사실이
-> 배포 시점을 24분 폭으로 좁힌다.
+> **실서버가 다시 따라잡았고, 이번에는 한 커밋만 뒤에 있다.** 배포된 빌드는 `e35288b`(14:58Z)
+> 이상 `f7ce5f1`(15:54Z) 미만이다: `/v3/api-docs` 에 `e35288b` 가 더한 엔드포인트가 있고
+> (`GET /rewards/progress/{collectionId}`), `f7ce5f1` 이 더한 정적 이미지는 404 다
+> (`/images/rewards/reward_001_seoul_collector_pass.png`). 정적 리소스는 jar 에 구워지므로
+> 이 두 사실이 배포 시점을 56분 폭으로 좁힌다.
 >
-> 그래서 아래 표는 엔드포인트마다 **어디에 있는지**를 적는다 — 🟢 실서버 실측 · 🟡 저장소에만.
+> **저장소에만 있는 것은 이제 V13 하나뿐이다** — 리워드·이벤트의 `image_url` 을 채우는 시드와
+> 그 이미지 6장. 그래서 아래에 `imageUrl` 이라 적힌 리워드 쪽 필드는 실측하면 전부 `null` 이다.
+>
+> 표는 엔드포인트마다 **어디에 있는지**를 적는다 — 🟢 실서버 실측 · 🟡 저장소에만.
 > 표시가 없는 절은 전부 🟢 다.
 
 > **이 문서에는 계획이 없다.** 지금 서버가 무엇을 받고 무엇을 돌려주는지만 적는다. 막힌 것과
@@ -51,7 +54,7 @@
 
 **CORS 는 이제 존재한다.** `Access-Control-Allow-Origin` 을 오리진별로 돌려준다. 다만 허용
 목록이 `CORS_ALLOWED_ORIGINS` 환경변수이고 실서버는 기본값(`localhost:3000,localhost:8081`)
-그대로다 — Vercel 오리진은 **403**. `backend-open-items.md` §4.
+그대로다 — Vercel 오리진은 **403**. `backend-open-items.md` §5.
 
 ---
 
@@ -89,9 +92,9 @@ UserResponse   { id, email, name, role }        // role 은 UserRole enum
 | POST | `/registrations` | ✓ | 201 | 🟢 |
 | GET | `/cards` | ✓ | 200 | 🟢 |
 | GET | `/cards/{cardId}` | ✓ | 200 | 🟢 |
-| GET | `/{cardId}/customization-options` | ✓ | 200 | 🟡 |
+| GET | `/{cardId}/customization-options` | ✓ | 200 | 🟢 |
 | POST | `/{cardId}/customizations` | ✓ | 202 | 🟢 |
-| POST | `/{cardId}/customizations/layers` | ✓ | 201 | 🟡 |
+| POST | `/{cardId}/customizations/layers` | ✓ | 201 | 🟢 |
 | GET | `/{cardId}/customizations` | ✓ | 200 | 🟢 |
 | POST | `/{cardId}/customizations/{customizationId}/select` | ✓ | 200 | 🟢 |
 | POST | `/{cardId}/restore-original` | ✓ | 200 | 🟢 |
@@ -123,7 +126,7 @@ CustomizationSummary  { id, status, generatedFrontImageUrl, generatedBackImageUr
 **`CustomizationSummary` 에는 레이어가 없다** — `b5f9690` 이후에도 그대로다. 레이어로 꾸민
 카드는 여기서 `generatedFrontImageUrl: null` 로만 보이므로, `GET /cards` 하나로는 꾸민 얼굴을
 그릴 수 없다. `GET /{cardId}/customizations` 를 카드마다 한 번 더 부르는 수밖에 없다
-(`backend-open-items.md` §2).
+(`backend-open-items.md` §3).
 
 ### 발급 오류 — 9개 그대로
 
@@ -165,15 +168,16 @@ CardCustomizationResponse  { id, cardId, templateId, inputImageUrl, inputText,
                              frontLayers[], back, createdAt }
 ```
 
-`frontLayers` 와 `back` 은 저장소에만 있다 (🟡) — 실서버의 `CardCustomizationResponse` 는
-`status` 다음이 바로 `createdAt` 이다. 아래 (2) 로 만든 커스텀을 이 목록으로 읽을 때만 채워진다.
+`frontLayers` 와 `back` 은 실서버에도 있다 (2026-08-21 확인). 아래 (2) 로 만든 커스텀을
+이 목록으로 읽을 때만 채워지고, AI 경로로 만든 것은 둘 다 비어 있다.
 
 오류: `CUSTOMIZATION_NOT_FOUND` (404) · `CUSTOMIZATION_NOT_COMPLETED` (409) ·
 `CARD_NOT_ACTIVE` (409)
 
-### 커스터마이징 (2) — 승인 에셋 레이어 경로 🟡 **새로 생겼다**
+### 커스터마이징 (2) — 승인 에셋 레이어 경로 🟢 **실서버에 올라왔다**
 
-`b5f9690` (2026-08-20 15:42 KST). **AI 가 아니고, 비동기도 아니다.** 브랜드가 승인해 DB 에
+`b5f9690` (2026-08-20 15:42 KST), 2026-08-21 배포 확인 — 없는 카드 id 로 불러도 라우트가 아니라
+`CARD_NOT_FOUND` 가 돌아온다. **AI 가 아니고, 비동기도 아니다.** 브랜드가 승인해 DB 에
 넣어둔 정적 PNG 세 겹을 고객이 고르면 그 선택을 그대로 저장한다 — 202 도 폴링도 없고,
 `POST` 한 번이 201 로 끝나며 **저장과 동시에 그 커스텀이 선택되어 카드가 `CUSTOMIZE` 가 된다**
 (`card.selectCustomization(saved)`). `generationStatus` 는 처음부터 `COMPLETED`,
@@ -439,16 +443,15 @@ CardTemplateResponse { id, brandId, brandName, name, description,
 
 `resourceData` 는 **JSON 문자열 한 덩어리**다. 파싱은 `src/lib/api/card-templates.ts` 한 곳에서만.
 
-🟡 **V11·V12 가 이 둘을 바꾼다 — 실서버는 아직 옛 값이다.**
+**V11·V12 가 적용됐다 (2026-08-21 실측).**
 
-- V11 이 세 템플릿의 `resourceData` 에 `basicRenderMode: "FIXED_IMAGE_PAIR"` 와
-  `customization: { frontRenderMode: "THREE_LAYER", frontLayerOrder: [PRODUCT_BACKGROUND,
-  BORDER, TEXT], backRenderMode: "COMMON_LAYOUT", backLayoutId }` 를 덧붙인다. 즉 **기본
-  카드는 앞뒤 이미지 한 쌍 그대로, 꾸민 카드만 세 겹**이라는 구분이 데이터로 온다.
-- V12 가 세 템플릿의 `backImageUrl` 을 전부 `/images/templates/common_back_black_info.png`
-  하나로 모은다. 뒷면이 템플릿마다 다르던 것이 브랜드 공통 한 장이 된다는 뜻이고,
-  **이미 발급된 카드도 템플릿을 참조하므로 함께 바뀐다.** 실측(2026-08-20)으로는 셋 다
-  아직 `template_00X_back.png` 다.
+- `resourceData` 에 `basicRenderMode: "FIXED_IMAGE_PAIR"` 와 `customization:
+  { frontRenderMode: "THREE_LAYER", frontLayerOrder: [PRODUCT_BACKGROUND, BORDER, TEXT],
+  backRenderMode: "COMMON_LAYOUT", backLayoutId }` 가 실제로 실려 온다. 즉 **기본 카드는
+  앞뒤 이미지 한 쌍 그대로, 꾸민 카드만 세 겹**이라는 구분이 데이터로 온다.
+- `backImageUrl` 은 세 템플릿 모두 `/images/templates/common_back_black_info.png` 하나다.
+  뒷면은 이제 템플릿별이 아니라 브랜드 공통 한 장이고, **이미 발급된 카드도 템플릿을
+  참조하므로 함께 바뀌었다.**
 
 오류: `PRODUCT_NOT_FOUND` (404)
 
@@ -488,6 +491,7 @@ UserCollectionResponse { id, name, description, coverImageUrl, collectionType,
 | Method | Path |
 |---|---|
 | GET | `/progress` |
+| GET | `/progress/{collectionId}` |
 | GET | `/my` |
 | POST | `/{id}/claim` |
 
@@ -510,16 +514,67 @@ UserRewardResponse { id, targetType, targetId, name, status,
 고객이 가진 `ACTIVE` 카드의 상품 id 집합을 교집합해서 `owned/required × 100`, 소수 둘째 자리
 반올림. 같은 상품의 카드를 두 장 가져도 1로 센다.
 
-`rewardType`(`PHYSICAL_CARD`/`GOODS`/`EVENT_INVITATION`/`BENEFIT`)은 **여전히 노출되지 않는다.**
-`UnlockTarget.type` 이 `REWARD`/`EVENT` 로만 갈리므로 프론트가 만들 수 있는 종류는 그 둘뿐이다.
+### `GET /progress/{collectionId}` — 공식 컬렉션 하나의 상세
+
+`e35288b` (2026-08-20 23:58 KST). 목록의 한 줄을 눌렀을 때 펼 화면을 위한 응답이고,
+**목록이 주는 것을 전부 포함한 위에** 필수 상품과 보유 카드, 해금 대상의 설명까지 얹는다.
+
+```
+RewardCollectionDetailResponse {
+  collectionId, collectionName, collectionDescription, coverImageUrl,
+  requiredProductCount, ownedRequiredProductCount, percentage,
+  requiredProducts: [RequiredProduct],
+  targets:          [UnlockTarget]     // 목록의 것과 이름만 같고 필드가 더 많다
+}
+
+RequiredProduct { productId, name, offeringType, category, imageUrl,
+                  limited, displayOrder,
+                  owned,                 // 달성률은 이 값으로 센다
+                  cards: [OwnedCard] }   // 같은 상품의 카드를 두 장 가지면 두 개 다 온다
+
+OwnedCard { cardId, cardType, selectedCustomizationId,
+            frontImageUrl, backImageUrl, purchaseDate, issuedAt, serialNumber }
+
+UnlockTarget { type, id, name, description, imageUrl,
+               requiredPercentage, unlocked,
+               reward: { rewardType, quantity, expiresAt } | null,
+               event:  { location, startAt, endAt, capacity, active } | null }
+```
+
+- `type == "REWARD"` 면 `reward` 만, `"EVENT"` 면 `event` 만 차고 다른 쪽은 `null` 이다.
+- **`rewardType` 이 여기서 처음 노출된다** — 목록(`/progress`)과 `/my` 는 여전히 주지 않는다.
+- `imageUrl` 과 `coverImageUrl` 은 지금 전부 `null` 이다. V13 이 채우는 값이고 그 배포가
+  아직 오지 않았다.
+- `/v3/api-docs` 의 `UnlockTarget` 스키마는 **목록 쪽 것만** 실려 있다 — 중첩 record 의
+  단순명이 겹쳐 springdoc 이 하나만 남긴다. 위 필드는 실측 응답이 근거다.
+
+목록(`/progress`)의 `UnlockTarget` 은 아래 다섯 필드 그대로다.
+
+`rewardType`(`PHYSICAL_CARD`/`GOODS`/`EVENT_INVITATION`/`BENEFIT`)은 **목록과 `/my` 에서는
+여전히 노출되지 않는다.** 상세를 부르지 않는 화면이 만들 수 있는 종류는 `REWARD`·`EVENT` 둘뿐이다.
 
 ---
 
-## 7. 존재하지 않는 것
+## 7. 데모 리셋 — `POST /api/v1/local/demo/reset` (인증 없음)
 
-- **이벤트 컨트롤러 없음.** `events` 테이블은 있고 `UnlockTarget.type == "EVENT"` 로 이름만
-  나오지만, 이벤트를 조회하거나 신청하는 엔드포인트는 없다.
+`e35288b` 가 `@Profile` 에 `"prod"` 를 더하고 SecurityConfig 의 `permitAll` 목록에 넣었다.
+**토큰 없이 누구나 부를 수 있다** — 백엔드가 코드 주석으로 "발표 후 제거하거나 관리자/데모 키
+인증으로 교체한다"고 적어둔, 시연 기간 한정 조치다.
+
+```
+DemoResetResponse { resetPurchaseQrCount }
+```
+
+- `qr_token LIKE 'MCM-DEMO-2026-%'` 인 QR 열한 개에 매달린 카드 이력만 지운다 —
+  `collection_cards` · `ai_resource_generations` · `card_customizations` · `cards` 순으로
+  지우고 그 QR 을 `is_used = FALSE` 로 되돌린다.
+- **`user_rewards` 는 더 이상 지우지 않는다.** 리셋해도 이미 해금·수령한 리워드는 남는다.
+- 데모 QR 이 아닌 카드는 건드리지 않는다.
+
+---
+
+## 8. 존재하지 않는 것
+
+- **이벤트 컨트롤러 없음.** `events` 테이블은 있고 `UnlockTarget` 이 `type == "EVENT"` 로
+  이름·설명·기간까지 주지만, 이벤트를 목록으로 조회하거나 신청하는 엔드포인트는 없다.
 - **케어·수선 엔드포인트 없음.**
-- **`/api/v1/local/demo/reset` 은 `@Profile({"local","test"})`** — 실서버에 존재하지 않는다.
-  소진된 데모 QR 을 앱에서 되살릴 방법은 없다.
-- **레이어 커스터마이징 엔드포인트 둘은 실서버에 아직 없다** (§2 의 🟡). 저장소에는 있다.
