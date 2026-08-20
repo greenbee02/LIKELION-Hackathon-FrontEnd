@@ -18,8 +18,8 @@ import { shareCardImage } from '@/lib/share-card';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
-/** 카드가 아무리 넓은 화면에서도 넘지 않는 폭. 손에 든 물건의 크기다. */
-const HERO_MAX = 360;
+/** 카드가 아무리 넓은 화면에서도 넘지 않는 폭. 실제 생성 결과를 읽을 수 있는 크기다. */
+const HERO_MAX = 440;
 
 /**
  * 카드 상세 — 카드 한 장, 그리고 그것으로 할 수 있는 한 가지.
@@ -176,10 +176,10 @@ export default function CardDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  /** 화면의 16pt 여백을 본문이 든다. 48 은 마지막 컨트롤이 화면 바닥에 붙지 않을 만큼. */
+  /** 카드가 화면 폭을 충분히 쓰도록 8pt 여백만 둔다. 높이는 CARD_ASPECT 로 함께 계산된다. */
   body: {
     flex: 1,
-    paddingHorizontal: space[4],
+    paddingHorizontal: space[2],
     paddingBottom: space[7],
     ...allowPressOverflow,
   },

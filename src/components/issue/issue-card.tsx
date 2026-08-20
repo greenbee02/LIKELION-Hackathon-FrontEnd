@@ -53,7 +53,9 @@ export function IssueCard({ card }: { card: Card | null }) {
 }
 
 const styles = StyleSheet.create({
-  holder: { width: '100%', maxWidth: 185, alignSelf: 'center' },
+  /* QR 발급 중에도 생성된 리소스가 충분히 크게 보이도록 폭을 넓힌다.
+     높이는 `face` 의 CARD_ASPECT 가 함께 계산하므로 이미지가 늘어나거나 찌그러지지 않는다. */
+  holder: { width: '100%', maxWidth: 270, alignSelf: 'center' },
   face: { width: '100%', aspectRatio: CARD_ASPECT, borderRadius: radius.base },
   meta: { marginTop: space[2] },
   centered: { textAlign: 'center' },
