@@ -1,17 +1,20 @@
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { AppleMark } from '@/components/brand-marks/apple';
 import { GoogleMark } from '@/components/brand-marks/google';
 import { appleButton } from '@/components/brand-marks/palettes';
 import { Button } from '@/components/ui/button';
+import { allowPressOverflow } from '@/components/ui/press-scale';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { useToast } from '@/components/ui/toast';
 import { Wordmark } from '@/components/ui/wordmark';
 import { useAuth } from '@/lib/auth-store';
 import { colors } from '@/theme/colors';
+import { motion } from '@/theme/motion';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
@@ -67,61 +70,77 @@ export default function SignInScreen() {
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
-      {/* Ratios rather than fixed offsets: the wordmark should sit at the same point of a small
-          phone and a large one, and a hardcoded top margin only lands on the device it was
-          measured against. */}
-      <View style={styles.hero}>
-        <Wordmark />
-      </View>
+      {/* 이 화면은 스스로 나타난다.
 
-      <View style={styles.body}>
-        <Button
-          label="구글로 로그인"
-          variant="outline"
-          leading={<GoogleMark />}
-          onPress={continueWithGoogle}
-          loading={pending}
-        />
-        {/* Apple's own black button. Google's guidelines describe the white one, which is what
-            `outline` already is, so the two providers end up looking as different as they are
-            meant to. */}
-        <Button
-          label="애플로 로그인"
-          palette={appleButton}
-          leading={<AppleMark color={appleButton.foreground} />}
-          onPress={notReady}
-          style={styles.stacked}
-        />
+          앞 화면이 밀려나는 것이 아니라 **여기가 도착하는 것**으로 보여야 한다. 소개의 마지막
+          장에서 넘어올 때가 그렇고, 앱을 처음 열어 스플래시가 걷힐 때도 그렇다 — 두 경우 다
+          앞에 있던 것은 이미 없고, 남은 일은 문이 열리는 것뿐이다.
 
-        {/* Two destinations, equal weight, either side of a rule — neither is the other's
-            fallback, so neither is styled as a button. Smaller and at step 11 rather than 12 —
-            two steps down from the buttons above, so the fast way in stays the loudest thing on
-            the screen. Step 11 is the lightest a word is allowed to be and still clears AA. */}
-        <View style={styles.emailRow}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push('/sign-up')}
-            style={({ pressed }) => [styles.emailLink, pressed && styles.emailLinkPressed]}
-          >
-            <Text variant="label" tone="muted">이메일 가입</Text>
-          </Pressable>
-
-          <View style={styles.emailDivider} />
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push('/sign-in/email')}
-            style={({ pressed }) => [styles.emailLink, pressed && styles.emailLinkPressed]}
-          >
-            <Text variant="label" tone="muted">이메일 로그인</Text>
-          </Pressable>
+          전환을 스택이 아니라 화면이 하는 이유는 `motion.enterDuration` 에 적혀 있다. 25pt
+          아래에서 올라오며 밝아지는데, 순수한 투명도만으로는 두 화면의 바탕이 같은 1 이라
+          아무 일도 없었던 것처럼 보인다. */}
+      <Animated.View
+        style={styles.enter}
+        entering={FadeInDown.duration(motion.enterDuration).easing(motion.easing)}
+      >
+        {/* Ratios rather than fixed offsets: the wordmark should sit at the same point of a small
+            phone and a large one, and a hardcoded top margin only lands on the device it was
+            measured against. */}
+        <View style={styles.hero}>
+          <Wordmark />
         </View>
-      </View>
+
+        <View style={styles.body}>
+          <Button
+            label="구글로 로그인"
+            variant="outline"
+            leading={<GoogleMark />}
+            onPress={continueWithGoogle}
+            loading={pending}
+          />
+          {/* Apple's own black button. Google's guidelines describe the white one, which is what
+              `outline` already is, so the two providers end up looking as different as they are
+              meant to. */}
+          <Button
+            label="애플로 로그인"
+            palette={appleButton}
+            leading={<AppleMark color={appleButton.foreground} />}
+            onPress={notReady}
+            style={styles.stacked}
+          />
+
+          {/* Two destinations, equal weight, either side of a rule — neither is the other's
+              fallback, so neither is styled as a button. Smaller and at step 11 rather than 12 —
+              two steps down from the buttons above, so the fast way in stays the loudest thing on
+              the screen. Step 11 is the lightest a word is allowed to be and still clears AA. */}
+          <View style={styles.emailRow}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/sign-up')}
+              style={({ pressed }) => [styles.emailLink, pressed && styles.emailLinkPressed]}
+            >
+              <Text variant="label" tone="muted">이메일 가입</Text>
+            </Pressable>
+
+            <View style={styles.emailDivider} />
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/sign-in/email')}
+              style={({ pressed }) => [styles.emailLink, pressed && styles.emailLinkPressed]}
+            >
+              <Text variant="label" tone="muted">이메일 로그인</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Animated.View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  /** 화면 전체를 감싸므로 아래 두 비율(36:64)이 그대로 유지된다. */
+  enter: { flex: 1, ...allowPressOverflow },
   /** The upper ~36% of the screen, with the wordmark centred in it — so it lands near a fifth down. */
   hero: { flex: 36, alignItems: 'center', justifyContent: 'center' },
   /** The rest. Content sits at the top of it and the remainder stays empty on purpose. */
