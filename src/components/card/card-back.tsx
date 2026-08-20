@@ -17,11 +17,9 @@ import { space } from '@/theme/spacing';
  * surface existing: the front is a photograph of what was bought and cannot carry a word more
  * than the city and the date without covering the product to describe it.
  *
- * **It carries the purchase, not the product.** Which serial this card was issued under, the day
- * and the shop it came from, how long it is covered — every line is true of *this card* and of no
- * other, even another card of the same handbag. What the product is made of and how to look after
- * it reads the same on anyone's card, so it lives in the sheet instead (`ProductDetail`). Two
- * gestures, two kinds of fact, and neither surface repeats a row from the other.
+ * **It carries both kinds of fact in a compact form.** The purchase rows identify this card, while
+ * the product rows fill the reverse side with the information customers most often look up.
+ * Longer product descriptions still belong to the full product detail screen.
  *
  * **Card stock, not a panel.** Gray 1 fill with a step-7 edge, because a printed back is the
  * whitest thing in the room and against a gray-1 page only a real border can say where the card
@@ -32,9 +30,8 @@ import { space } from '@/theme/spacing';
  * dark one.
  *
  * It keeps the face's 3:4 exactly: a card that changed shape when turned over would stop being
- * one object. Four lines do not fill that, and they are not meant to — the serial and the mark
- * sit at the head, the guarantee sits at the foot, and the middle is left as the card's own
- * material. A guarantee printed edge to edge would be a receipt.
+ * one object. Values are clipped to short rows so the reverse side feels like a card, not a
+ * product receipt.
  */
 export function CardBack({ card }: { card: Card }) {
   const { product, store, brand } = card;
@@ -64,16 +61,25 @@ export function CardBack({ card }: { card: Card }) {
     );
   }
 
-  /* `warrantyMonths` 는 `GET /products/{id}` 가 주지만 null 일 수 있다. 그때 두 줄은 대시가
-     아니라 **아예 그려지지 않는다** — 대시는 카드가 스스로 답하지 못한 질문을 했다고 자백하는
-     것이고, 보증이 없는 상품에서는 애초에 질문이 아니다. 뒷면이 짧아질 뿐이다. */
+  /* 제품 상세에 표시하던 핵심 값을 카드 뒷면에도 요약한다. 값이 없는 행은 만들지 않아
+     빈 라벨이나 대시가 제품 정보처럼 보이지 않게 한다. */
   const entries: { label: string; value?: string | null }[] = [
+    { label: '제품', value: product.name },
+    { label: '컬렉션', value: product.collection?.name },
+    { label: '카테고리', value: product.category },
+    { label: '소재', value: product.material },
+    { label: '색상', value: product.color },
+    { label: '원산지', value: product.origin },
+    { label: '시즌', value: product.season },
+    { label: '제품 번호', value: product.code },
     { label: '구매일', value: snapshot?.date ?? formatPurchaseDate(card.purchaseDate) },
     { label: '매장', value: snapshot?.store ?? store.name },
     {
       label: '보증 기간',
       value: product.warrantyMonths ? `${product.warrantyMonths}개월` : null,
     },
+    { label: '보증 내용', value: product.warrantyInfo },
+    { label: '케어', value: product.careInfo },
     {
       label: '보증 만료일',
       value: product.warrantyMonths
@@ -114,7 +120,7 @@ export function CardBack({ card }: { card: Card }) {
               {row.label}
             </Text>
             {/* One line: nothing here runs long, and a card's aspect ratio has no give if it did. */}
-            <Text variant="label" style={styles.value} numberOfLines={1}>
+            <Text variant="label" style={styles.value} numberOfLines={2}>
               {row.value}
             </Text>
           </View>
@@ -146,14 +152,14 @@ const styles = StyleSheet.create({
   /** The same box the face gives the mark, so the signature reads at one size on both sides. */
   mark: { width: 48, height: 18 },
   brand: { letterSpacing: 0.5 },
-  /** Pushed to the foot: the guarantee is what the back is for, and it is the card's last word. */
-  rows: { marginTop: 'auto' },
+  /** The product summary follows the card header instead of leaving the reverse side empty. */
+  rows: { marginTop: space[4] },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: space[3],
-    paddingVertical: space[2],
+    paddingVertical: space[1],
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.borderSubtle,
   },
