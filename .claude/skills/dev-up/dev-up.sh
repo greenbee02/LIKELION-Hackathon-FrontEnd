@@ -183,8 +183,10 @@ fi
 export EXPO_UNSTABLE_HEADLESS=1
 
 mkdir -p "$(dirname "$LOG")"
-OFFSET="$(wc -c < "$EVENTS" 2>/dev/null | tr -d ' ' || true)"
-OFFSET="${OFFSET:-0}"
+# 새 워크트리에는 이 파일이 아직 없다. `wc -c < "$EVENTS"` 의 리다이렉션 실패는 wc 가 아니라
+# 셸이 보고하므로 `2>/dev/null` 로는 막히지 않는다 — 존재부터 확인한다.
+OFFSET=0
+[ -f "$EVENTS" ] && OFFSET="$(wc -c < "$EVENTS" | tr -d ' ')"
 
 $EXPO_BIN "${ARGS[@]}" >>"$LOG" 2>&1 &
 EXPO_PID=$!
@@ -227,8 +229,11 @@ say "log    -> $LOG"
 say "ready  ($((SECONDS - START_TS))s)"
 
 if [ "$WARM" -eq 1 ]; then
+  # 엔트리는 `/index.bundle` 이 아니라 expo-router 의 가상 엔트리다 — `/index.bundle` 은
+  # `./index` 를 못 찾아 404 로 즉시 돌아온다(번들을 만들지 않는다).
   say "warm   -> 웹 번들 미리 생성 중"
-  curl -s -o /dev/null -m 300 "http://127.0.0.1:$PORT/index.bundle?platform=web&dev=true" || true
+  curl -s -o /dev/null -m 600 \
+    "http://127.0.0.1:$PORT/.expo/.virtual-metro-entry.bundle?platform=web&dev=true" || true
   say "warm   -> 완료"
 fi
 
