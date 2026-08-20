@@ -85,6 +85,7 @@ module.exports = {
       favicon: './assets/images/favicon.png',
     },
     plugins: [
+      './plugins/with-app-icon',
       'expo-router',
       [
         'expo-splash-screen',
