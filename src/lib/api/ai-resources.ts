@@ -117,8 +117,6 @@ export type AiResourceBatch = {
  */
 export const ISSUE_RESOURCE_TYPES = [
   'BACKGROUND',
-  'BORDER',
-  'PATTERN',
 ] as const satisfies readonly AiResourceType[];
 
 export type IssueResourceType = (typeof ISSUE_RESOURCE_TYPES)[number];

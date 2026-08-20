@@ -59,7 +59,7 @@ type CollectionsValue = {
   collections: UserCollection[];
   error: string | null;
   create: (input: CollectionInput) => Promise<UserCollection | null>;
-  rename: (id: string, name: string) => Promise<boolean>;
+  update: (id: string, input: Partial<CollectionInput>) => Promise<boolean>;
   remove: (id: string) => Promise<boolean>;
   /**
    * 담긴 카드를 통째로 이 목록으로 맞춘다.
@@ -131,9 +131,9 @@ export function CollectionsProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const rename = useCallback<CollectionsValue['rename']>(async (id, name) => {
+  const update = useCallback<CollectionsValue['update']>(async (id, input) => {
     try {
-      const next = await updateCollection(id, { name });
+      const next = await updateCollection(id, input);
       setCollections((prev) => prev.map((c) => (c.id === id ? next : c)));
       return true;
     } catch {
@@ -178,7 +178,7 @@ export function CollectionsProvider({ children }: { children: ReactNode }) {
         prev.map((c) => (c.id === id ? { ...c, cardIds, cardCount: cardIds.length } : c)),
       );
 
-      void (async () => {
+      return (async () => {
         try {
           for (const cardId of added) {
             await settle(addCardToCollection(id, cardId), (err) => err.httpStatus === 409);
@@ -192,10 +192,10 @@ export function CollectionsProvider({ children }: { children: ReactNode }) {
              조용히 거두는 것은 버그와 구별되지 않는다. */
           notify(failureMessage(e));
           reload();
+          return false;
         }
+        return true;
       })();
-
-      return true;
     },
     [notify, reload],
   );
@@ -207,12 +207,12 @@ export function CollectionsProvider({ children }: { children: ReactNode }) {
       collections: signedIn ? collections : [],
       error: signedIn ? error : null,
       create,
-      rename,
+      update,
       remove,
       setCards,
       reload,
     }),
-    [signedIn, status, collections, error, create, rename, remove, setCards, reload],
+    [signedIn, status, collections, error, create, update, remove, setCards, reload],
   );
 
   return <CollectionsContext.Provider value={value}>{children}</CollectionsContext.Provider>;

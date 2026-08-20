@@ -19,7 +19,7 @@ export default function EditCollectionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { collection, status } = useCollection(id);
   const { cards } = useCards();
-  const { rename, setCards } = useCollections();
+  const { update, setCards } = useCollections();
   const router = useRouter();
   const toast = useToast();
   const [pending, setPending] = useState(false);
@@ -40,18 +40,30 @@ export default function EditCollectionScreen() {
     );
   }
 
-  const submit = (name: string, cardIds: string[]) => {
+  const submit = (
+    name: string,
+    description: string,
+    coverImageUrl: string | null,
+    cardIds: string[],
+  ) => {
     setPending(true);
     void (async () => {
-      if (name !== collection.name) {
-        const ok = await rename(collection.id, name);
-        if (!ok) {
-          setPending(false);
-          toast('이름을 바꾸지 못했습니다.');
-          return;
-        }
+      const ok = await update(collection.id, {
+        name,
+        description: description || null,
+        coverImageUrl,
+      });
+      if (!ok) {
+        setPending(false);
+        toast('컬렉션을 저장하지 못했습니다.');
+        return;
       }
-      await setCards(collection.id, cardIds);
+      const synced = await setCards(collection.id, cardIds);
+      if (!synced) {
+        setPending(false);
+        toast('컬렉션은 저장했지만 카드 목록을 동기화하지 못했습니다.');
+        return;
+      }
       router.back();
     })();
   };
@@ -61,6 +73,8 @@ export default function EditCollectionScreen() {
       title="컬렉션 편집"
       cards={cards}
       initialName={collection.name}
+      initialDescription={collection.description}
+      initialCoverImageUrl={collection.coverImageUrl}
       initialCardIds={collection.cardIds}
       submitLabel="저장"
       pending={pending}

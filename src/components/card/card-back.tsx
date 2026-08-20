@@ -10,6 +10,8 @@ import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
+const CARD_BACK_GOLD = '#D8CEC1';
+
 /**
  * The other side of the card — the same object, turned over.
  *
@@ -44,6 +46,10 @@ export function CardBack({ card }: { card: Card }) {
   const snapshot = card.customization?.back ?? null;
   const serialNumber = snapshot?.serialNumber ?? card.serialNumber;
   const generatedBack = imageSource(card.customization?.backImageUrl);
+  const templateBack = card.template?.backImageUrl?.includes('common_back_black_info.png')
+    ? imageSource(card.template.backImageUrl)
+    : null;
+  const hasImageBack = Boolean(templateBack);
 
   /* AI 합성은 서버가 뒷면 전체를 한 장으로 굽는다. 이미지가 있으면 텍스트형 기본 뒷면과
      함께 그리지 않고, 저장된 합성 결과 자체를 카드의 뒷면으로 보여준다. */
@@ -90,11 +96,20 @@ export function CardBack({ card }: { card: Card }) {
   const rows = entries.filter((e): e is { label: string; value: string } => Boolean(e.value));
 
   return (
-    <View style={styles.back}>
+    <View style={[styles.back, hasImageBack && styles.imageBack]}>
+      {templateBack ? (
+        <Image
+          source={templateBack}
+          style={styles.generatedBack}
+          contentFit="cover"
+          transition={200}
+          accessibilityLabel={generatedBack ? 'AI로 합성된 카드 뒷면' : '기본 카드 뒷면'}
+        />
+      ) : null}
       {/* The serial is the card's name for itself, so it sits where a name sits: in the corner the
           front keeps for the city. The mark answers from the corner it signs the front from. */}
       <View style={styles.head}>
-        <Text variant="caption" numberOfLines={1}>
+        <Text variant="caption" numberOfLines={1} style={hasImageBack && styles.imageInk}>
           {serialNumber}
         </Text>
         {mark ? (
@@ -103,24 +118,32 @@ export function CardBack({ card }: { card: Card }) {
             style={styles.mark}
             contentFit="contain"
             contentPosition="top right"
-            tintColor={colors.text}
+            tintColor={hasImageBack ? CARD_BACK_GOLD : colors.text}
             accessibilityLabel={brand.name}
           />
         ) : (
-          <Text variant="caption" numberOfLines={1} style={styles.brand}>
+          <Text
+            variant="caption"
+            numberOfLines={1}
+            style={[styles.brand, hasImageBack && styles.imageInk]}
+          >
             {brand.name}
           </Text>
         )}
       </View>
 
-      <View style={styles.rows}>
+      <View style={[styles.rows, hasImageBack && styles.imageRows]}>
         {rows.map((row, i) => (
-          <View key={row.label} style={[styles.row, i === 0 && styles.rowFirst]}>
-            <Text variant="caption" tone="muted">
+          <View key={row.label} style={[styles.row, i === 0 && styles.rowFirst, hasImageBack && styles.imageRow]}>
+            <Text
+              variant="caption"
+              tone={hasImageBack ? 'inverted' : 'muted'}
+              style={hasImageBack && styles.imageInk}
+            >
               {row.label}
             </Text>
             {/* One line: nothing here runs long, and a card's aspect ratio has no give if it did. */}
-            <Text variant="label" style={styles.value} numberOfLines={2}>
+            <Text variant="label" style={[styles.value, hasImageBack && styles.imageInk]} numberOfLines={2}>
               {row.value}
             </Text>
           </View>
@@ -142,7 +165,9 @@ const styles = StyleSheet.create({
     padding: space[3],
     overflow: 'hidden',
   },
+  imageBack: { backgroundColor: colors.solid },
   generatedBack: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  imageInk: { color: CARD_BACK_GOLD },
   head: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -154,6 +179,15 @@ const styles = StyleSheet.create({
   brand: { letterSpacing: 0.5 },
   /** The product summary follows the card header instead of leaving the reverse side empty. */
   rows: { marginTop: space[4] },
+  imageRows: {
+    position: 'absolute',
+    top: '20%',
+    bottom: '20%',
+    left: space[3],
+    right: space[3],
+    marginTop: 0,
+    justifyContent: 'center',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -166,6 +200,7 @@ const styles = StyleSheet.create({
   /* The first rule is the one that separates the block from the empty middle above it, so it is
      the only one that needs air over it. */
   rowFirst: { marginTop: space[3] },
+  imageRow: { borderTopColor: 'transparent' },
   /* Right-aligned: the labels are a fixed column and the values are what the eye scans down. */
   value: { flex: 1, textAlign: 'right' },
 });

@@ -5,7 +5,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { CardLayerStack } from './card-layer-stack';
 import { Text } from '@/components/ui/text';
-import { brandMarkSource, cardArtSource, cardFaceLayers } from '@/lib/card-art';
+import { brandMarkSource, cardArtSource, cardFaceLayers, imageSource } from '@/lib/card-art';
 import { formatPurchaseDate } from '@/lib/format';
 import type { Card, CardFaceLayer } from '@/lib/types';
 import { colors } from '@/theme/colors';
@@ -81,6 +81,12 @@ export function CardFace({
   const source = art === undefined ? own : art;
   const stack = layers === undefined ? ownLayers : layers;
   const mark = brandMarkSource(brand);
+  const defaultBorder =
+    stack.length === 0 &&
+    !card.customization &&
+    card.template?.frontImageUrl?.includes('border_03.png')
+      ? imageSource(card.template.frontImageUrl)
+      : null;
 
   return (
     <View style={[styles.face, { backgroundColor: brand.accent }]}>
@@ -91,6 +97,15 @@ export function CardFace({
         <Image source={source} style={styles.art} contentFit="cover" transition={200} />
       ) : null}
       <Scrim />
+      {defaultBorder ? (
+        <Image
+          source={defaultBorder}
+          style={styles.art}
+          contentFit="cover"
+          transition={200}
+          accessibilityLabel="기본 카드 테두리"
+        />
+      ) : null}
 
       <View style={styles.top}>
         <View style={styles.place}>
