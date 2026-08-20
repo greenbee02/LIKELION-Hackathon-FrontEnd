@@ -46,11 +46,25 @@ export type Brand = {
  * card knowing its collection is what eventually connects the detail screen to the reward that
  * finishing the set unlocks.
  *
- * Kept to id and name on purpose. The backend has `product_collections` with a cover image, a
- * theme, a year and a limited flag, but none of it is exposed yet and guessing at the shape of
- * something unbuilt is how a type ends up describing nothing.
+ * Kept close to id and name on purpose. `GET /product-collections` does return more — a cover
+ * image, a year, a season, a limited flag — but a card and a reward need none of it, and guessing
+ * at what an unused field is for is how a type ends up describing nothing.
  */
-export type ProductCollection = { id: string; name: string };
+export type ProductCollection = {
+  id: string;
+  name: string;
+  /**
+   * `product_collections.theme` — `REGIONAL` · `NEW_ARRIVAL` · `WOMEN` · `TRAVEL` · `ICONIC`.
+   *
+   * **문자열로 둔다.** 지금 서버가 주는 것은 다섯 값이지만 그것은 오늘의 사실이고, 여섯 번째가
+   * 생겨도 화면은 모르는 값을 색 없는 기본형으로 떨어뜨리기만 하면 된다 — 유니온으로 좁혀
+   * 두면 그 날 컴파일러가 아니라 사용자가 먼저 알게 된다.
+   *
+   * 옵셔널인 것은 색인이 아직 안 왔을 수 있기 때문이다. 리워드 목록이 이 값으로 색을 고르고
+   * (`collection-accents.ts`), 없으면 색이 없다.
+   */
+  theme?: string | null;
+};
 
 export type Product = {
   id: string;
@@ -341,6 +355,9 @@ export type RewardKind = 'EVENT' | 'BENEFIT' | 'GOODS';
  */
 export type RewardStatus = 'LOCKED' | 'UNLOCKED' | 'CLAIMED' | 'EXPIRED';
 
+/** 리워드 카드가 그리는 상품 한 칸. 그림과 이름이면 충분하다 — 누르는 것이 아니다. */
+export type RewardProduct = { id: Uuid; name: string; imageUrl: string | null };
+
 export type Reward = {
   /** 화면이 이 리워드를 부르는 이름. 해금됐으면 `user_rewards` 행의 id, 아니면 대상의 id. */
   id: string;
@@ -364,6 +381,21 @@ export type Reward = {
   note?: string;
   /** 이 리워드가 세어지는 공식 컬렉션과, 고객이 어디까지 왔는지. */
   collection: ProductCollection;
+  /**
+   * 그 컬렉션을 채우는 필수 상품들 — 화면 순서(`displayOrder`)대로.
+   *
+   * **리워드 자신에게서는 더 끌어올 것이 없다.** `UnlockTarget` 이 주는 것은 이름과 조건
+   * 퍼센트와 해금 여부뿐이고(실서버 `/v3/api-docs` 로 확인), `rewards.description` 은 DB 에만
+   * 있고 어느 DTO 에도 실리지 않는다. 그래서 리워드 카드가 더 말할 수 있는 것은 리워드가
+   * 아니라 **그 리워드에 이르는 길** 쪽에 있다.
+   *
+   * 이 화면이 존재하는 이유가 정확히 그것이기도 하다 — 두 장 남은 것이 세 번째 카드를 살
+   * 이유이므로, 그 세 번째가 무엇인지 그림으로 보이는 편이 "앞으로 2장"보다 구체적이다.
+   *
+   * 요청은 늘지 않는다. `fetchCollectionIndex()` 가 이미 컬렉션마다 상품 목록을 받아 두고
+   * 있고(`byCollection`), 여기 담기는 것은 그중 `required` 인 것들이다.
+   */
+  products: RewardProduct[];
   /**
    * 장수로 환산한 진행도.
    *

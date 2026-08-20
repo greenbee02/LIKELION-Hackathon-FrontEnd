@@ -88,13 +88,9 @@ export default function ScanScreen() {
   const cameraBlocked = permission !== null && !permission.granted;
 
   return (
-    <Screen gutter={false}>
-      {/* 이 화면이 처음 쓰던 줄이고, 이제는 뒤로 가기가 있는 모든 화면이 같은 것을 쓴다.
-          `gutter={false}` 라 양옆 여백은 여기서 직접 준다. */}
-      <View style={styles.bar}>
-        <NavBar title="코드 스캔" fallback="/" />
-      </View>
-
+    /* 이 화면이 처음 쓰던 줄이고, 이제는 뒤로 가기가 있는 모든 화면이 같은 것을 쓴다.
+       `gutter={false}` 여도 헤더 슬롯이 양옆 여백을 주므로 여기서 감쌀 것이 없다. */
+    <Screen gutter={false} header={<NavBar title="코드 스캔" fallback="/" />}>
       <View style={styles.stage}>
         {live ? (
           <CameraView
@@ -186,7 +182,6 @@ const RETICLE = 56;
 const ARM = 14;
 
 const styles = StyleSheet.create({
-  bar: { paddingHorizontal: space[4] },
   /** Surface fill, so the frame is a shape on the page even before a preview arrives — or when
       one never does, on a device without a camera. Square because the code is: `aspectRatio` ties
       the height to whatever width the device gives, so nothing here is a guessed number. */

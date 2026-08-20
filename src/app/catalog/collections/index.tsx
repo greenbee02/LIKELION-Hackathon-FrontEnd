@@ -40,8 +40,7 @@ export default function OfficialCollectionsScreen() {
   }, []);
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
-      <NavBar title="공식 컬렉션" fallback="/catalog" />
+    <Screen scroll header={<NavBar title="공식 컬렉션" fallback="/catalog" />} contentContainerStyle={styles.content}>
       <Text variant="body" tone="muted" style={styles.intro}>
         브랜드가 선별한 상품 묶음입니다. 컬렉션을 완성하면 리워드 진행률에도 반영됩니다.
       </Text>

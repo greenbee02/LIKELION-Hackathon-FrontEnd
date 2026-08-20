@@ -47,9 +47,7 @@ export default function EmailSignInScreen() {
   };
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
-        <NavBar title="이메일로 로그인" />
-
+    <Screen scroll header={<NavBar title="이메일로 로그인" />} contentContainerStyle={styles.content}>
         <Input
           label="이메일"
           style={styles.first}
@@ -127,7 +125,7 @@ export default function EmailSignInScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: space[2], paddingBottom: space[6] },
+  content: { paddingBottom: space[6] },
   /** 이름 줄과 첫 입력 사이 — 32. 서로 다른 종류의 것이다. */
   first: { marginTop: space[6] },
   field: { marginTop: space[4] },

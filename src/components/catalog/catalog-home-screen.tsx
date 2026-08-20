@@ -13,8 +13,19 @@ export function CatalogHomeScreen({ showBack = true }: { showBack?: boolean }) {
   const router = useRouter();
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
-      {showBack ? <NavBar title="제품 탐색" fallback="/" /> : <Text variant="title" style={styles.homeTitle}>제품 탐색</Text>}
+    <Screen
+      scroll
+      /* 탭으로 들어오면 뒤로 갈 데가 없어 24pt 제목이, 한 겹 안쪽으로 들어오면 이름표가
+         선다. 둘 다 같은 슬롯이라 스크롤과 무관하게 고정이다. */
+      header={
+        showBack ? (
+          <NavBar title="제품 탐색" fallback="/" />
+        ) : (
+          <Text variant="title">제품 탐색</Text>
+        )
+      }
+      contentContainerStyle={styles.content}
+    >
       <Text variant="body" tone="muted" style={styles.intro}>
         브랜드의 상품과 공식 컬렉션, 카드 디자인을 한곳에서 확인해 보세요.
       </Text>
@@ -74,7 +85,6 @@ function CatalogEntry({
 const styles = StyleSheet.create({
   content: { paddingBottom: space[7] },
   intro: { marginTop: space[2], maxWidth: 420 },
-  homeTitle: { paddingTop: space[2] },
   list: { marginTop: space[6], gap: space[3] },
   entry: {
     minHeight: 92,

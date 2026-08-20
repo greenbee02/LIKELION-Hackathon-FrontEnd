@@ -19,6 +19,10 @@ import { space } from '@/theme/spacing';
  *
  * Narrower than the grid's tile. A single card on an otherwise empty screen at full width reads
  * as a poster; held to 220 it stays an object on a table.
+ *
+ * **캡션은 가운데로 맞춘다** — 격자에서는 타일이 열을 이루므로 왼쪽 정렬이 축이지만, 발급
+ * 화면에서 카드는 한 장뿐이고 그 아래의 제목·설명·버튼이 전부 화면 가운데를 축으로 선다.
+ * 캡션만 왼쪽에 붙으면 축이 둘이 되고, 그것이 배치가 흐트러져 보이는 이유다.
  */
 export function IssueCard({ card }: { card: Card | null }) {
   if (!card) {
@@ -37,7 +41,7 @@ export function IssueCard({ card }: { card: Card | null }) {
     <View style={styles.holder}>
       <CardFace card={card} />
       <View style={styles.meta}>
-        <Text variant="label" numberOfLines={2}>
+        <Text variant="label" numberOfLines={2} style={styles.centered}>
           {card.product.name}
         </Text>
         <Text variant="caption" tone="muted" numberOfLines={1} style={styles.store}>
@@ -52,7 +56,8 @@ const styles = StyleSheet.create({
   holder: { width: '100%', maxWidth: 185, alignSelf: 'center' },
   face: { width: '100%', aspectRatio: CARD_ASPECT, borderRadius: radius.base },
   meta: { marginTop: space[2] },
+  centered: { textAlign: 'center' },
   line: { height: 20, borderRadius: radius.small },
-  lineShort: { width: '60%', marginTop: space[1] },
-  store: { marginTop: space[1] },
+  lineShort: { width: '60%', marginTop: space[1], alignSelf: 'center' },
+  store: { marginTop: space[1], textAlign: 'center' },
 });

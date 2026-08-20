@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { allowPressOverflow } from './press-scale';
 import { colors } from '@/theme/colors';
@@ -28,7 +28,7 @@ import { space } from '@/theme/spacing';
  * 안에 누를 것이 없는 상자에도 붙여둔다 — 나중에 버튼 하나가 들어왔을 때 모서리가 잘리는
  * 이유를 여기서 찾게 만드는 것보다, 처음부터 자르지 않는 편이 낫다.
  */
-export function Panel({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+export function Panel({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return <View style={[styles.panel, style]}>{children}</View>;
 }
 

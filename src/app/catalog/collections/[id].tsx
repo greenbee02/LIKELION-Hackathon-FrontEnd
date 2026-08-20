@@ -46,8 +46,7 @@ export default function OfficialCollectionDetailScreen() {
   }, [id]);
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
-      <NavBar title="컬렉션 상세" fallback="/catalog/collections" />
+    <Screen scroll header={<NavBar title="컬렉션 상세" fallback="/catalog/collections" />} contentContainerStyle={styles.content}>
       {status === 'loading' ? <CollectionDetailSkeleton /> : null}
       {status === 'error' ? <EmptyState icon={Layers3} title="컬렉션을 불러오지 못했습니다" note={error ?? '잠시 후 다시 시도해 주세요.'} action={{ label: '컬렉션 목록으로', onPress: () => router.replace('/catalog/collections') }} /> : null}
       {status === 'ready' && collection ? <CollectionDetail collection={collection} items={items} onProductPress={(productId) => router.push({ pathname: '/catalog/products/[id]', params: { id: productId } })} /> : null}

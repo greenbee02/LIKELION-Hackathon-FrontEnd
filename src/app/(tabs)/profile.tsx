@@ -60,11 +60,11 @@ export default function ProfileScreen() {
   const counting = status === 'loading' || collectionsStatus === 'loading';
 
   return (
-    <Screen scroll contentContainerStyle={{ ...styles.content, paddingBottom: bottomSpace }}>
-      <Text variant="title" style={styles.title}>
-        My
-      </Text>
-
+    <Screen
+      scroll
+      header={<Text variant="title">My</Text>}
+      contentContainerStyle={{ ...styles.content, paddingBottom: bottomSpace }}
+    >
       <Panel style={styles.account}>
         <View style={styles.identity}>
           {/* 사진이 들어갈 열이 백엔드에 없다. 탭 바가 이 화면을 가리키는 데 쓰는 것과 같은
@@ -210,7 +210,6 @@ function Count({
 const styles = StyleSheet.create({
   /* 바닥의 로그아웃이 화면 끝으로 밀리려면 내용이 짧아도 스크롤 뷰가 화면 높이를 채워야 한다. */
   content: { flexGrow: 1 },
-  title: { paddingTop: space[2] },
   account: { marginTop: space[5] },
   identity: { flexDirection: 'row', alignItems: 'center', gap: space[3] },
   /**

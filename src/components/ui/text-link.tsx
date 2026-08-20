@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, type ViewStyle } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
+import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { Text } from './text';
 import { colors } from '@/theme/colors';
@@ -22,17 +23,34 @@ import { space } from '@/theme/spacing';
  *
  * `tone` 은 `Text` 의 것을 그대로 쓴다. 기본은 `muted`(11단계) — 부차적인 길이라는 사실이
  * 무게로 드러나야 한다. 되돌릴 수 없는 조작(컬렉션 삭제)만 `default`(12단계)로 올린다.
+ * `inverted` 는 색 면 위에 설 때다(리워드 카드) — 그 위에서는 회색 단계가 전부 얼룩이라
+ * 무게를 색으로 낼 수 없고, 대신 버튼이 아니라는 사실을 생김새가 통째로 말한다.
+ *
+ * **`variant` 는 두 값뿐이다.** 기본은 `label`(14/500). `caption`(12/400)은 목록의 카드마다
+ * 하나씩 반복되는 링크의 것이다 — 같은 글자가 여섯 번 되풀이될 때는 그것이 길이라는 사실만
+ * 남으면 되고, 매번 또렷할 이유가 없다. 그보다 굵은 역할은 주지 않는다: 그 무게는 버튼의
+ * 것이고, 이 컴포넌트가 존재하는 이유가 버튼이 아니라는 것이다.
+ *
+ * **`chevron` 은 "여기서 다른 화면으로 간다"를 뜻한다.** 되돌릴 수 없는 조작이나 같은
+ * 화면에서 끝나는 길에는 붙이지 않는다 — 꺾쇠가 붙은 글자는 눌렀을 때 화면이 바뀔 것이라고
+ * 약속하는 것이고, 지키지 못할 약속이면 안 하는 편이 낫다.
  */
 export function TextLink({
   label,
   onPress,
   tone = 'muted',
+  variant = 'label',
   align = 'center',
+  chevron = false,
   style,
 }: {
   label: string;
   onPress: () => void;
-  tone?: 'default' | 'muted';
+  tone?: 'default' | 'muted' | 'inverted';
+  /** `label`(14/500)이 기본. 목록에서 되풀이되는 링크만 `caption`(12/400)으로 물러난다. */
+  variant?: 'label' | 'caption';
+  /** 눌리면 다른 화면으로 간다는 표시. 같은 화면에서 끝나는 길에는 붙이지 않는다. */
+  chevron?: boolean;
   /**
    * 문단 안에 놓이는 링크는 왼쪽에, 화면 바닥에 홀로 서는 링크는 가운데에, 줄의 오른쪽 끝을
    * 차지하는 링크는 `end` 에. 세 경우 다 좌우 패딩이 만든 들여쓰기를 바깥쪽으로 상쇄해야
@@ -49,18 +67,37 @@ export function TextLink({
       style={({ pressed }) => [
         styles.link,
         align === 'center' ? styles.center : align === 'end' ? styles.end : styles.start,
-        pressed && styles.pressed,
+        pressed && (tone === 'inverted' ? styles.pressedOnColor : styles.pressed),
         style,
       ]}
     >
-      <Text variant="label" tone={tone}>
-        {label}
-      </Text>
+      <View style={styles.row}>
+        <Text variant={variant} tone={tone}>
+          {label}
+        </Text>
+        {chevron ? (
+          /* 글자와 같은 크기, 같은 색, 같은 굵기 — 꺾쇠는 아이콘이 아니라 문장의 마지막
+             글자다. 획 굵기까지 활자를 따라가지 않으면 글자 옆에 붙은 다른 물건이 된다. */
+          <ChevronRight
+            size={variant === 'caption' ? 14 : 16}
+            color={INK[tone]}
+            strokeWidth={variant === 'caption' ? 2 : 2.5}
+          />
+        ) : null}
+      </View>
     </Pressable>
   );
 }
 
+/** `Text` 의 tone 세 단계를, 꺾쇠가 같은 색을 쓸 수 있도록 색으로 편 것. */
+const INK: Record<'default' | 'muted' | 'inverted', string> = {
+  default: colors.text,
+  muted: colors.textMuted,
+  inverted: colors.textInverted,
+};
+
 const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: space[1] },
   link: {
     alignItems: 'center',
     paddingVertical: space[3],
@@ -72,4 +109,6 @@ const styles = StyleSheet.create({
   start: { alignSelf: 'flex-start', marginLeft: -space[4] },
   end: { alignSelf: 'flex-end', marginRight: -space[4] },
   pressed: { backgroundColor: colors.surface },
+  /* 색 면 위에서는 3단계 회색이 얼룩이 된다 — 흰색을 아주 옅게 깐 것이 같은 일을 한다. */
+  pressedOnColor: { backgroundColor: colors.wellOnColor },
 });

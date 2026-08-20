@@ -87,8 +87,7 @@ export default function ProductsScreen() {
   const selectedLimited = LIMITED_OPTIONS.find((option) => option.value === limited);
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
-      <NavBar title="상품" fallback="/catalog" />
+    <Screen scroll header={<NavBar title="상품" fallback="/catalog" />} contentContainerStyle={styles.content}>
       <Text variant="body" tone="muted" style={styles.intro}>
         브랜드의 상품과 경험을 둘러보고 상세 정보를 확인해 보세요.
       </Text>

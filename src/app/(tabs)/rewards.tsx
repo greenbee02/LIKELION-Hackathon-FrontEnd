@@ -54,16 +54,11 @@ export default function RewardsScreen() {
 
   const groups = useMemo(() => groupByBrand(rewards), [rewards]);
 
-  const title = (
-    <Text variant="title" style={styles.title}>
-      리워드
-    </Text>
-  );
+  const title = <Text variant="title">리워드</Text>;
 
   if (status === 'error') {
     return (
-      <Screen contentContainerStyle={{ paddingBottom: bottomSpace }}>
-        {title}
+      <Screen header={title} contentContainerStyle={{ paddingBottom: bottomSpace }}>
         <EmptyState
           icon={Gift}
           title="리워드를 불러오지 못했습니다"
@@ -75,8 +70,7 @@ export default function RewardsScreen() {
 
   if (status === 'loading') {
     return (
-      <Screen contentContainerStyle={{ paddingBottom: bottomSpace }}>
-        {title}
+      <Screen header={title} contentContainerStyle={{ paddingBottom: bottomSpace }}>
         <View style={[styles.list, styles.group]}>
           <Skeleton style={styles.panelSkeleton} />
           <Skeleton style={styles.panelSkeleton} />
@@ -88,8 +82,7 @@ export default function RewardsScreen() {
 
   if (rewards.length === 0) {
     return (
-      <Screen contentContainerStyle={{ paddingBottom: bottomSpace }}>
-        {title}
+      <Screen header={title} contentContainerStyle={{ paddingBottom: bottomSpace }}>
         <EmptyState
           icon={Gift}
           title="아직 열린 리워드가 없습니다"
@@ -101,8 +94,7 @@ export default function RewardsScreen() {
   }
 
   return (
-    <Screen scroll contentContainerStyle={{ paddingBottom: bottomSpace }}>
-      {title}
+    <Screen scroll header={title} contentContainerStyle={{ paddingBottom: bottomSpace }}>
       <View style={styles.list}>
         {groups.map((group) => (
           <View key={group.brandId} style={styles.group}>
@@ -138,13 +130,12 @@ function groupByBrand(rewards: Reward[]) {
 }
 
 const styles = StyleSheet.create({
-  title: { paddingTop: space[2] },
   /* 12 — 각 리워드가 한 행이 되면서 24 는 목록을 흩어 놓는 간격이 됐다. 행들은 서로 붙어야
      목록으로 읽히고, 절과 절 사이(브랜드 그룹)만 여전히 24 로 갈린다. */
   list: { marginTop: space[5], gap: space[5] },
   group: { gap: space[3] },
   groupHead: { marginBottom: -space[2] },
-  /* 대신 설 패널의 모양 그대로 — 패딩 16 둘에 이름과 컬렉션 두 줄. 데이터가 도착할 때
-     목록이 고객 아래에서 늘어나지 않도록 높이를 맞춰 둔다. */
-  panelSkeleton: { height: 84, borderRadius: radius.base },
+  /* 대신 설 카드의 모양 그대로 — 패딩 24 둘에 표식 줄과 이름 두 줄과 컬렉션 한 줄. 데이터가
+     도착할 때 목록이 고객 아래에서 늘어나지 않도록 높이를 맞춰 둔다. */
+  panelSkeleton: { height: 200, borderRadius: radius.base },
 });

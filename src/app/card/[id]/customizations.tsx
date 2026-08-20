@@ -62,8 +62,7 @@ export default function CustomizationsScreen() {
 
   if (cardStatus === 'loading' || history.status === 'loading') {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <View style={styles.list}>
           <Skeleton style={styles.rowSkeleton} />
           <Skeleton style={styles.rowSkeleton} />
@@ -74,8 +73,7 @@ export default function CustomizationsScreen() {
 
   if (!card) {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <EmptyState
           icon={History}
           title="카드를 찾을 수 없습니다"
@@ -88,8 +86,7 @@ export default function CustomizationsScreen() {
 
   if (history.status === 'error') {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <EmptyState
           icon={History}
           title="기록을 불러오지 못했습니다"
@@ -107,8 +104,7 @@ export default function CustomizationsScreen() {
 
   if (made.length === 0) {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <EmptyState
           icon={History}
           title="아직 꾸민 기록이 없습니다"
@@ -157,9 +153,7 @@ export default function CustomizationsScreen() {
   };
 
   return (
-    <Screen scroll gutter={false} contentContainerStyle={styles.content}>
-      {nav}
-
+    <Screen scroll gutter={false} header={nav} contentContainerStyle={styles.content}>
       <Text variant="body" tone="muted" style={styles.intro}>
         만든 디자인은 지워지지 않습니다. 언제든 다시 골라 입힐 수 있습니다.
       </Text>
@@ -266,8 +260,7 @@ function CustomizationRow({
 const THUMB = 64;
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: space[4], paddingTop: space[2], paddingBottom: space[7] },
-  head: { paddingTop: space[2] },
+  content: { paddingHorizontal: space[4], paddingBottom: space[7] },
   intro: { marginTop: space[4] },
   list: { marginTop: space[5], gap: space[3], ...allowPressOverflow },
   rowSkeleton: { height: 96, borderRadius: radius.base },

@@ -67,9 +67,7 @@ export default function SignUpScreen() {
   };
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
-        <NavBar title="회원가입" />
-
+    <Screen scroll header={<NavBar title="회원가입" />} contentContainerStyle={styles.content}>
         <Input
           label="이메일 주소"
           required
@@ -155,7 +153,7 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: space[2], paddingBottom: space[6] },
+  content: { paddingBottom: space[6] },
   /** 이름 줄과 첫 입력 사이 — 32. 서로 다른 종류의 것이다. */
   first: { marginTop: space[6] },
   field: { marginTop: space[4] },

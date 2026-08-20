@@ -95,7 +95,11 @@ export function fetchCollectionIndex(): Promise<CollectionIndex> {
       byCollection.set(collection.id, lists[i]);
       for (const item of lists[i]) {
         if (!byProduct.has(item.product.id)) {
-          byProduct.set(item.product.id, { id: collection.id, name: collection.name });
+          byProduct.set(item.product.id, {
+            id: collection.id,
+            name: collection.name,
+            theme: collection.theme,
+          });
         }
       }
     });

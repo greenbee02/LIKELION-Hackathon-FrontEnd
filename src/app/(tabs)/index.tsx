@@ -33,8 +33,10 @@ const SKELETON_KEYS = ['s1', 's2', 's3', 's4'];
 /**
  * 내 컬렉션 — the archive.
  *
- * Not a purchase history: the cards are the subject and everything else is chrome, which is why
- * the header scrolls away with them rather than pinning to the top.
+ * Not a purchase history: the cards are the subject and everything else is chrome — but the
+ * header stays put anyway, because it is not only chrome: it holds the filter. A filter that
+ * scrolls away can only be reached by scrolling back to the top, so narrowing a long grid costs
+ * a round trip. Pinned, the collection can be changed from wherever the eye already is.
  *
  * The filter is the screen's title. A row of chips under it would have spent a whole band of the
  * screen restating what one line already says, and it gets worse with every filter added; a menu
@@ -82,7 +84,7 @@ export default function CollectionScreen() {
 
   if (status === 'error') {
     return (
-      <Screen contentContainerStyle={{ paddingBottom: bottomSpace }}>
+      <Screen header={header} contentContainerStyle={{ paddingBottom: bottomSpace }}>
         <EmptyState
           icon={Layers}
           title="컬렉션을 불러오지 못했습니다"
@@ -94,7 +96,7 @@ export default function CollectionScreen() {
 
   if (status === 'loading') {
     return (
-      <Screen gutter={false}>
+      <Screen gutter={false} header={header}>
         {/* The same list, laid out by the same styles — anything else lets the grid shift on load. */}
         <FlatList
           data={SKELETON_KEYS}
@@ -103,7 +105,6 @@ export default function CollectionScreen() {
           columnWrapperStyle={styles.row}
           contentContainerStyle={[styles.grid, { paddingBottom: bottomSpace }]}
           scrollEnabled={false}
-          ListHeaderComponent={header}
           renderItem={() => <CardTileSkeleton />}
         />
       </Screen>
@@ -112,8 +113,7 @@ export default function CollectionScreen() {
 
   if (cards.length === 0) {
     return (
-      <Screen contentContainerStyle={{ paddingBottom: bottomSpace }}>
-        {header}
+      <Screen header={header} contentContainerStyle={{ paddingBottom: bottomSpace }}>
         <EmptyState
           icon={Layers}
           title="아직 카드가 없습니다"
@@ -125,7 +125,7 @@ export default function CollectionScreen() {
   }
 
   return (
-    <Screen gutter={false}>
+    <Screen gutter={false} header={header}>
       <FlatList
         data={grid}
         keyExtractor={(card, index) => card?.id ?? `blank-${index}`}
@@ -133,7 +133,6 @@ export default function CollectionScreen() {
         columnWrapperStyle={styles.row}
         contentContainerStyle={[styles.grid, { paddingBottom: bottomSpace }]}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={header}
         renderItem={({ item }) =>
           item ? (
             <CardTile card={item} onPress={() => openCard(item)} />
@@ -200,13 +199,7 @@ function Header({
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: space[2],
-    ...allowPressOverflow,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { flexDirection: 'row', alignItems: 'center', ...allowPressOverflow },
   chevron: { marginLeft: space[1] },
   /** Holds a column open in an odd last row. Nothing in it, so nothing to see. */
