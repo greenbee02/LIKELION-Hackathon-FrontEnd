@@ -1,4 +1,4 @@
-/** Mirrors the backend's `CardResponse`, plus `brand` — see dev/active/scope-vs-backend.md §5-1. */
+/** Mirrors the backend's `CardResponse`, plus `brand` — see `dev/active/backend-contract.md` §2. */
 
 /**
  * 백엔드가 uuid 라고 부르는 자리.
@@ -32,7 +32,7 @@ export type Brand = {
    * name set in type when it is null, so a brand without a mark is a supported state and not a
    * hole in the design.
    *
-   * The backend does not expose this yet — see `dev/active/scope-vs-backend.md` §5-1, which is
+   * The backend does not expose this yet — see `dev/active/backend-open-items.md` §5, which is
    * already waiting on `CardResponse.brand` at all.
    */
   logoUrl: string | null;
@@ -58,7 +58,7 @@ export type Product = {
   category: string;
   imageUrl: string | null;
   limited: boolean;
-  /** §5-2 — columns exist, DTO does not expose them yet. Mock until it does. */
+  /** `GET /products/{id}` 가 준다. 카드 응답의 `ProductSummary` 에는 없어 `hydrateCard()` 가 채운다. */
   material?: string;
   /**
    * `products.color` — 하우스가 부르는 색 이름이지 색상값이 아니다.

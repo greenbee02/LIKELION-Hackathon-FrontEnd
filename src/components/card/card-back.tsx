@@ -40,9 +40,9 @@ export function CardBack({ card }: { card: Card }) {
   const { product, store, brand } = card;
   const mark = brandMarkSource(brand);
 
-  /* `warrantyMonths` is a column the DTO does not expose yet (scope §2), so those two rows are
-     not rendered at all rather than printed with a dash — a dash is the card admitting it asked a
-     question it could not answer. Against the live backend the back is simply shorter. */
+  /* `warrantyMonths` 는 `GET /products/{id}` 가 주지만 null 일 수 있다. 그때 두 줄은 대시가
+     아니라 **아예 그려지지 않는다** — 대시는 카드가 스스로 답하지 못한 질문을 했다고 자백하는
+     것이고, 보증이 없는 상품에서는 애초에 질문이 아니다. 뒷면이 짧아질 뿐이다. */
   const entries: { label: string; value?: string | null }[] = [
     { label: '구매일', value: formatPurchaseDate(card.purchaseDate) },
     { label: '매장', value: store.name },

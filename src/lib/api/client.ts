@@ -50,15 +50,6 @@ export const setAccessToken = (token: string | null) => {
   accessToken = token;
 };
 
-/**
- * 이미지 때문에 필요하다.
- *
- * 백엔드가 상품 사진을 `/images/**` 아래에 두고 인증을 걸어놨는데(permitAll 목록에 빠져 있다),
- * `<Image>` 는 헤더를 자동으로 붙이지 않는다. 네이티브는 `source={{uri, headers}}` 로 실어
- * 보낼 수 있으므로 그 한 곳에서만 이 값을 꺼내 쓴다 — 전송 계층 밖으로 토큰이 새는 유일한
- * 구멍이고, `/images/**` 가 열리면 같이 사라진다.
- */
-export const getAccessToken = () => accessToken;
 
 /**
  * 토큰이 더 이상 통하지 않을 때 부를 것 — 실제로는 `AuthProvider.signOut` 이 꽂힌다.

@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { CARD_ASPECT } from '@/components/card/card-face';
 import { Text } from '@/components/ui/text';
-import { useProtectedUrl } from '@/lib/card-art';
+import { imageSource } from '@/lib/card-art';
 import { assertNever } from '@/lib/api/parse';
 import type { Candidate, DataCandidate, ImageCandidate } from '@/lib/api/ai-resources';
 import type { CompositionData, PaletteData, TextStyleData } from '@/lib/api/resource-data';
@@ -34,7 +34,7 @@ export function CandidateContent({ candidate }: { candidate: Candidate }) {
 
 /** 그림이 오는 다섯. */
 function ImageBody({ candidate }: { candidate: ImageCandidate }) {
-  const source = useProtectedUrl(candidate.imageUrl);
+  const source = imageSource(candidate.imageUrl);
 
   /* 상품 각도와 장식·테두리는 카드를 채우지 않는 물건이라 잘라내면 안 되고, 배경과 무늬는
      채우는 것이라 여백이 남으면 안 된다. 같은 타일 안에서 둘을 가르는 것은 종류뿐이다. */

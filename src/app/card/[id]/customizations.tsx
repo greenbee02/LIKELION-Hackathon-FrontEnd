@@ -5,10 +5,9 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CARD_ASPECT } from '@/components/card/card-face';
-import { BackButton } from '@/components/ui/back-button';
 import { Dialog } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { PageHeader } from '@/components/ui/page-header';
+import { NavBar } from '@/components/ui/nav-bar';
 import { Panel } from '@/components/ui/panel';
 import { allowPressOverflow } from '@/components/ui/press-scale';
 import { Screen } from '@/components/ui/screen';
@@ -22,11 +21,9 @@ import {
   restoreOriginalCard,
   selectCustomization,
 } from '@/lib/api/customizations';
-import { useProtectedUrl } from '@/lib/card-art';
+import { imageSource } from '@/lib/card-art';
 import { useCard, useCards } from '@/lib/cards-store';
-import { USE_MOCK } from '@/lib/config';
 import { formatPurchaseDate } from '@/lib/format';
-import { mockCustomizations, mockRestoreOriginal } from '@/lib/mock/customizations';
 import type { CardCustomization } from '@/lib/types';
 import { useResource } from '@/lib/use-resource';
 import { colors } from '@/theme/colors';
@@ -53,10 +50,6 @@ export default function CustomizationsScreen() {
 
   const load = useCallback(async (): Promise<CardCustomization[]> => {
     if (!id) return [];
-    if (USE_MOCK) {
-      await new Promise((r) => setTimeout(r, 600));
-      return mockCustomizations(id);
-    }
     return fetchCustomizations(id);
   }, [id]);
   const history = useResource<CardCustomization[]>(load);
@@ -64,18 +57,12 @@ export default function CustomizationsScreen() {
   const [restoring, setRestoring] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const nav = (
-    <View style={styles.nav}>
-      <BackButton fallback="/" />
-    </View>
-  );
-  const header = <PageHeader title="꾸민 기록" />;
+  const nav = <NavBar title="꾸민 기록" fallback="/" />;
 
   if (cardStatus === 'loading' || history.status === 'loading') {
     return (
       <Screen contentContainerStyle={styles.head}>
         {nav}
-        {header}
         <View style={styles.list}>
           <Skeleton style={styles.rowSkeleton} />
           <Skeleton style={styles.rowSkeleton} />
@@ -88,7 +75,6 @@ export default function CustomizationsScreen() {
     return (
       <Screen contentContainerStyle={styles.head}>
         {nav}
-        {header}
         <EmptyState
           icon={History}
           title="카드를 찾을 수 없습니다"
@@ -103,7 +89,6 @@ export default function CustomizationsScreen() {
     return (
       <Screen contentContainerStyle={styles.head}>
         {nav}
-        {header}
         <EmptyState
           icon={History}
           title="기록을 불러오지 못했습니다"
@@ -123,7 +108,6 @@ export default function CustomizationsScreen() {
     return (
       <Screen contentContainerStyle={styles.head}>
         {nav}
-        {header}
         <EmptyState
           icon={History}
           title="아직 꾸민 기록이 없습니다"
@@ -142,7 +126,7 @@ export default function CustomizationsScreen() {
     setBusy(true);
     void (async () => {
       try {
-        if (!USE_MOCK) await selectCustomization(card.id, customization.id);
+        await selectCustomization(card.id, customization.id);
         await loadCard(card.id);
         toast('이 디자인을 적용했습니다.');
         router.replace({ pathname: '/card/[id]', params: { id: card.id } });
@@ -159,8 +143,7 @@ export default function CustomizationsScreen() {
     setBusy(true);
     void (async () => {
       try {
-        if (USE_MOCK) mockRestoreOriginal(card.id);
-        else await restoreOriginalCard(card.id);
+        await restoreOriginalCard(card.id);
         await loadCard(card.id);
         toast('원래 디자인으로 되돌렸습니다.');
         router.replace({ pathname: '/card/[id]', params: { id: card.id } });
@@ -175,7 +158,6 @@ export default function CustomizationsScreen() {
   return (
     <Screen scroll gutter={false} contentContainerStyle={styles.content}>
       {nav}
-      {header}
 
       <Text variant="body" tone="muted" style={styles.intro}>
         만든 디자인은 지워지지 않습니다. 언제든 다시 골라 입힐 수 있습니다.
@@ -228,7 +210,7 @@ function CustomizationRow({
   current: boolean;
   onPress: () => void;
 }) {
-  const source = useProtectedUrl(customization.frontImageUrl);
+  const source = imageSource(customization.frontImageUrl);
   const pending = customization.status === 'PENDING' || customization.status === 'PROCESSING';
   const failed = customization.status === 'FAILED';
 
@@ -280,7 +262,6 @@ const THUMB = 64;
 const styles = StyleSheet.create({
   content: { paddingHorizontal: space[4], paddingTop: space[2], paddingBottom: space[7] },
   head: { paddingTop: space[2] },
-  nav: { flexDirection: 'row' },
   intro: { marginTop: space[4] },
   list: { marginTop: space[5], gap: space[3], ...allowPressOverflow },
   rowSkeleton: { height: 96, borderRadius: radius.base },

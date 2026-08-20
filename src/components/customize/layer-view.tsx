@@ -5,7 +5,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-nativ
 
 import { Text } from '@/components/ui/text';
 import { allowPressOverflow } from '@/components/ui/press-scale';
-import { useProtectedUrl } from '@/lib/card-art';
+import { imageSource } from '@/lib/card-art';
 import { clampFrame, isFullBleed, MIN_SIDE, type Size } from '@/lib/card-layers';
 import type { CardLayer, Frame } from '@/lib/types';
 import { colors } from '@/theme/colors';
@@ -177,7 +177,7 @@ function LayerBody({
   resourceImageUrl?: string | null;
 }) {
   const url = resourceImageUrl ?? (layer.type === 'PRODUCT' ? productImageUrl : null);
-  const source = useProtectedUrl(url);
+  const source = imageSource(url);
 
   if (layer.type === 'TEXT') {
     const style = layer.style ?? {};

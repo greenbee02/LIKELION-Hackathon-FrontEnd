@@ -7,7 +7,7 @@ import { CARD_ASPECT } from './card-face';
 import { Badge } from '@/components/ui/badge';
 import { allowPressOverflow, raiseWhilePressed, usePressScale } from '@/components/ui/press-scale';
 import { Text } from '@/components/ui/text';
-import { useProtectedUrl } from '@/lib/card-art';
+import { imageSource } from '@/lib/card-art';
 import type { CardTemplate } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
@@ -39,7 +39,7 @@ export function TemplateTile({
   onPress: () => void;
 }) {
   const press = usePressScale();
-  const art = useProtectedUrl(template.frontImageUrl);
+  const art = imageSource(template.frontImageUrl);
   const primary = template.resource?.primaryColor;
   const accent = template.resource?.accentColor;
 

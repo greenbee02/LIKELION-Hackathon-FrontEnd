@@ -1,11 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { NavBar } from '@/components/ui/nav-bar';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { useAuth } from '@/lib/auth-store';
@@ -60,24 +60,20 @@ export default function SignUpScreen() {
   const submit = async () => {
     setTouched(true);
     if (!fieldsValid || !allAgreed) return;
-    // The backend's signup takes a nickname. Rather than ask for one the customer has no reason
-    // to have chosen yet, seed it from the address and let them rename it from their profile.
+    // 가입은 `name` 을 요구한다(`users.name`, NOT NULL). 아직 고를 이유가 없는 이름을
+    // 물어보는 대신 주소 앞부분으로 심어 둔다 — 프로필에서 바꾸게 하면 될 일이다.
     const ok = await signUp(email, password, email.split('@')[0]);
     if (ok) router.replace('/');
   };
 
   return (
     <Screen scroll contentContainerStyle={styles.content}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <BackButton />
-
-        <View style={styles.header}>
-          <Text variant="title">회원가입</Text>
-        </View>
+        <NavBar title="회원가입" />
 
         <Input
           label="이메일 주소"
           required
+          style={styles.first}
           value={email}
           onChangeText={(v) => {
             setEmail(v);
@@ -154,14 +150,14 @@ export default function SignUpScreen() {
           style={styles.submit}
         />
 
-      </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: space[3], paddingBottom: space[6] },
-  header: { marginTop: space[5], marginBottom: space[6] },
+  content: { paddingTop: space[2], paddingBottom: space[6] },
+  /** 이름 줄과 첫 입력 사이 — 32. 서로 다른 종류의 것이다. */
+  first: { marginTop: space[6] },
   field: { marginTop: space[4] },
   terms: { marginTop: space[6] },
   /**

@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppleMark } from '@/components/brand-marks/apple';
@@ -32,19 +33,32 @@ import { space } from '@/theme/spacing';
  * There is no back arrow. This is where the app starts — there is nothing behind it.
  */
 export default function SignInScreen() {
-  const { signInWithProvider, pending } = useAuth();
+  const { signInWithProvider, pending, error, clearError } = useAuth();
   const toast = useToast();
   const router = useRouter();
 
   /**
-   * Google is the demo's way in. There is no OAuth round trip behind it yet — the store mints a
-   * mock session — but the button behaves the way it will when there is one, so the rest of the
-   * product can be walked from here instead of from a bypass flag.
+   * There is no OAuth round trip behind this yet, and no session is minted in its place — the
+   * store answers that the provider is not ready and the screen says so. The email path is the
+   * way in until the redirect scheme lands.
    */
   const continueWithGoogle = async () => {
     const ok = await signInWithProvider('google');
     if (ok) router.replace('/');
   };
+
+  /**
+   * **실패는 `auth-store` 의 `error` 에 들어가고, 이 화면에는 그것을 그릴 자리가 없었다.**
+   *
+   * 그래서 구글 버튼은 눌러도 아무 일이 없는 컨트롤이었다 — 바로 옆의 애플 버튼은 같은
+   * 사실을 토스트로 말하고 있었으니, 같은 화면의 두 버튼이 같은 상황에 다르게 답한 셈이다.
+   * OAuth 가 실제로 연결된 뒤에도 이 줄은 그대로 쓸모가 있다: 그때는 진짜 실패가 여기로 온다.
+   */
+  useEffect(() => {
+    if (!error) return;
+    toast(error);
+    clearError();
+  }, [error, clearError, toast]);
 
   // Apple stays a stub. The backend exposes google and kakao; Apple is required alongside any
   // social provider on iOS (App Store guideline 4.8) and is what to ask the backend for next.

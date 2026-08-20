@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { Text } from '@/components/ui/text';
-import { brandMarkSource, useCardArt } from '@/lib/card-art';
+import { brandMarkSource, cardArtSource } from '@/lib/card-art';
 import { formatPurchaseDate } from '@/lib/format';
 import type { Card } from '@/lib/types';
 import { colors } from '@/theme/colors';
@@ -55,7 +55,7 @@ export const CARD_ASPECT = CARD_SIZE.width / CARD_SIZE.height;
 export function CardFace({ card, art }: { card: Card; art?: ImageSourcePropType | null }) {
   const { brand, store, purchaseDate } = card;
   /* 훅이므로 넘겨받았든 아니든 항상 부른다. 고르는 것은 결과뿐이다. */
-  const own = useCardArt(card);
+  const own = cardArtSource(card);
   /* `undefined` 는 "네가 정해라", `null` 은 "그림 없이 그려라". 둘을 구분하지 않으면 편집
      화면이 액센트만 남은 얼굴을 보여줄 방법이 없다. */
   const source = art === undefined ? own : art;

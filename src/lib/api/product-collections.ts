@@ -32,9 +32,8 @@ export type ProductCollectionResponse = {
  * **`product` 는 요약이 아니라 `ProductResponse` 전문이다.**
  *
  * 예전에는 `{ id: string }` 으로 선언해 두고 색인을 만든 뒤 나머지를 버렸는데, 서버는 처음부터
- * 이름·사진·소재·케어·가격까지 전부 보내고 있었다. 그 사실이 화면 하나를 통째로 바꾼다 —
- * **아직 갖지 않은 상품이 무엇인지 이미 메모리에 있다.** 추천 화면(`lib/recommendations.ts`)이
- * 왕복 한 번 없이 성립하는 이유이고, 그래서 아래 `byCollection` 이 생겼다.
+ * 이름·사진·소재·케어·가격까지 전부 보내고 있었다. 리워드가 "몇 장 중 몇 장"을 셀 수 있는
+ * 근거가 이 전문이고, 그래서 아래 `byCollection` 이 생겼다.
  */
 export type CollectionItemResponse = {
   product: ProductResponse;
@@ -106,15 +105,4 @@ export function fetchCollectionIndex(): Promise<CollectionIndex> {
   });
 
   return index;
-}
-
-/**
- * 색인을 버린다. 다음 호출이 새로 만든다.
- *
- * 색인은 앱이 사는 동안 한 번만 만들도록 되어 있는데, **카드를 새로 발급받으면 그 전제가
- * 깨진다** — 방금 산 상품이 추천 목록에 계속 남아 "아직 없는 것"인 척한다. 컬렉션 자체가
- * 자주 바뀌지는 않으므로 주기적 갱신은 과하고, 바뀌었다는 것을 아는 순간에만 버린다.
- */
-export function invalidateCollectionIndex() {
-  index = null;
 }

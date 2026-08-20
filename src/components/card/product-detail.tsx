@@ -59,9 +59,10 @@ export function ProductDetail({ product }: { product: Product }) {
 /**
  * Whether there is anything to show at all.
  *
- * Every field here is one the DTO does not expose yet (scope §2), so against the live backend
- * this panel would be an empty sheet with a grabber on it. The screen asks first and leaves the
- * sheet off entirely rather than offering a gesture that opens onto nothing.
+ * 여기 있는 값은 전부 `GET /products/{id}` 가 주는 것이고, 그 응답은 필드마다 null 을 허용한다
+ * — 소재도 케어도 적히지 않은 상품이 실제로 있다. 한 줄도 못 채우면 이 패널은 손잡이만 달린
+ * 빈 시트가 되므로, 화면이 먼저 물어보고 아예 시트를 달지 않는다. 아무 데도 닿지 않는 손짓을
+ * 내주는 것보다 손짓이 없는 편이 낫다.
  */
 export function hasProductDetail(product: Product): boolean {
   return productBlocks(product).length > 0;

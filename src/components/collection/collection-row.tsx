@@ -2,7 +2,7 @@ import { ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import { CardFace } from '@/components/card/card-face';
+import { CARD_ASPECT, CardFace } from '@/components/card/card-face';
 import { allowPressOverflow, raiseWhilePressed, usePressScale } from '@/components/ui/press-scale';
 import { Text } from '@/components/ui/text';
 import type { Card, UserCollection } from '@/lib/types';
@@ -10,7 +10,13 @@ import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
-/** 표지 카드의 폭. 3:4 이므로 높이는 56 — `heading` 한 줄과 `caption` 한 줄이 딱 그만큼이다. */
+/**
+ * 표지 카드의 폭. 높이는 카드 비율이 정한다 — `heading` 한 줄과 `caption` 한 줄이 서는 높이다.
+ *
+ * **빈 자리도 같은 비율이어야 한다.** 여기 3:4 를 손으로 적어둔 탓에 카드가 든 폴더는 66,
+ * 빈 폴더는 56 으로 그려져서 목록의 행 높이가 폴더마다 달랐다. `CARD_ASPECT` 하나만 보게
+ * 하면 그 어긋남이 존재할 수 없다.
+ */
 const COVER = 42;
 
 /**
@@ -76,7 +82,7 @@ const styles = StyleSheet.create({
   cover: { width: COVER },
   empty: {
     width: COVER,
-    aspectRatio: 3 / 4,
+    aspectRatio: CARD_ASPECT,
     borderRadius: radius.small,
     backgroundColor: colors.surface,
   },

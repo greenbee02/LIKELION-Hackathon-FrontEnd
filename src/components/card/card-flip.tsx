@@ -35,15 +35,17 @@ export function CardFlip({ card }: { card: Card }) {
   const [showBack, setShowBack] = useState(false);
   const press = usePressScale();
 
+  /* 애니메이션은 갱신 함수 **밖**에서 시작한다. `setState` 의 갱신 함수는 순수해야 하고,
+     React 는 개발 모드에서 그것을 두 번 부른다 — 안에 두면 카드가 한 번의 탭에 두 번
+     돌기 시작한다. */
   const flip = useCallback(() => {
-    setShowBack((wasBack) => {
-      turn.value = withTiming(wasBack ? 0 : 1, {
-        duration: motion.flipDuration,
-        easing: motion.flipEasing,
-      });
-      return !wasBack;
+    const next = !showBack;
+    setShowBack(next);
+    turn.value = withTiming(next ? 1 : 0, {
+      duration: motion.flipDuration,
+      easing: motion.flipEasing,
     });
-  }, [turn]);
+  }, [showBack, turn]);
 
   const front = useAnimatedStyle(() => ({
     transform: [

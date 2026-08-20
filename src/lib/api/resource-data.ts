@@ -5,8 +5,8 @@ import type { CardLayerType, Frame } from '../types';
  * 이미지가 아닌 AI 리소스가 실어 오는 것 — `generatedData` 를 읽는 곳.
  *
  * **이 파일 전체가 미지수 위에 서 있다.** OpenAPI 는 `generatedData: string` 이라고만 말하고
- * 안쪽 스키마를 적지 않았으며, 지금까지 실제 응답을 한 번도 관찰하지 못했다(연동 계획의 실측
- * 표에 AI 리소스 항목이 한 줄도 없다). 그래서 아래는 *스키마를 맞힌 것*이 아니라 *어떤 모양이
+ * 안쪽 스키마를 적지 않았으며, 지금까지 실제 응답을 한 번도 관찰하지 못했다 —
+ * `backend-contract.md` §3 도 이 필드만은 모양을 적지 못한다. 그래서 아래는 *스키마를 맞힌 것*이 아니라 *어떤 모양이
  * 와도 죽지 않고 읽을 수 있는 만큼만 읽는 파서*다.
  *
  * 방어의 규칙:
@@ -112,7 +112,9 @@ function parseTextStyle(data: Record<string, unknown>): TextStyleData | Unparsed
     kind: 'TEXT_STYLE',
     name: asText(pick(data, 'name', 'fontStyle', 'styleName', 'title')),
     /* 굵기는 숫자로도 단어로도 온다. 문자열로 통일해 두면 RN 의 `fontWeight` 가 둘 다 받는다. */
-    fontWeight: asText(pick(data, 'fontWeight', 'weight')) ?? numberAsText(pick(data, 'fontWeight')),
+    fontWeight:
+      asText(pick(data, 'fontWeight', 'weight')) ??
+      numberAsText(pick(data, 'fontWeight', 'weight')),
     fontSize: asFinite(pick(data, 'fontSize', 'size')),
     letterSpacing: asFinite(pick(data, 'letterSpacing', 'tracking')),
     textAlign: align && ALIGNMENTS.has(align) ? (align as TextStyleData['textAlign']) : undefined,
