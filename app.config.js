@@ -33,7 +33,7 @@ const host = cleartextHost();
  * 설정이기도 하다.
  */
 const ios = {
-  icon: './assets/expo.icon',
+  icon: './assets/images/icon.png',
   ...(host && {
     infoPlist: {
       NSAppTransportSecurity: {
@@ -51,7 +51,7 @@ const ios = {
 /** 안드로이드에는 도메인 단위 설정이 없어 평문 허용은 전역이다. HTTP 일 때만 켠다. */
 const android = {
   adaptiveIcon: {
-    backgroundColor: '#E6F4FE',
+    backgroundColor: '#000000',
     foregroundImage: './assets/images/android-icon-foreground.png',
     backgroundImage: './assets/images/android-icon-background.png',
     monochromeImage: './assets/images/android-icon-monochrome.png',
@@ -85,9 +85,9 @@ module.exports = {
       [
         'expo-splash-screen',
         {
-          backgroundColor: '#208AEF',
+          backgroundColor: '#000000',
           image: './assets/images/splash-icon.png',
-          imageWidth: 76,
+          imageWidth: 200,
         },
       ],
       [

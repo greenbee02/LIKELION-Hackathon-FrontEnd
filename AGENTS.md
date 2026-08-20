@@ -33,7 +33,7 @@ Expo SDK 57 + Expo Router + React Native 0.86 + React Native Web + TypeScript. O
 - **Spacing** — `src/theme/spacing.ts`, 4pt scale (`space[1]`…`space[7]` = 4·8·12·16·24·32·48). Screen gutters 16, card inner padding 12, unrelated sections 32 apart.
 - **Radius** — `src/theme/radius.ts`. `base` (12) is the default; `full` for pills and circles; `small` (4) under ~28pt. Three values — if something seems to need a fourth, say so rather than writing a number at the call site.
 - **Motion** — `src/theme/motion.ts`. Never pick a duration at a call site.
-- **Every word on screen is Korean** — labels, buttons, placeholders, validation, empty states, toasts, tab titles, a11y labels. Copy is written inline at each call site; nothing is centralised for translation. Two exceptions: the wordmark `Curio`, which is a name, and the `My` tab, which the owner chose in English.
+- **Every word on screen is Korean** — labels, buttons, placeholders, validation, empty states, toasts, tab titles, a11y labels. Copy is written inline at each call site; nothing is centralised for translation. Two exceptions: the wordmark `CURIO`, which is a name, and the `My` tab, which the owner chose in English.
 - **No dark mode.** Light only — `grayDark` is deliberately not imported.
 - **Every screen that loads data has three states: skeleton → loaded, or empty.** Never a spinner or a blank screen where a skeleton belongs.
 - **A row with no value is not rendered.** No dash, no placeholder — the live API returns null for many fields.
@@ -88,7 +88,11 @@ A scroll view clips at its own edge and no overflow rule reaches it, so a list w
 
 Google is wired to `signInWithProvider`; Apple is a stub, and is not optional once any social provider ships (App Store 4.8). Provider button colours come from `brand-marks/palettes.ts` through `Button`'s `palette` prop. 이메일 찾기 and 비밀번호 재설정 are design only — no endpoint exists.
 
-**The wordmark is set in Titillium Web and nothing else is** — the `wordmark` role, on `/sign-in` alone. Import the weight subpath (`@expo-google-fonts/titillium-web/700Bold`), never the package root, which pulls all 22 faces into the bundle.
+**The wordmark is set in Jost and nothing else is** — the `wordmark` role, reached only through `Wordmark`, on `/sign-in` alone. Import the weight subpath (`@expo-google-fonts/jost/300Light`), never the package root, which pulls every face into the bundle.
+
+- **The mark is geometric, light, and set in caps, wide.** `C` and `O` are struck from one circle and `R` carries a straight leg; that drawing is what makes it read as stamped rather than typed, and a humanist sans squares the `O` off and collapses it back into a word. Tracking is 0.34em — **caps set tight are a word, caps set open are a mark.**
+- **RN applies `letterSpacing` after the last glyph too**, so a centred line of tracked caps is drawn half a track to the left of where the eye puts it. `Wordmark` cancels it with one track of left padding. That is why the mark is a component and why nothing else uses the role directly.
+- **The app icon is the same mark in the same face** (`scripts/make-app-icon.py`, Jost 400 — 300's strokes vanish at home-screen size). Change one and change the other: the same name in two faces is two logos.
 
 ### The card
 

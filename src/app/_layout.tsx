@@ -1,7 +1,7 @@
 // The weight subpath, not the package root: the root index requires all 22 faces, and importing
 // it drags every one of them into the bundle for the sake of a single wordmark.
 import { CormorantGaramond_600SemiBold } from '@expo-google-fonts/cormorant-garamond/600SemiBold';
-import { TitilliumWeb_700Bold } from '@expo-google-fonts/titillium-web/700Bold';
+import { Jost_300Light } from '@expo-google-fonts/jost/300Light';
 import { useFonts } from 'expo-font';
 import { PortalHost } from '@rn-primitives/portal';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -75,7 +75,7 @@ function SessionGate({ children, fontsReady }: { children: ReactNode; fontsReady
 export default function RootLayout() {
   // Only the wordmark uses this face — see src/theme/typography.ts. `error` counts as ready so a
   // font that fails to load degrades to the system font instead of hanging on the splash.
-  const [fontsLoaded, fontError] = useFonts({ TitilliumWeb_700Bold, CormorantGaramond_600SemiBold });
+  const [fontsLoaded, fontError] = useFonts({ Jost_300Light, CormorantGaramond_600SemiBold });
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
