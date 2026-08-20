@@ -5,12 +5,12 @@ import {
   ScrollView,
   StyleSheet,
   View,
-  useWindowDimensions,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
 
 import { OnboardingScene, type SceneName } from '@/components/onboarding/scene';
+import { useFrameWidth } from '@/components/ui/app-frame';
 import { IconButton } from '@/components/ui/icon-button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
@@ -81,7 +81,7 @@ const SLIDES: Slide[] = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const width = useFrameWidth();
   const [index, setIndex] = useState(0);
   const scroller = useRef<ScrollView>(null);
 

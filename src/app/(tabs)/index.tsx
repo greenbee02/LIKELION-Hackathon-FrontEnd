@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ChevronDown, Layers, QrCode } from 'lucide-react-native';
+import { ChevronDown, Layers, ScanLine } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 
@@ -193,7 +193,7 @@ function Header({
         title
       )}
       {/* The way a card gets here, kept where the eye already is rather than a tab away. */}
-      <IconButton icon={QrCode} onPress={onScan} variant="glass" accessibilityLabel="QR 스캔" />
+      <IconButton icon={ScanLine} onPress={onScan} variant="glass" accessibilityLabel="QR 스캔" />
     </View>
   );
 }
