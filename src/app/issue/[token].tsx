@@ -3,7 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { AlertCircle, Clock, ScanLine, Wifi } from 'lucide-react-native';
 import type { ComponentType } from 'react';
 import { useEffect } from 'react';
-import { BackHandler, Platform, StyleSheet, View } from 'react-native';
+import { BackHandler, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 import { IssueCard } from '@/components/issue/issue-card';
 import { Checklist } from '@/components/ui/checklist';
@@ -96,40 +96,50 @@ function IssuePreview({
   const router = useRouter();
   const image = assetUrl(preview.product.imageUrl);
   const unavailable = !preview.usable;
-  const title = preview.status === 'USED'
-    ? '이미 발급된 영수증입니다'
-    : preview.status === 'EXPIRED'
-      ? '발급 기한이 지났습니다'
-      : '이 상품으로 카드를 발급할까요?';
+  /**
+   * 이 화면이 하는 말은 표 아래의 한 줄이 전부다.
+   *
+   * 제목과 설명으로 나눠 쓰던 것을 한 줄로 합쳤다 — "이미 발급된 영수증입니다"를 큰 글씨로
+   * 쓰고 그 아래에 "사용할 수 없는 QR 코드입니다"를 다시 쓰는 것은 같은 사실을 두 번 말하는
+   * 것이고, 뒤쪽이 앞쪽보다 덜 정확했다. 상태가 아는 만큼 정확하게 한 번만 쓴다.
+   *
+   * 발급 가능한 영수증에도 이 줄 하나뿐이다. 바닥의 버튼이 이미 "이 정보로 카드 발급"이라고
+   * 말하므로 그 위에 질문을 얹으면 같은 말이 두 번이 된다.
+   */
+  const support = !unavailable
+    ? '구매 정보를 확인한 뒤 카드 발급을 진행합니다.'
+    : preview.status === 'USED'
+      ? '이미 발급된 영수증입니다. 다른 영수증을 확인해주세요.'
+      : preview.status === 'EXPIRED'
+        ? '발급 기한이 지난 영수증입니다. 다른 영수증을 확인해주세요.'
+        : '사용할 수 없는 QR 코드입니다. 다른 영수증을 확인해주세요.';
 
   return (
     <View style={styles.page}>
       <NavBar title="카드 발급" fallback="/scan" />
 
-      <View style={styles.previewContent}>
-        <View style={styles.productPreview}>
+      {/* 위에서부터 채운다 — 상품 사진이 이 화면의 주어이고, 나머지는 그 아래로 읽힌다.
+          가운데 정렬은 위아래로 같은 크기의 빈 자리를 만들어 사진을 작게 보이게 했다. */}
+      <ScrollView
+        style={styles.previewScroll}
+        contentContainerStyle={styles.previewContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.hero}>
           {image ? (
-            <Image source={image} style={styles.productImage} contentFit="cover" transition={200} />
+            <Image source={image} style={styles.heroImage} contentFit="cover" transition={200} />
           ) : (
-            <View style={styles.productPlaceholder}>
-              <ScanLine size={28} color={colors.textMuted} />
-            </View>
-          )}
-          <View style={styles.productCopy}>
-            <Text variant="label" tone="muted">
-              {preview.store.name}
-            </Text>
-            <Text variant="title" numberOfLines={2} style={styles.productName}>
-              {preview.product.name}
-            </Text>
             <Text variant="caption" tone="muted">
-              {preview.store.city} · {formatPurchaseDate(preview.purchaseDate)}
+              이미지 준비 중
             </Text>
-          </View>
+          )}
         </View>
 
-        <Text variant="title" style={styles.previewTitle}>
-          {title}
+        <Text variant="heading" numberOfLines={2} style={styles.productName}>
+          {preview.product.name}
+        </Text>
+        <Text variant="caption" tone="muted" style={styles.productMeta}>
+          {preview.store.city} · {formatPurchaseDate(preview.purchaseDate)}
         </Text>
 
         <View style={styles.details}>
@@ -141,12 +151,10 @@ function IssuePreview({
           ) : null}
         </View>
 
-        <Text variant="body" tone="muted" style={styles.support}>
-          {unavailable
-            ? '사용할 수 없는 QR 코드입니다. 다른 영수증을 확인해주세요.'
-            : '구매 정보를 확인한 뒤 카드 발급을 진행합니다.'}
+        <Text variant="body" tone="muted" style={styles.previewSupport}>
+          {support}
         </Text>
-      </View>
+      </ScrollView>
 
       <View style={styles.footer}>
         {unavailable ? (
@@ -249,24 +257,20 @@ function IssueReady({ card, incomplete }: { card: Card; incomplete: boolean }) {
         <Text variant="display" style={styles.headline}>
           발급 완료
         </Text>
-        <Text variant="body" tone="muted" style={styles.support}>
-          {`${card.store.name} · ${formatPurchaseDate(card.purchaseDate)}`}
-        </Text>
+        {/* 매장과 날짜는 여기 적지 않는다 — 카드 얼굴이 도시와 날짜를 새기고 있고 바로 위
+            캡션이 매장을 말한다. 세 줄이 같은 것을 세 번 말하면 축하가 영수증이 된다. */}
         {incomplete ? (
-          <Text variant="caption" tone="muted" style={styles.note}>
+          <Text variant="caption" tone="muted" style={styles.support}>
             일부 디자인은 아직 생성 중입니다. 완료되면 카드에 반영됩니다.
           </Text>
         ) : null}
       </View>
 
+      {/* 갈 곳은 하나다 — 방금 만든 카드가 있는 곳. 그 옆에 같은 크기의 두 번째 버튼을 두면
+          화면이 무엇을 위한 것인지 스스로 정하지 못한 것이 된다. 다시 스캔하려는 사람은
+          컬렉션의 스캔 버튼으로 간다. */}
       <View style={styles.footer}>
         <Button label="컬렉션에서 보기" onPress={() => router.replace('/')} />
-        <Button
-          label="계속 스캔하기"
-          variant="outline"
-          style={styles.cta}
-          onPress={() => router.replace('/scan')}
-        />
       </View>
     </View>
   );
@@ -385,37 +389,33 @@ function IssueError({ code, onRetry }: { code: IssueErrorCode; onRetry: () => vo
 const styles = StyleSheet.create({
   page: { flex: 1 },
   body: { flex: 1, justifyContent: 'center', paddingVertical: space[5] },
-  headline: { marginTop: space[5], textAlign: 'center' },
+  headline: { marginTop: space[6], textAlign: 'center' },
   support: { marginTop: space[2], textAlign: 'center' },
-  previewContent: { flex: 1, justifyContent: 'center', paddingVertical: space[5] },
-  productPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'center',
+  previewScroll: { flex: 1 },
+  previewContent: { paddingTop: space[4], paddingBottom: space[5] },
+  hero: {
+    /* 1.2 는 어느 상품도 자르지 않고 빈 배경만 걷어내는 한계값이다.
+       상품 사진은 전부 2000×2164(비율 0.924)에 배경이 구워져 있고 `cover` 는 폭을 채운 뒤
+       위아래를 같은 양씩 잘라내므로, 액자를 줄여도 **상품 크기는 그대로이고 여백만 사라진다.**
+       열한 장을 실측하면 상품이 가장 크게 들어찬 사진(`prod_005` 백팩)이 위 0.13 · 아래 0.11
+       이고, 이것이 잘라낼 수 있는 양을 정한다 — 위아래 0.12 씩이면 남는 창이 0.76,
+       비율로는 0.924/0.76 ≈ 1.216. 더 줄이면 그 상품의 위아래가 잘린다.
+       나머지 여백은 레이아웃이 아니라 사진에 있다(`backend-open-items.md` §13). */
     width: '100%',
-    maxWidth: 360,
-  },
-  productImage: {
-    width: 88,
-    height: 88,
-    borderRadius: radius.base,
-    backgroundColor: colors.surface,
-  },
-  productPlaceholder: {
-    width: 88,
-    height: 88,
+    aspectRatio: 1.2,
     borderRadius: radius.base,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  productCopy: { flex: 1, marginLeft: space[4] },
-  productName: { marginTop: space[1] },
-  previewTitle: { marginTop: space[6], textAlign: 'center' },
+  heroImage: { width: '100%', height: '100%' },
+  productName: { marginTop: space[4] },
+  productMeta: { marginTop: space[1] },
+  previewSupport: { marginTop: space[4] },
   details: {
-    marginTop: space[5],
-    paddingVertical: space[2],
-    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: space[4],
+    paddingBottom: space[2],
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
