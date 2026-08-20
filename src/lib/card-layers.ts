@@ -150,20 +150,22 @@ const STACK_ORDER: CardLayerType[] = [
  * **고르지 않은 종류는 레이어가 되지 않는다.** 빈 칸을 미리 깔아두면 고객은 자기가 놓지 않은
  * 것이 왜 거기 있는지 알 수 없고, 그 칸은 서버로도 나간다.
  *
- * `PRODUCT` 만 예외로 늘 놓는다 — 카드의 주인공이고, AI 리소스 없이 상품 사진만으로 성립한다.
- * 예전에는 `PRODUCT_ANGLE` 을 골랐으면 그 그림이 대신 들어갔는데, 그 종류가 폐지되면서
- * 상품 레이어는 언제나 상품 기본 이미지다 — 백엔드도 `PRODUCT` 레이어에 리소스를 붙이는 것을
- * 거부한다.
+ * `PRODUCT` 만 예외로 늘 놓는다 — 카드의 주인공이고, AI 배경이 선택되지 않은 상태에서는
+ * 상품 사진만으로 성립한다. 다만 AI `BACKGROUND` 결과는 연결된 상품을 포함한 완성 이미지이므로
+ * 그 경우에는 별도 상품 레이어를 추가하지 않는다. 예전에는 `PRODUCT_ANGLE` 을 골랐으면 그
+ * 그림이 대신 들어갔는데, 그 종류가 폐지되면서 상품 레이어는 언제나 상품 기본 이미지다 —
+ * 백엔드도 `PRODUCT` 레이어에 리소스를 붙이는 것을 거부한다.
  */
 export function initialLayers(
   selected: Partial<Record<string, string>>,
   template: TemplateResource | null,
 ): CardLayer[] {
   const layers: CardLayer[] = [];
+  const backgroundSelected = Boolean(selected.BACKGROUND || selected.PRODUCT_BACKGROUND);
 
   for (const type of STACK_ORDER) {
     if (type === 'PRODUCT') {
-      layers.push(makeLayer('PRODUCT'));
+      if (!backgroundSelected) layers.push(makeLayer('PRODUCT'));
       continue;
     }
 
@@ -230,16 +232,30 @@ export function syncSelection(
 ): CardLayer[] {
   const existing = layers.find((l) => l.type === type);
 
-  if (!resourceId) return existing ? removeLayer(layers, existing.id) : layers;
-  if (existing) return replaceLayer(layers, existing.id, { resourceId });
-
-  /* 없던 종류를 새로 고르면 쌓임 순서의 제자리에 끼워 넣는다. 끝에 붙이면 배경이 장식 위에
-     올라가고, 고객은 순서를 손으로 되돌려야 한다. */
   const rank = (t: CardLayerType) => STACK_ORDER.indexOf(t);
-  const layer = makeLayer(type, { resourceId });
-  const at = layers.findIndex((l) => rank(l.type) > rank(type));
-  if (at < 0) return [...layers, layer];
-  return [...layers.slice(0, at), layer, ...layers.slice(at)];
+  const insert = (current: CardLayer[], layer: CardLayer) => {
+    const at = current.findIndex((l) => rank(l.type) > rank(layer.type));
+    if (at < 0) return [...current, layer];
+    return [...current.slice(0, at), layer, ...current.slice(at)];
+  };
+
+  if (!resourceId) {
+    let next = existing ? removeLayer(layers, existing.id) : layers;
+    /* 배경을 해제하면 카드가 다시 상품 기본 이미지로 돌아오도록 상품 레이어를 복구한다. */
+    if (type === 'BACKGROUND' && !next.some((layer) => layer.type === 'PRODUCT')) {
+      next = insert(next, makeLayer('PRODUCT'));
+    }
+    return next;
+  }
+
+  const next = existing
+    ? replaceLayer(layers, existing.id, { resourceId })
+    : insert(layers, makeLayer(type, { resourceId }));
+
+  if (type !== 'BACKGROUND') return next;
+
+  /* 선택한 배경 결과 안에 상품이 포함되므로, 별도 PRODUCT 레이어가 위에서 덮지 않게 제거한다. */
+  return next.filter((layer) => layer.type !== 'PRODUCT');
 }
 
 /** 후보 격자가 몇 칸인지. 격자 컴포넌트와 스켈레톤이 같은 수를 봐야 한다. */
