@@ -59,8 +59,7 @@ export default function AiResourcesScreen() {
 
   if (history.status === 'loading') {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <View style={styles.loadingList}>
           <Skeleton style={styles.groupSkeleton} />
           <Skeleton style={styles.groupSkeleton} />
@@ -71,8 +70,7 @@ export default function AiResourcesScreen() {
 
   if (history.status === 'error' || !history.data) {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <EmptyState
           icon={History}
           title="AI 기록을 불러오지 못했습니다"
@@ -85,8 +83,7 @@ export default function AiResourcesScreen() {
 
   if (history.data.groups.length === 0) {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <EmptyState
           icon={History}
           title="아직 AI 리소스 기록이 없습니다"
@@ -97,8 +94,7 @@ export default function AiResourcesScreen() {
   }
 
   return (
-    <Screen scroll gutter={false} contentContainerStyle={styles.content}>
-      {nav}
+    <Screen scroll gutter={false} header={nav} contentContainerStyle={styles.content}>
       <Text variant="body" tone="muted" style={styles.intro}>
         카드 꾸미기에서 만든 후보와 생성 옵션을 다시 확인할 수 있습니다.
       </Text>
@@ -280,8 +276,7 @@ function statusLabel(status: AiResource['status']): string {
 }
 
 const styles = StyleSheet.create({
-  head: { paddingTop: space[2] },
-  content: { paddingHorizontal: space[4], paddingTop: space[2], paddingBottom: space[7] },
+  content: { paddingHorizontal: space[4], paddingBottom: space[7] },
   intro: { marginTop: space[4] },
   refresh: { marginTop: space[1] },
   loadingList: { marginTop: space[5], gap: space[4] },

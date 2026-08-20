@@ -137,8 +137,7 @@ export default function DesignCardScreen() {
 
   if (cardStatus !== 'loading' && !card) {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <EmptyState
           icon={Palette}
           title="카드를 찾을 수 없습니다"
@@ -151,8 +150,7 @@ export default function DesignCardScreen() {
 
   if (!card || cardStatus === 'loading') {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <View style={styles.stage}>
           <Skeleton style={styles.faceSkeleton} />
         </View>
@@ -222,9 +220,7 @@ export default function DesignCardScreen() {
 
   if (step === 'pick') {
     return (
-      <Screen scroll gutter={false} contentContainerStyle={styles.content}>
-        {nav}
-
+      <Screen scroll gutter={false} header={nav} contentContainerStyle={styles.content}>
         {loadFailed ? (
           <EmptyState
             icon={Palette}
@@ -280,10 +276,8 @@ export default function DesignCardScreen() {
   }
 
   return (
-    <Screen gutter={false}>
+    <Screen gutter={false} header={nav}>
       <View style={styles.editor}>
-        {nav}
-
         <View style={styles.sideToggle} accessibilityRole="tablist">
           {(['front', 'back'] as const).map((side) => (
             <Pressable
@@ -383,9 +377,7 @@ function ForkPane({
   onUndo: () => void;
 }) {
   return (
-    <Screen scroll gutter={false} contentContainerStyle={styles.content}>
-      {nav}
-
+    <Screen scroll gutter={false} header={nav} contentContainerStyle={styles.content}>
       <Text variant="body" tone="muted" style={styles.intro}>
         {`${card.brand.name} 의 카드를 두 가지 방법으로 꾸미실 수 있습니다.`}
       </Text>
@@ -455,8 +447,7 @@ function assetLayer(
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: space[4], paddingTop: space[2], paddingBottom: space[7] },
-  head: { paddingTop: space[2] },
+  content: { paddingHorizontal: space[4], paddingBottom: space[7] },
   intro: { marginTop: space[4] },
   section: { marginTop: space[5], marginBottom: space[3] },
   grid: { marginTop: space[5], gap: space[3], ...allowPressOverflow },
@@ -483,7 +474,7 @@ const styles = StyleSheet.create({
 
   /* 편집기는 스크롤하지 않는다 — 무대의 드래그와 화면의 스크롤이 같은 손짓을 두 가지 뜻으로
      쓰게 되고, 문구를 아래로 끌면 화면이 같이 내려간다. */
-  editor: { flex: 1, paddingHorizontal: space[4], paddingTop: space[2] },
+  editor: { flex: 1, paddingHorizontal: space[4] },
   sideToggle: {
     flexDirection: 'row',
     alignSelf: 'center',

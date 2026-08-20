@@ -15,7 +15,6 @@ import { useToast } from '@/components/ui/toast';
 import { allowPressOverflow } from '@/components/ui/press-scale';
 import { useCard, useCards } from '@/lib/cards-store';
 import { shareCardImage } from '@/lib/share-card';
-import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
@@ -92,9 +91,6 @@ export default function CardDetailScreen() {
     />
   );
 
-  /* 페이지와 같은 배경을 깔고 한 단 올려, 본문이 이 아래로 지나가도 줄은 덮이지 않는다. */
-  const header = <View style={styles.header}>{nav}</View>;
-
   /* 카드가 서는 자리. 스켈레톤과 카드가 같은 상자를 쓰기 때문에 측정도 한 번만 적는다. */
   const stage = (children: ReactNode) => (
     <View
@@ -112,8 +108,7 @@ export default function CardDetailScreen() {
 
   if (status === 'loading') {
     return (
-      <Screen gutter={false}>
-        {header}
+      <Screen gutter={false} header={nav}>
         <View style={styles.body}>{stage(<Skeleton style={styles.heroFace} />)}</View>
       </Screen>
     );
@@ -123,8 +118,7 @@ export default function CardDetailScreen() {
      screen but not the same sentence — one is nothing to show, the other is nothing loaded. */
   if (!card) {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <EmptyState
           icon={FileQuestionMark}
           title={status === 'error' ? '카드를 불러오지 못했습니다' : '카드를 찾을 수 없습니다'}
@@ -151,9 +145,7 @@ export default function CardDetailScreen() {
   };
 
   return (
-    <Screen gutter={false}>
-      {header}
-
+    <Screen gutter={false} header={nav}>
       <View style={styles.body}>
         {stage(<CardFlip card={card} />)}
 
@@ -184,16 +176,6 @@ export default function CardDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  /* 페이지와 같은 배경이라야 아래 것을 가리고, 한 단 올려야 본문 **위에** 그려진다 — 형제는
-     소스 순서대로 칠해지고 줄이 먼저다. 눌러서 커지는 아이콘이 줄 밖으로 넘칠 자리도 함께
-     열어준다. */
-  header: {
-    paddingHorizontal: space[4],
-    paddingTop: space[2],
-    backgroundColor: colors.background,
-    zIndex: 1,
-    ...allowPressOverflow,
-  },
   /** 화면의 16pt 여백을 본문이 든다. 48 은 마지막 컨트롤이 화면 바닥에 붙지 않을 만큼. */
   body: {
     flex: 1,
@@ -212,5 +194,4 @@ const styles = StyleSheet.create({
   /** 32 — the control is a separate subject from the card above it. */
   share: { marginTop: space[6] },
   heroFace: { width: '100%', aspectRatio: CARD_ASPECT, borderRadius: radius.base },
-  head: { paddingTop: space[2] },
 });

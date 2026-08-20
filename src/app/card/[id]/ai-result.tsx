@@ -35,8 +35,7 @@ export default function AiResultScreen() {
 
   if (history.status === 'loading') {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <Skeleton style={styles.resultSkeleton} />
       </Screen>
     );
@@ -44,8 +43,7 @@ export default function AiResultScreen() {
 
   if (history.status === 'error') {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <EmptyState
           icon={Sparkles}
           title="합성 결과를 불러오지 못했습니다"
@@ -58,8 +56,7 @@ export default function AiResultScreen() {
 
   if (!customization) {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <EmptyState
           icon={ImageOff}
           title="합성 결과를 준비 중입니다"
@@ -74,8 +71,7 @@ export default function AiResultScreen() {
   const completed = customization.status === 'COMPLETED' && Boolean(url);
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
-      {nav}
+    <Screen scroll header={nav} contentContainerStyle={styles.content}>
       <Text variant="body" tone="muted" style={styles.intro}>
         합성된 카드 이미지를 앞면과 뒷면으로 나누어 확인하고 저장할 수 있습니다.
       </Text>
@@ -132,8 +128,7 @@ function statusLabel(status: string): string {
 }
 
 const styles = StyleSheet.create({
-  head: { paddingTop: space[2] },
-  content: { paddingTop: space[2], paddingBottom: space[7] },
+  content: { paddingBottom: space[7] },
   intro: { marginTop: space[4] },
   switcher: {
     flexDirection: 'row',

@@ -133,8 +133,7 @@ export default function EditCardScreen() {
 
   if (cardStatus !== 'loading' && !card) {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <EmptyState
           icon={Palette}
           title="카드를 찾을 수 없습니다"
@@ -147,8 +146,7 @@ export default function EditCardScreen() {
 
   if (!card || cardStatus === 'loading') {
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
+      <Screen header={nav}>
         <View style={styles.grid}>
           <View style={styles.row}>
             <Skeleton style={styles.tileSkeleton} />
@@ -227,9 +225,7 @@ function CandidatesPane({
   ];
 
   return (
-    <Screen scroll gutter={false} contentContainerStyle={styles.content}>
-      {nav}
-
+    <Screen scroll gutter={false} header={nav} contentContainerStyle={styles.content}>
       <TextArea
         label="AI 프롬프트"
         value={prompt}
@@ -425,10 +421,8 @@ function EditorPane({
   };
 
   return (
-    <Screen gutter={false}>
+    <Screen gutter={false} header={nav}>
       <View style={[styles.editor, { paddingBottom: bottomSpace }]}>
-        {nav}
-
         <View style={styles.stage}>
           <CardStage
             card={card}
@@ -502,8 +496,7 @@ function EditorPane({
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: space[4], paddingTop: space[2], paddingBottom: space[7] },
-  head: { paddingTop: space[2] },
+  content: { paddingHorizontal: space[4], paddingBottom: space[7] },
   intro: { marginTop: space[4] },
   grid: { marginTop: space[5], gap: space[5], ...allowPressOverflow },
   gridBlock: { marginTop: space[5], ...allowPressOverflow },
@@ -539,7 +532,7 @@ const styles = StyleSheet.create({
 
   /* 편집기는 스크롤하지 않는다 — 무대의 드래그와 화면의 스크롤이 같은 손짓을 두 가지 뜻으로
      쓰게 되고, 레이어를 아래로 끌면 화면이 같이 내려간다. */
-  editor: { flex: 1, paddingHorizontal: space[4], paddingTop: space[2] },
+  editor: { flex: 1, paddingHorizontal: space[4] },
   stage: { width: '100%', maxWidth: PREVIEW_WIDTH, alignSelf: 'center', marginTop: space[4] },
   inspector: { marginTop: space[4] },
   add: {

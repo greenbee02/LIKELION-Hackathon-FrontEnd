@@ -51,8 +51,7 @@ export default function TemplatesScreen() {
   }
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
-      <NavBar title="카드 템플릿" fallback="/catalog" />
+    <Screen scroll header={<NavBar title="카드 템플릿" fallback="/catalog" />} contentContainerStyle={styles.content}>
       <Text variant="body" tone="muted" style={styles.intro}>
         카드 꾸미기에 사용할 수 있는 브랜드 승인 디자인입니다. 템플릿을 누르면 설명을 확인할 수 있습니다.
       </Text>
