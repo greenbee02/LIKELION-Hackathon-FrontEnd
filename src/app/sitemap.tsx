@@ -164,6 +164,19 @@ export default function SitemapScreen() {
               }
             />
             <RouteRow
+              path="/card/[id]/ai-resources"
+              title="AI 리소스 기록"
+              onPress={
+                card
+                  ? () =>
+                      router.push({
+                        pathname: '/card/[id]/ai-resources',
+                        params: { id: card.id },
+                      })
+                  : undefined
+              }
+            />
+            <RouteRow
               path="/share/[id]"
               title="카드 공유"
               onPress={

@@ -71,6 +71,10 @@ export type AiResource = {
    * 읽는다.
    */
   generatedData: string | null;
+  templateId?: string | null;
+  prompt?: string | null;
+  aiModel?: string | null;
+  updatedAt?: string;
   /** 실패한 타일이 왜 실패했는지. 고객에게 보여주진 않지만 로그에는 남길 값이다. */
   failureReason?: string | null;
   /** 만들어진 시각. 그룹을 서버가 알려주므로 더 이상 묶는 데 쓰지 않는다. */
@@ -298,6 +302,13 @@ export const CANDIDATES_PER_GROUP = 4;
 /** 계약의 하한. 발급처럼 고르지 않는 쪽이 쓴다. */
 export const MIN_CANDIDATES = 3;
 
+export type AiGenerationOptions = {
+  templateId?: string;
+  prompt?: string;
+  options?: Record<string, unknown>;
+  candidateCount?: 3 | 4;
+};
+
 /**
  * 여러 종류를 한 번에 요청한다 — 발급이 쓰는 길.
  *
@@ -354,16 +365,21 @@ export const fetchAiResources = (cardId: string) =>
 export const requestCandidates = (
   cardId: string,
   type: AiResourceType,
-  options: { templateId?: string } = {},
+  options: AiGenerationOptions = {},
 ) =>
   request<AiResourceBatch>(`/cards/${cardId}/ai-resources`, {
     method: 'POST',
     body: JSON.stringify({
       resourceType: type,
-      candidateCount: CANDIDATES_PER_GROUP,
+      candidateCount: options.candidateCount ?? CANDIDATES_PER_GROUP,
       ...(options.templateId && { templateId: options.templateId }),
+      ...(options.prompt !== undefined && { prompt: options.prompt }),
+      ...(options.options && Object.keys(options.options).length > 0 && { options: options.options }),
     }),
   });
+
+export const fetchAiResource = (cardId: string, resourceId: string) =>
+  request<AiResource>(`/cards/${cardId}/ai-resources/${resourceId}`);
 
 /**
  * 만들어진 자원들을 한 장의 얼굴로 합친다.

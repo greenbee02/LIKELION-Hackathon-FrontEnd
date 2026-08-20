@@ -26,14 +26,16 @@ export function CandidateGrid({
   candidates,
   selectedId,
   onSelect,
+  candidateCount = CANDIDATE_SLOTS,
 }: {
   candidates: Candidate[];
   selectedId?: string;
   onSelect: (candidate: Candidate) => void;
+  candidateCount?: number;
 }) {
   /* 아직 안 온 자리를 채운다. `null` 은 "이 칸은 곧 채워진다"는 뜻이다. */
   const slots: (Candidate | null)[] = [...candidates];
-  while (slots.length < CANDIDATE_SLOTS) slots.push(null);
+  while (slots.length < candidateCount) slots.push(null);
 
   const rows: (Candidate | null)[][] = [];
   for (let i = 0; i < slots.length; i += 2) rows.push(slots.slice(i, i + 2));

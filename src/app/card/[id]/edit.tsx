@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronDown, Palette, Plus } from 'lucide-react-native';
+import { ChevronDown, History, Palette, Plus } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -19,6 +19,7 @@ import { Screen } from '@/components/ui/screen';
 import { Sheet, useSheetSpace } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
+import { TextArea } from '@/components/ui/text-area';
 import { TextLink } from '@/components/ui/text-link';
 import { useToast } from '@/components/ui/toast';
 import {
@@ -88,7 +89,22 @@ export default function EditCardScreen() {
     dismissError();
   }, [designError, dismissError, toast]);
 
-  const nav = <NavBar title="카드 꾸미기" fallback="/" />;
+  const nav = (
+    <NavBar
+      title="카드 꾸미기"
+      fallback="/"
+      action={
+        card
+          ? {
+              icon: History,
+              accessibilityLabel: 'AI 리소스 기록',
+              onPress: () =>
+                router.push({ pathname: '/card/[id]/ai-resources', params: { id: card.id } }),
+            }
+          : undefined
+      }
+    />
+  );
 
   if (cardStatus !== 'loading' && !card) {
     return (
@@ -272,8 +288,30 @@ function CandidatesPane({
   /* 첫 항목이 기본값이다. `BACKGROUND` 를 박아두면 상품 사진이 없는 카드에서 목록에 없는
      종류가 골라진 채로 화면이 열린다. */
   const [type, setType] = useState<AiResourceType>(design.generatableTypes[0] ?? 'DECORATION');
+  const [prompt, setPrompt] = useState('');
+  const [styleOption, setStyleOption] = useState('');
+  const [colorOption, setColorOption] = useState('');
+  const [densityOption, setDensityOption] = useState('');
+  const [candidateCount, setCandidateCount] = useState<3 | 4>(4);
   const group = design.groups[type];
   const chosenCount = Object.keys(design.selected).length;
+  const promptError = prompt.length > 2000 ? '프롬프트는 2000자 이하여야 합니다.' : null;
+  const generationOptions = useMemo(
+    () => ({
+      prompt: prompt.trim() || undefined,
+      candidateCount,
+      options: Object.fromEntries(
+        Object.entries({ style: styleOption, color: colorOption, density: densityOption }).filter(
+          ([, value]) => value.trim().length > 0,
+        ),
+      ),
+    }),
+    [candidateCount, colorOption, densityOption, prompt, styleOption],
+  );
+  const generateCurrent = () => {
+    if (promptError) return;
+    design.generate(type, generationOptions);
+  };
 
   /* 고를 수 있는 것만 세운다 — `PRODUCT_ANGLE` 은 폐지돼 400 이고, `BACKGROUND` 는 상품
      사진이 없으면 409 다. 실패가 예정된 항목을 목록에 두는 것은 목록이 아니라 함정이다. */
@@ -285,6 +323,61 @@ function CandidatesPane({
   return (
     <Screen scroll gutter={false} contentContainerStyle={styles.content}>
       {nav}
+
+      <TextArea
+        label="AI 프롬프트"
+        value={prompt}
+        onChangeText={setPrompt}
+        maxLength={2000}
+        error={promptError}
+        placeholder="원하는 분위기나 표현을 입력해 주세요."
+        style={styles.field}
+      />
+      <Text variant="caption" tone="muted" style={styles.counter}>
+        {`${prompt.length}/2000`}
+      </Text>
+
+      <Input
+        label="스타일 옵션"
+        value={styleOption}
+        onChangeText={setStyleOption}
+        placeholder="예: 미니멀, 손그림"
+        style={styles.field}
+      />
+      <Input
+        label="색상 옵션"
+        value={colorOption}
+        onChangeText={setColorOption}
+        placeholder="예: 따뜻한 베이지, 흑백"
+        style={styles.field}
+      />
+      <Input
+        label="밀도 옵션"
+        value={densityOption}
+        onChangeText={setDensityOption}
+        placeholder="예: 여백 많게, 풍성하게"
+        style={styles.field}
+      />
+
+      <View style={styles.optionRow}>
+        <Text variant="label" tone="muted" style={styles.optionLabel}>
+          후보 개수
+        </Text>
+        <Dropdown
+          value={String(candidateCount)}
+          onValueChange={(value) => setCandidateCount(value === '3' ? 3 : 4)}
+          options={[
+            { value: '3', label: '후보 3개' },
+            { value: '4', label: '후보 4개' },
+          ]}
+          accessibilityLabel="AI 후보 개수 고르기"
+        >
+          <View style={styles.optionPicker}>
+            <Text variant="body">{`후보 ${candidateCount}개`}</Text>
+            <ChevronDown size={18} color={colors.text} />
+          </View>
+        </Dropdown>
+      </View>
 
       <View style={styles.pickerRow}>
         <Dropdown
@@ -309,6 +402,7 @@ function CandidatesPane({
           <View style={styles.gridBlock}>
             <CandidateGrid
               candidates={group.candidates}
+              candidateCount={Math.max(candidateCount, group.candidates.length)}
               selectedId={design.selected[type]}
               onSelect={(candidate) => design.select(type, candidate.id)}
             />
@@ -324,13 +418,14 @@ function CandidatesPane({
               **빈 목록도 "만드는 중"이다.** `[].every()` 는 참이라, 이 검사만으로는 요청을
               보내고 첫 후보가 도착하기 전까지 다시 만들기가 떠 있었다. */}
           {group.candidates.length > 0 && group.candidates.every((c) => !isPending(c.status)) ? (
-            <TextLink label="다시 만들기" onPress={() => design.generate(type)} />
+            <TextLink label="다시 만들기" onPress={generateCurrent} />
           ) : null}
         </>
       ) : (
         <Button
           label={`${RESOURCE_LABELS[type]} 후보 만들기`}
-          onPress={() => design.generate(type)}
+          onPress={generateCurrent}
+          disabled={Boolean(promptError)}
           style={styles.action}
         />
       )}
@@ -531,12 +626,30 @@ const styles = StyleSheet.create({
   blank: { flex: 1 },
   tileSkeleton: { flex: 1, aspectRatio: CARD_ASPECT, borderRadius: radius.base },
   field: { marginTop: space[4] },
+  counter: { marginTop: space[1], textAlign: 'right' },
   action: { marginTop: space[4] },
   note: { marginTop: space[3] },
   brandNote: { marginTop: space[5], textAlign: 'center' },
 
   pickerRow: { marginTop: space[5], flexDirection: 'row' },
   picker: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
+  optionRow: {
+    marginTop: space[4],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  optionLabel: { marginBottom: 0 },
+  optionPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[2],
+    paddingVertical: space[2],
+    paddingHorizontal: space[3],
+    borderRadius: radius.base,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
   footer: { marginTop: space[6] },
 
   /* 편집기는 스크롤하지 않는다 — 무대의 드래그와 화면의 스크롤이 같은 손짓을 두 가지 뜻으로

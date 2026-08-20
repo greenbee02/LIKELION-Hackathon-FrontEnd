@@ -8,6 +8,7 @@ import {
   isPending,
   requestCandidates,
   toCandidate,
+  type AiGenerationOptions,
   type AiResourceType,
   type Candidate,
   type ImageResourceType,
@@ -144,7 +145,10 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
    * ────────────────────────────────────────────────────────────────────────── */
 
   const generate = useCallback(
-    (type: AiResourceType) => {
+    (
+      type: AiResourceType,
+      generationOptions: Omit<AiGenerationOptions, 'templateId'> = {},
+    ) => {
       if (!cardId) return;
 
       setGroups((prev) => ({
@@ -169,6 +173,7 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
              그건 프론트가 주소를 실어 보낸다고 달라지지 않는다. */
           const made = await requestCandidates(cardId, type, {
             ...(templateId && { templateId }),
+            ...generationOptions,
           });
 
           /* 응답이 곧 이번 그룹이다. 요청 하나가 그룹 하나이므로 `groups` 는 길이 1 이지만,
