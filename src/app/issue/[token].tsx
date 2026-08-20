@@ -154,12 +154,6 @@ function IssuePreview({
         ) : (
           <Button label="이 정보로 카드 발급" onPress={onConfirm} />
         )}
-        <Button
-          label="코드를 직접 입력하기"
-          variant="outline"
-          style={styles.cta}
-          onPress={() => router.replace('/issue/input')}
-        />
       </View>
     </View>
   );

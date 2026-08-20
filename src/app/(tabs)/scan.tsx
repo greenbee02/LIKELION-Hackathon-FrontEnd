@@ -9,7 +9,6 @@ import { useTabBarSpace } from '@/components/navigation/tab-bar';
 import { NavBar } from '@/components/ui/nav-bar';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
-import { TextLink } from '@/components/ui/text-link';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
@@ -85,6 +84,9 @@ export default function ScanScreen() {
 
   const live = Boolean(permission?.granted) && focused;
 
+  /** `permission` 이 null 인 동안은 아직 거절당한 것이 아니라 답을 기다리는 중이다. */
+  const cameraBlocked = permission !== null && !permission.granted;
+
   return (
     <Screen gutter={false}>
       {/* 이 화면이 처음 쓰던 줄이고, 이제는 뒤로 가기가 있는 모든 화면이 같은 것을 쓴다.
@@ -149,15 +151,26 @@ export default function ScanScreen() {
         ) : null}
       </View>
 
+      {/* 뷰파인더 밑의 한 줄은 이 화면이 지금 무엇을 시키는지를 말한다. 카메라가 없으면
+          겨냥하라는 안내는 거짓말이 되므로, 같은 자리에서 다음에 할 일로 바뀐다 — 권한이
+          없다는 사실만 알리는 것은 상태 보고이고, 이 자리는 늘 다음 동작을 말해왔다.
+          아래에 한 줄을 더 붙이면 화면이 두 가지를 동시에 시키게 된다.
+
+          권한이 아직 정해지지 않은 동안(`permission` 이 null)은 기본 문구를 둔다. 허용된
+          기기에서도 첫 프레임 전에 권한을 허용하라는 말이 한 번 스쳤다 사라지는 편이 더 나쁘다.
+
+          문구는 muted 11 이 아니라 12 다. 막힌 상태를 푸는 줄은 안내가 아니라 답이고,
+          색은 쓰지 않는다 — 이 앱의 유일한 색은 point 이며 오류의 것이 아니다. */}
       <View style={styles.guide}>
-        <Text variant="caption" tone="muted" style={styles.guideText}>
-          QR 코드를 화면 중앙에 스캔하면 카드가 발급됩니다
+        <Text
+          variant="caption"
+          tone={cameraBlocked ? 'default' : 'muted'}
+          style={styles.guideText}
+        >
+          {cameraBlocked
+            ? 'QR 코드를 스캔하려면 카메라 권한을 허용해주세요.'
+            : 'QR 코드를 화면 중앙에 스캔하면 카드가 발급됩니다'}
         </Text>
-        <TextLink
-          label="코드를 직접 입력하기"
-          onPress={() => router.push('/issue/input')}
-          style={styles.manual}
-        />
       </View>
 
       {/* 뷰파인더가 더 이상 남는 높이를 다 먹지 않으므로, 남는 높이는 여기가 갖는다. 탭 바가
@@ -201,5 +214,4 @@ const styles = StyleSheet.create({
   guide: { paddingHorizontal: space[4], paddingVertical: space[4] },
   rest: { flex: 1 },
   guideText: { textAlign: 'center' },
-  manual: { marginTop: space[1] },
 });
