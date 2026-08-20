@@ -180,13 +180,6 @@ export default function SitemapScreen() {
                   : undefined
               }
             />
-            <RouteRow
-              path="/share/[id]"
-              title="카드 공유"
-              onPress={
-                card ? () => router.push({ pathname: '/share/[id]', params: { id: card.id } }) : undefined
-              }
-            />
             {card ? null : <Note text="보유한 카드가 없어 열 수 없습니다. 먼저 카드를 발급하세요." />}
           </>
         )}

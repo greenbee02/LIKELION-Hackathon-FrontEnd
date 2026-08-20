@@ -9,6 +9,16 @@ import { Text } from '@/components/ui/text';
 import type { Card } from '@/lib/types';
 import { motion } from '@/theme/motion';
 import { space } from '@/theme/spacing';
+import { type } from '@/theme/typography';
+
+/**
+ * 카드 아래에 붙는 힌트 한 줄이 세로로 차지하는 높이.
+ *
+ * 높이가 정해진 자리에 카드를 맞춰 넣는 화면 — 스크롤하지 않는 카드 상세 — 은 카드에 줄 수 있는
+ * 높이를 알아야 폭을 계산할 수 있고, 그 높이에서 이만큼을 먼저 뺀다. 상수를 여기서 내보내는 것은
+ * 12 와 16 이 아래 스타일에서 오는 값이라 부르는 쪽이 다시 적으면 두 곳이 따로 움직이기 때문이다.
+ */
+export const CARD_FLIP_HINT = space[3] + type.caption.lineHeight;
 
 /**
  * The card as an object you can turn over.
