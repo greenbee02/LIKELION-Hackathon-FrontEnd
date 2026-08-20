@@ -71,8 +71,10 @@ PORT_BASE=8100 dev-up.sh
   is `os.tmpdir()/metro-cache`, hardcoded in `@expo/metro-config`'s
   `ExpoMetroConfig.js` — **one directory shared by every worktree and every Expo
   project on the machine**. The key is content + project-*relative* path, so a
-  fresh worktree starts warm off another's work; `--clear` throws that away for
-  all of them. There is no per-worktree transform-cache reset. If a crawl is
+  fresh worktree starts warm off another's work — measured once: a
+  never-bundled worktree did its first web bundle of 3408 modules in 9.6s
+  against 5.3s warm in the main checkout, nowhere near a cold build. `--clear`
+  throws that away for all of them. There is no per-worktree transform-cache reset. If a crawl is
   genuinely stale, delete only `$TMPDIR/metro-file-map-expo-*`, which is
   per-worktree.
 - **This script cannot make Metro bundle faster.** Time-to-listening is ~1s; the
