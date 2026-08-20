@@ -45,6 +45,31 @@ const upstream = resolveUpstream(TARGET);
 /** 대신 보내줄 경로. API 와, API 바깥 루트에 있는 이미지. */
 const PROXIED = ['/api/', '/images/', '/generated/'];
 
+/**
+ * 위로 올려보내지 않는 요청 헤더.
+ *
+ * `origin` 이 핵심이다. 브라우저는 same-origin 이어도 JSON POST 에 `Origin` 을 붙이고, 백엔드의
+ * `CORS_ALLOWED_ORIGINS` 는 기본값(`localhost:3000,localhost:8081`)이라 그 밖의 포트를 모른다.
+ * 그대로 넘기면 개발 서버를 8081 이 아닌 포트로 띄운 순간 로그인이 **403 `Invalid CORS request`**
+ * 로 잘린다 — GET 은 `Origin` 이 붙지 않아 통과하므로, 증상은 "화면은 뜨는데 로그인만 안 됨"이다.
+ *
+ * 헤더를 떼는 것이 프록시가 하는 일의 전부다. 배포 쪽 `api/proxy.mjs` 의 `DROP_REQUEST` 와
+ * 같은 이유이고, 백엔드가 오리진을 열면 (`backend-open-items.md` §1) 양쪽 다 지운다.
+ *
+ * `host` 는 아래에서 대상 서버의 것으로 바꿔 넣는다. 여기 스트림을 그대로 흘려보내므로
+ * `content-length` 는 값이 맞아 손대지 않는다.
+ */
+const DROP_REQUEST = ['origin', 'referer'];
+
+/** `Origin` 을 떼고 `Host` 를 대상 서버의 것으로 바꾼 헤더. */
+function forwardHeaders(headers, hostname) {
+  const out = { ...headers, host: hostname };
+  for (const key of Object.keys(out)) {
+    if (DROP_REQUEST.includes(key.toLowerCase())) delete out[key];
+  }
+  return out;
+}
+
 const config = getDefaultConfig(__dirname);
 
 if (upstream) {
@@ -66,9 +91,7 @@ if (upstream) {
             port,
             path: req.url,
             method: req.method,
-            // Host 는 대상 서버의 것으로 바꿔 보낸다. localhost:8081 을 그대로 넘기면
-            // 백엔드가 자기 주소를 잘못 알게 된다.
-            headers: { ...req.headers, host: hostname },
+            headers: forwardHeaders(req.headers, hostname),
           },
           (res2) => {
             res.writeHead(res2.statusCode ?? 502, res2.headers);
