@@ -14,8 +14,14 @@ import type { Card } from '../types';
  * 그쪽을 먼저 집고, 없는 주소를 부르러 간다.
  */
 
+/**
+ * `id` 는 실서버의 브랜드 UUID 그대로다 — `GET /card-templates` 가 돌려주는 `brandId` 와
+ * 같은 값이라야 꾸미기 1단계가 이 카드에 붙일 수 있는 디자인을 찾는다. `'mcm'` 같은
+ * 사람이 읽는 문자열을 두면 `usableTemplates()` 가 세 개를 전부 걸러내고, 화면은
+ * "적용할 수 있는 디자인이 아직 없습니다"로 굳는다 — 서버에는 있는데도.
+ */
 const BRAND = {
-  id: 'mcm',
+  id: '20000000-0000-0000-0000-000000000001',
   name: 'MCM',
   accent: '#6E4B2A',
   logoUrl: null,

@@ -2,16 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   GENERATABLE_IMAGE_TYPES,
-  composeAiResources,
-  fetchAiResources,
   isArchived,
   isPending,
-  requestCandidates,
   toCandidate,
   type AiResourceType,
   type Candidate,
   type ImageResourceType,
 } from './api/ai-resources';
+// ⚠️ 임시 — 세 함수만 데모 카드용 우회를 지난다. 서버에 있는 카드는 그대로 원본을 부른다.
+// 되돌리려면 아래 한 줄을 지우고 위 블록에 세 이름을 도로 넣는다.
+import {
+  composeAiResources,
+  fetchAiResources,
+  requestCandidates,
+} from './mock/demo-ai-resources';
 import { selectCustomization } from './api/customizations';
 import { assetUrl } from './config';
 import { failureMessage } from './api/errors';

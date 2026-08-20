@@ -9,7 +9,9 @@ import {
   type ReactNode,
 } from 'react';
 
-import { fetchCard, fetchCards } from './api/cards';
+import { fetchCards } from './api/cards';
+// ⚠️ 임시 — 데모 카드의 단건 조회만 우회한다. 되돌리려면 위 줄에 `fetchCard` 를 도로 넣는다.
+import { fetchCard } from './mock/demo-ai-resources';
 import { failureCopy } from './api/errors';
 // ⚠️ 임시 — 서버에 카드가 없을 때만 세우는 가짜 카드. 이 줄과 아래 한 줄, 그리고
 // `mock/demo-cards.ts` 를 지우면 원래대로 돌아온다.
