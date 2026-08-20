@@ -95,11 +95,6 @@ export default function SitemapScreen() {
           title="카드 발급 진행"
           note="QR 을 스캔하면 이 경로로 들어옵니다."
         />
-        <RouteRow
-          path="/issue/input"
-          title="QR 코드 직접 입력"
-          onPress={() => router.push('/issue/input')}
-        />
       </Section>
 
       <Section
