@@ -78,7 +78,7 @@ export default function SitemapScreen() {
       </Section>
 
       <Section title="상품 탐색" note="브랜드 상품·공식 컬렉션·카드 템플릿">
-        <RouteRow path="/catalog" title="둘러보기" onPress={() => router.push('/catalog')} />
+        <RouteRow path="/catalog" title="제품 탐색" onPress={() => router.push('/catalog')} />
         <RouteRow path="/catalog/products" title="상품 목록" onPress={() => router.push('/catalog/products')} />
         <RouteRow path="/catalog/products/[id]" title="상품 상세" note="상품 목록에서 선택" />
         <RouteRow path="/catalog/collections" title="공식 컬렉션 목록" onPress={() => router.push('/catalog/collections')} />

@@ -62,7 +62,7 @@ function SessionGate({ children, fontsReady }: { children: ReactNode; fontsReady
     } else if (status === 'signed-out' && onboarded && !onPublicRoute) {
       router.replace('/sign-in');
     } else if (status === 'signed-in' && onPublicRoute) {
-      router.replace('/');
+      router.replace('/home');
     }
   }, [ready, status, onboarded, segments, router]);
 

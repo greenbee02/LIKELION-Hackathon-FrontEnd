@@ -1,12 +1,11 @@
 import { Tabs } from 'expo-router';
-import { Gift, Layers, ScanLine, User } from 'lucide-react-native';
+import { Gift, Home, Layers, ScanLine, User } from 'lucide-react-native';
 
 import { TabBar } from '@/components/navigation/tab-bar';
 
 /**
- * Four tabs, in the order the experience loop runs: what you have, how you get more, what it
- * earns you, who you are. Scan sits in the middle because it is the only one a customer opens the
- * app specifically to do.
+ * Five tabs: the product catalogue is the first landing screen, followed by the customer's
+ * collection, scan, rewards, and profile.
  *
  * The bar itself is ours — see `TabBar`. It floats over the content as glass, so the navigator's
  * own bar is switched off entirely rather than restyled: `tabBarStyle` cannot express a surface
@@ -14,7 +13,11 @@ import { TabBar } from '@/components/navigation/tab-bar';
  */
 export default function TabsLayout() {
   return (
-    <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
+    <Tabs initialRouteName="home" tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
+      <Tabs.Screen
+        name="home"
+        options={{ title: '홈화면', tabBarIcon: ({ color }) => <Home size={22} color={color} /> }}
+      />
       <Tabs.Screen
         name="index"
         options={{ title: '컬렉션', tabBarIcon: ({ color }) => <Layers size={22} color={color} /> }}
