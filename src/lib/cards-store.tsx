@@ -10,10 +10,12 @@ import {
 } from 'react';
 
 import { fetchCard, fetchCards } from './api/cards';
+import { failureCopy } from './api/errors';
+// ⚠️ 임시 — 서버에 카드가 없을 때만 세우는 가짜 카드. 이 줄과 아래 한 줄, 그리고
+// `mock/demo-cards.ts` 를 지우면 원래대로 돌아온다.
+import { DEMO_CARDS } from './mock/demo-cards';
+import { useAuth } from './auth-store';
 import { claimReward } from './api/rewards';
-import { USE_MOCK } from './config';
-import { MOCK_CARDS } from './mock/cards';
-import { MOCK_REWARDS } from './mock/rewards';
 import { fetchRewards } from './rewards';
 import type { Card, Reward } from './types';
 
@@ -22,8 +24,8 @@ import type { Card, Reward } from './types';
  *
  * Every screen reads `status` and branches three ways — loading, empty, loaded — because that is
  * the contract in AGENTS.md, and because a screen that only handles the happy path has to be
- * rewritten the first time the list comes back empty. `EXPO_PUBLIC_USE_MOCK` flips the whole app
- * between mock and live; nothing above this file changes.
+ * rewritten the first time the list comes back empty. Everything here is the live backend —
+ * there is no mock path any more, so a screen that renders is a screen the server answered.
  */
 
 type Status = 'loading' | 'ready' | 'error';
@@ -59,29 +61,40 @@ export function CardsProvider({ children }: { children: ReactNode }) {
   const [cards, setCards] = useState<Card[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * **누구인지 정해지기 전에는 아무것도 부르지 않는다.**
+   *
+   * 이 Provider 는 세션 게이트 바깥에 있어서 앱이 뜨는 순간 마운트된다. 토큰은 기기에서
+   * 읽어오므로 그 순간에는 아직 전송 계층에 꽂혀 있지 않고, 그대로 요청을 보내면 헤더 없는
+   * 요청이 나가 401 을 받는다. 그 401 은 **세션을 끊지도 않는다** — `client.ts` 가 토큰을
+   * 실어 보낸 401 만 만료로 치기 때문이고, 그건 로그인 실패의 401 로 세션을 끊지 않으려는
+   * 올바른 판단이다. 그래서 증상은 로그인된 채로 목록만 `HTTP 401` 로 굳는 것이 된다.
+   *
+   * 목에서는 네트워크를 안 타니 보이지 않던 문제다.
+   */
+  const { status: authStatus } = useAuth();
+
+  const signedIn = authStatus === 'signed-in';
 
   useEffect(() => {
+    if (!signedIn) return;
+
     let alive = true;
     const load = async () => {
       try {
-        if (USE_MOCK) {
-          // A real fetch is not instant, and a skeleton that never shows is a skeleton never tested.
-          await new Promise((r) => setTimeout(r, 900));
-          if (!alive) return;
-          setCards(MOCK_CARDS);
-          setRewards(MOCK_REWARDS);
-        } else {
-          // 카드와 리워드는 서로를 기다리지 않는다. 리워드 쪽이 컬렉션 색인까지 만드느라 더
-          // 오래 걸리는데, 그것 때문에 카드 그리드가 늦게 뜰 이유가 없다.
-          const [live, earned] = await Promise.all([fetchCards(), fetchRewards()]);
-          if (!alive) return;
-          setCards(live);
-          setRewards(earned);
-        }
+        // 카드와 리워드는 서로를 기다리지 않는다. 리워드 쪽이 컬렉션 색인까지 만드느라 더
+        // 오래 걸리는데, 그것 때문에 카드 그리드가 늦게 뜰 이유가 없다.
+        const [live, earned] = await Promise.all([fetchCards(), fetchRewards()]);
+        if (!alive) return;
+        // ⚠️ 임시 — 서버가 빈 목록을 주면 가짜 카드를 세운다.
+        setCards(live.length > 0 ? live : DEMO_CARDS);
+        setRewards(earned);
         if (alive) setStatus('ready');
       } catch (e) {
         if (!alive) return;
-        setError(e instanceof Error ? e.message : '불러오지 못했습니다.');
+        /* 서버의 원문이 아니라 우리 문장이다 — `e.message` 는 `HTTP 500` 같은 값일 수
+           있고, 그것을 빈 화면의 설명으로 내보내는 것은 아무 말도 안 하는 것보다 나쁘다. */
+        setError(failureCopy(e).note);
         setStatus('error');
       }
     };
@@ -89,16 +102,15 @@ export function CardsProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [signedIn]);
 
   /**
    * 코드를 발급받고, 돌아온 값을 그 리워드에 얹는다.
    *
-   * 목에서는 이미 코드가 박혀 있으므로 아무것도 하지 않고 성공만 알린다 — 목이 실서버보다
-   * 관대한 것은 상관없지만, 목에만 있는 동작을 만들어내면 화면이 그것에 기대게 된다.
+   * `CANCELLED` 만 얹지 않는다. 그건 브랜드가 리워드를 거둬들였다는 뜻이라 수령의 결과로
+   * 볼 것이 아니고, 목록에서 아예 빠지는 값이다(`rewards.ts`).
    */
   const claim = useCallback<CardsValue['claim']>(async (reward) => {
-    if (USE_MOCK) return true;
     if (!reward.userRewardId) return false;
     try {
       const row = await claimReward(reward.userRewardId);
@@ -128,9 +140,7 @@ export function CardsProvider({ children }: { children: ReactNode }) {
 
     const task = (async () => {
       try {
-        const found = USE_MOCK
-          ? (MOCK_CARDS.find((c) => c.id === id) ?? null)
-          : await fetchCard(id);
+        const found = await fetchCard(id);
         if (found) {
           setCards((prev) => {
             const at = prev.findIndex((c) => c.id === found.id);
@@ -154,17 +164,20 @@ export function CardsProvider({ children }: { children: ReactNode }) {
     return task;
   }, []);
 
+  /* 로그아웃한 뒤에도 state 에는 앞사람의 카드가 남아 있다. 지우는 대신 내보내지 않는다 —
+     이펙트 본문에서 setState 로 되돌리면 렌더가 한 바퀴 더 돌고, 그 한 프레임 동안 앞사람의
+     목록이 그대로 보인다. 다음 로그인이 이펙트를 다시 돌려 진짜 값을 채운다. */
   const value = useMemo<CardsValue>(
     () => ({
-      status,
-      cards,
-      rewards,
-      error,
+      status: signedIn ? status : 'loading',
+      cards: signedIn ? cards : [],
+      rewards: signedIn ? rewards : [],
+      error: signedIn ? error : null,
       addCard: (card) => setCards((prev) => [card, ...prev]),
       loadCard,
       claim,
     }),
-    [status, cards, rewards, error, loadCard, claim],
+    [signedIn, status, cards, rewards, error, loadCard, claim],
   );
 
   return <CardsContext.Provider value={value}>{children}</CardsContext.Provider>;
@@ -193,13 +206,18 @@ export function useCard(id: string | undefined) {
 
   /* 목록이 오는 중이면 기다린다 — 로딩 중에 단건을 부르면 같은 카드를 두 번 받는다. */
   const missing = Boolean(id) && !card && status === 'ready';
-  const [gone, setGone] = useState(false);
+
+  /* **어느 카드가 없다고 판정됐는지까지 기억한다.** 불리언 하나면 그 판정이 다음 카드까지
+     따라가서, 없는 카드를 한 번 연 뒤에는 멀쩡한 카드도 영영 오류로 보인다 — 같은 컴포넌트가
+     id 만 바꿔 다시 쓰이는 것이 라우터에서는 평범한 일이다. */
+  const [goneId, setGoneId] = useState<string | null>(null);
+  const gone = Boolean(id) && goneId === id;
 
   useEffect(() => {
     if (!missing || !id) return;
     let alive = true;
     void loadCard(id).then((found) => {
-      if (alive && !found) setGone(true);
+      if (alive && !found) setGoneId(id);
     });
     return () => {
       alive = false;
