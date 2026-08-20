@@ -46,10 +46,13 @@ Expo SDK 57 + Expo Router + React Native 0.86 + React Native Web + TypeScript. O
 - **No dark mode.** Light only — `grayDark` is deliberately not imported.
 - **Every screen that loads data has three states: skeleton → loaded, or empty.** Never a spinner or a blank screen where a skeleton belongs.
 - **A row with no value is not rendered.** No dash, no placeholder — the live API returns null for many fields.
-- **Error states carry no colour**, because the palette has none. An invalid field says so three ways at once: border steps to 8, an icon appears, the message sits at step 12 rather than the muted 11.
+- **Error states carry no colour.** The palette has one hue — `colors.point`, the platform's point colour — and it is not for errors. An invalid field says so three ways at once: border steps to 8, an icon appears, the message sits at step 12 rather than the muted 11.
 - **Controls are 52pt tall**, which is what `radius.base` was measured against.
 - Surfaces that float over content use **iOS-style glass** — crisp and near-white, not a heavy frost. Content under it must stay readable.
-- **`src/components/brand-marks/` is the only place a hex value may live.** Colour that belongs to someone else — Google's four, Apple's black, a card brand's `Brand.accent` — lives as data.
+- **A hex value may live in two places and nowhere else.** `src/components/brand-marks/`, for colour that belongs
+  to someone else — Google's four, Apple's black, a card brand's `Brand.accent` — which lives as data; and
+  `colors.point`, the platform's own. **`point` is defined and used nowhere** — a point colour marks the one
+  thing on a screen that matters, so a screen that has not decided what that is gets none of it.
 
 ### The wordmark
 
