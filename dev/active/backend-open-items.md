@@ -1,6 +1,6 @@
 # 미결 — 막힌 것과 백엔드에 요청할 것
 
-기준: `9188d7d` (2026-08-20 21:14 KST) · 실서버 `http://1.201.117.14` 실측
+기준: `f7ce5f1` (2026-08-21 00:54 KST) · 실서버 `http://1.201.117.14` 실측
 갱신일: 2026-08-21
 
 계약 자체는 `backend-contract.md`. 여기에는 **아직 해결되지 않았거나, 프론트 혼자서는 못 푸는
@@ -9,20 +9,33 @@
 
 ---
 
-## 1. 🔴 레이어 커스터마이징이 저장소에만 있고 실서버에 없다
+## 1. 🟡 V13 이 배포되지 않았다 — 리워드·이벤트 이미지가 전부 `null`
 
-`b5f9690` 이 `GET /cards/{id}/customization-options` 와
-`POST /cards/{id}/customizations/layers` 를 더했는데, 실서버 `/v3/api-docs` 에 **둘 다 없다.**
-배포된 빌드는 `c99def4`(06:18Z) 이상 `b5f9690`(06:42Z) 미만이다 — 그 사이에 들어온 이미지
-이름 변경은 반영돼 있고(`common_back_black_info.png` 200, `…blank…` 404) 컨트롤러는 아니다.
+배포된 빌드는 `e35288b`(14:58Z) 이상 `f7ce5f1`(15:54Z) 미만이다. 그 사이에 들어온 것이
+V13 과 이미지 6장이라, `/images/rewards/reward_001_seoul_collector_pass.png` 는 404 이고
+`GET /rewards/progress/{collectionId}` 의 `targets[].imageUrl` 도 `coverImageUrl` 도
+비어 있다 (2026-08-21 실측).
 
-같은 이유로 **V12 도 적용되지 않았다** — `GET /card-templates` 가 아직 템플릿마다 다른
-`template_00X_back.png` 를 준다.
+컬럼은 V6 부터 있었으므로 **모자란 것은 스키마가 아니라 배포**다.
 
-**요청:** `main` 최신(`9188d7d`)으로 재배포. 이것 하나가 아래 §2·§3 을 뺀 나머지 작업 전체의
-전제다 — 배포 전에는 프론트가 붙을 대상이 없다.
+**요청:** `main` 최신(`f7ce5f1`)으로 재배포. 리워드 화면에 이미지를 넣는 작업은 그 전까지
+빈 자리를 그리게 된다.
 
-## 2. 🟡 `CustomizationSummary` 에 레이어가 없다 — 목록에서 꾸민 얼굴을 못 그린다
+## 2. 🟡 데모 리셋이 인증 없이 열려 있다
+
+`POST /api/v1/local/demo/reset` 이 `@Profile({"local","test","prod"})` 로 바뀌고 SecurityConfig
+의 `permitAll` 에 들어갔다 (`e35288b`). **토큰 없이 누구나 부를 수 있고**, 부르면 데모 QR
+열한 개에 매달린 카드가 전부 지워진다. 시연 도중 누가 눌러도 그렇다.
+
+백엔드도 알고 있다 — 코드 주석이 "발표 후에는 prod 를 제거하거나 관리자/데모 키 인증으로
+교체한다"고 적어두었다.
+
+**요청:** 데모 키 헤더 하나라도 걸 것. 프론트는 그 헤더를 넣기만 하면 된다.
+
+**프론트가 이것에 기대고 있다** — `src/lib/api/local-demo.ts` 의 `resetLocalDemo()` 가
+소진된 QR 을 되살리는 유일한 길이다. 인증이 붙으면 그 함수도 함께 고친다.
+
+## 3. 🟡 `CustomizationSummary` 에 레이어가 없다 — 목록에서 꾸민 얼굴을 못 그린다
 
 레이어로 꾸민 카드는 `generatedFrontImageUrl` 이 **끝까지 `null`** 이다 (서버가 합성하지
 않으므로 당연하다). 그런데 `GET /cards` 가 주는 `CardResponse.selectedCustomization` 은
@@ -41,7 +54,7 @@ generatedMessage, createdAt }` 그대로여서, **꾸몄다는 사실만 알 수
 있는 커스텀과 커스텀이 없는 카드는 즉시 돌아 나가므로 늘어나는 왕복은 **꾸민 카드 수만큼**
 이다. 이 항목이 해결되면 그 함수를 통째로 지운다.
 
-## 3. 🟡 문구 레이어의 `style` 에 계약이 없다
+## 4. 🟡 문구 레이어의 `style` 에 계약이 없다
 
 요청의 `text.style` 은 `Map<String,Object>` 로 받아 검증 없이 저장하고 그대로 되돌려준다.
 어떤 키가 유효한지 정해진 곳이 없고, 백엔드 예시가 `{ "fontFamily": "SERIF", "color":
@@ -65,7 +78,8 @@ generatedMessage, createdAt }` 그대로여서, **꾸몄다는 사실만 알 수
 하므로 자유 문자열보다 열거형이 낫다.
 
 ---
-## 4. 🟡 CORS 허용 목록에 Vercel 오리진이 없다
+
+## 5. 🟡 CORS 허용 목록에 Vercel 오리진이 없다
 
 CORS 자체는 이제 있다 (`SecurityConfig.corsConfigurationSource`). 다만 허용 목록이
 `CORS_ALLOWED_ORIGINS` 환경변수이고 실서버는 기본값 그대로다:
@@ -96,30 +110,10 @@ GET  https://curio-xi-lovat.vercel.app/images/…/prod_001.png  Origin 없음 �
 이다. 그래서 🔴 이 아니라 🟡 다: 배포 웹은 지금 동작한다. 백엔드가 오리진을 넣으면 그 파일과
 `vercel.json` 의 리라이트 세 줄을 지우고 원래의 단순한 리라이트로 돌아갈 수 있다.
 
-## 5. 🟡 평문 HTTP — iOS ATS
+## 6. 🟡 평문 HTTP — iOS ATS
 
 `http://1.201.117.14`. iOS 개발 빌드는 ATS 예외가 필요하고, 앱 스토어 심사는 통과하지 못한다.
 데모 범위에서는 감수하되, 도메인 + TLS 가 붙으면 `.env` 와 `vercel.json` **두 곳**을 고쳐야 한다.
-
-## 6. 🔴 데모 QR 토큰이 소진됐다 — 새 계정은 카드를 한 장도 가질 수 없다
-
-시드(`V7`)에 `MCM-DEMO-2026-001` ~ `-011` 열한 개가 `is_used = FALSE` 로 들어 있지만, 지금
-DB 상태는 다르다 — 스캔하면 `QR_ALREADY_USED` 가 돌아온다. 토큰은 한 번 쓰면 소멸한다.
-
-2026-08-20 실측, 열한 개 전부 `GET /purchase-qrs/preview` 가 `status: "USED"` ·
-`usable: false`. QR 을 새로 만드는 엔드포인트는 `/v3/api-docs` 전체에 **없다** — 카드에
-이르는 길은 `POST /cards/registrations` 하나뿐이고 그 입구가 닫혀 있다.
-
-`POST /api/v1/local/demo/reset` 이 있지만 `@Profile({"local","test"})` 라 **실서버에 없다.**
-
-**프론트는 이것을 가짜 카드로 가리고 있었고, 그 가림막을 걷어냈다.** `mock/demo-cards.ts` 가
-세운 `c1`·`c2`·`c3` 은 서버에 없는 id 라서, 그 카드를 컬렉션에 담으면
-`POST /collections/{id}/cards` 가 `400 Invalid UUID string: c1` 로 답했다. 낙관적 갱신이
-먼저 그려지고 실패가 뒤늦게 되돌리는 구조라, 증상은 **"담은 카드가 1초 뒤 사라진다"** 였다.
-목을 지운 지금 카드가 없는 계정은 빈 화면을 본다 — 그게 서버의 진실이다.
-
-**요청:** 데모 전에 `purchase_qrs` 를 리셋하거나 새 토큰을 발급해 줄 것. 아니면 그 리셋
-엔드포인트를 prod 프로필에도 열어주되 인증/권한을 걸 것.
 
 ## 7. 🟡 `CardResponse` 에 브랜드가 없다
 
@@ -140,13 +134,16 @@ DB 상태는 다르다 — 스캔하면 `QR_ALREADY_USED` 가 돌아온다. 토�
 
 **요청:** `ProductResponse` 또는 브랜드 DTO 에 `logoUrl` 노출.
 
-## 9. 🟡 `rewards.reward_type` 이 노출되지 않는다
+## 9. 🟡 `rewards.reward_type` 이 목록과 `/my` 에 없다
 
-DB CHECK 는 `PHYSICAL_CARD` `GOODS` `EVENT_INVITATION` `BENEFIT` 넷을 강제하는데,
-`UnlockTarget.type` 은 `REWARD`/`EVENT` 로만 갈린다. 그래서 프론트의 `RewardKind` 는 실질적으로
-둘이고, "무엇을 받는가"에 따라 버튼 문구를 바꾸는 설계가 절반만 산다.
+`GET /rewards/progress/{collectionId}` 가 `targets[].reward.rewardType` 으로 이 값을 처음
+내보낸다 (`e35288b`). 그러나 목록(`GET /rewards/progress`)의 `UnlockTarget` 은 여전히
+`REWARD`/`EVENT` 로만 갈리고, `UserRewardResponse` 에도 없다.
 
-**요청:** `UnlockTarget` 또는 `UserRewardResponse` 에 `rewardType` 추가.
+그래서 "무엇을 받는가"로 문구를 바꾸려면 **컬렉션 상세를 먼저 부른 화면**만 그렇게 할 수 있고,
+보유 리워드 목록은 못 한다.
+
+**요청:** `UserRewardResponse` 에 `rewardType` 추가. 목록 쪽 `UnlockTarget` 에도 있으면 좋다.
 
 ## 10. 🟡 이벤트를 조회할 수 없다
 

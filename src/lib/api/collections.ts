@@ -52,7 +52,11 @@ export async function fetchCollection(id: string): Promise<UserCollection> {
   return toCollection(await request<UserCollectionResponse>(`/collections/${id}`));
 }
 
-export type CollectionInput = { name: string; description?: string; coverImageUrl?: string };
+export type CollectionInput = {
+  name: string;
+  description?: string | null;
+  coverImageUrl?: string | null;
+};
 
 export async function createCollection(body: CollectionInput): Promise<UserCollection> {
   return toCollection(

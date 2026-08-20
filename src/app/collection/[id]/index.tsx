@@ -1,6 +1,6 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { FolderOpen, Pencil } from 'lucide-react-native';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { CardTile } from '@/components/card/card-tile';
@@ -14,10 +14,12 @@ import { Sheet, useSheetSpace } from '@/components/ui/sheet';
 import { Text } from '@/components/ui/text';
 import { TextLink } from '@/components/ui/text-link';
 import { useToast } from '@/components/ui/toast';
-import { useCards } from '@/lib/cards-store';
-import { useCollection, useCollections } from '@/lib/collections-store';
+import { fetchCards } from '@/lib/api/cards';
+import { fetchCollection } from '@/lib/api/collections';
+import { failureCopy } from '@/lib/api/errors';
+import { useCollections } from '@/lib/collections-store';
 import { formatPurchaseDate } from '@/lib/format';
-import type { Card } from '@/lib/types';
+import type { Card, UserCollection } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { space } from '@/theme/spacing';
 
@@ -38,13 +40,53 @@ const COLUMNS = 2;
  */
 export default function CollectionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { collection, status } = useCollection(id);
-  const { cards } = useCards();
   const { remove } = useCollections();
   const router = useRouter();
   const toast = useToast();
   const bottomSpace = useSheetSpace();
+  const [collection, setCollection] = useState<UserCollection | null>(null);
+  const [cards, setCards] = useState<Card[]>([]);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const requestVersion = useRef(0);
+
+  /* 상세 화면은 목록 캐시에 의존하지 않는다. 화면에 들어오거나 편집 화면에서 돌아올 때
+     컬렉션 본문과 최신 카드 목록을 함께 다시 받아, 이름·설명·커버·카드 추가/삭제가 모두
+     즉시 반영되도록 한다. */
+  const load = useCallback(async () => {
+    const version = ++requestVersion.current;
+    if (!id) {
+      setStatus('error');
+      setLoadError('컬렉션을 찾을 수 없습니다.');
+      return;
+    }
+    setStatus('loading');
+    setLoadError(null);
+    try {
+      const [nextCollection, latestCards] = await Promise.all([
+        fetchCollection(id),
+        fetchCards(),
+      ]);
+      if (version !== requestVersion.current) return;
+      setCollection(nextCollection);
+      setCards(latestCards);
+      setStatus('ready');
+    } catch (e) {
+      if (version !== requestVersion.current) return;
+      setStatus('error');
+      setLoadError(failureCopy(e).note);
+    }
+  }, [id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+      return () => {
+        requestVersion.current += 1;
+      };
+    }, [load]),
+  );
 
   /* 이름이 여기 있으므로 본문에는 큰 제목이 없다 — 같은 말이 두 번 적히지 않는다.
      아직 못 불러온 동안에는 이름 자리가 빈다: 스켈레톤을 세우면 한 글자짜리 회색 막대가
@@ -75,7 +117,7 @@ export default function CollectionDetailScreen() {
         <EmptyState
           icon={FolderOpen}
           title="컬렉션을 찾을 수 없습니다"
-          note="삭제되었거나 잘못된 주소입니다."
+          note={loadError ?? '삭제되었거나 잘못된 주소입니다.'}
           action={{ label: '내 컬렉션으로 가기', onPress: () => router.replace('/collection') }}
         />
       </Screen>

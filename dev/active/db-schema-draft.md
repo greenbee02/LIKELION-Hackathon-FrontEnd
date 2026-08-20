@@ -1,7 +1,7 @@
 # DB 스키마 — 마이그레이션 기준
 
-기준: `greenbee02/LIKELION-Hackathon-BackEnd` @ `9188d7d` · `src/main/resources/db/migration/` **V1 ~ V12**
-갱신일: 2026-08-20
+기준: `greenbee02/LIKELION-Hackathon-BackEnd` @ `f7ce5f1` · `src/main/resources/db/migration/` **V1 ~ V13**
+갱신일: 2026-08-21
 
 > **이 문서의 근거가 바뀌었다.** 이전 판은 백엔드 팀이 공유한 **MySQL 초안**을 그대로 옮긴
 > 것이었고 "정확하지 않을 수 있다"는 단서가 붙어 있었다. 지금은 실제 저장소의 Flyway
@@ -31,6 +31,7 @@
 | `V10__add_card_customization_layer_domain.sql` | `card_design_assets` `card_back_layouts` `card_customization_layers` + `card_customizations` 에 2컬럼 |
 | `V11__insert_card_customization_asset_seed.sql` | 승인 에셋 시드 — 배경 33 · 테두리 3 · 공통 뒷면 1 · 뒷면 레이아웃 1 |
 | `V12__use_common_back_for_basic_card_templates.sql` | 기본 템플릿 3개의 `back_image_url` 을 공통 뒷면 한 장으로 |
+| `V13__add_reward_event_image_urls.sql` | 리워드 3개·이벤트 3개의 `image_url` 을 채우는 UPDATE 여섯 줄 |
 
 ---
 
@@ -153,7 +154,19 @@ ADD   CHECK (generation_status IN
 V10·V11 은 **적용된 것으로 본다** — 배포된 빌드가 V10·V11 을 담은 커밋보다 뒤이므로 기동 시
 Flyway 가 돌았을 것이고, 시드가 가리키는 33+3+1 장이 실제로 200 으로 서빙된다. 다만 그것을
 읽는 API 가 아직 없어 **DB 에 있는 것을 확인할 방법이 그 이미지들뿐**이다.
-V12 는 **적용되지 않았다** — `GET /card-templates` 가 아직 `template_00X_back.png` 를 준다.
+V12 도 **적용됐다** — `GET /card-templates` 의 `back_image_url` 이 세 템플릿 모두
+`common_back_black_info.png` 다 (2026-08-21 실측).
+
+**V13 만 아직이다.** 배포된 빌드가 V13 을 담은 커밋(`f7ce5f1`)보다 앞이므로 Flyway 가 돌지
+않았고, 그 시드가 가리키는 `/images/rewards/*.png` 여섯 장도 jar 에 없어 404 다.
+
+### V13 — 리워드·이벤트 이미지 (2026-08-21)
+
+**컬럼을 더하지 않는다.** `rewards.image_url` 과 `events.image_url` 은 V6 부터 있었고
+(`VARCHAR(1000)`, `rewards.quantity` · `events.capacity` 도 마찬가지), V13 은 그 여섯 행에
+경로를 넣는 UPDATE 다. 그래서 이 마이그레이션이 배포되지 않은 지금,
+`GET /rewards/progress/{collectionId}` 의 `targets[].imageUrl` 은 **컬럼이 없어서가 아니라
+값이 비어서** `null` 이다.
 
 ---
 
@@ -182,4 +195,4 @@ V12 는 **적용되지 않았다** — `GET /card-templates` 가 아직 `templat
 | `users.name` 이 NOT NULL, `nickname` 컬럼은 **없다** | 회원가입이 닉네임을 안 받는 설계와 맞는다. 이메일에서 시드해 `name` 으로 보낸다 |
 | `users.deleted_at` (V3) | 소프트 탈퇴. **인증 필터는 이 값을 읽는데 로그인은 읽지 않는다** — 실측 확인 |
 | `ai_resource_generations.generation_status` | 컬럼명은 `generation_status` 인데 DTO 는 `status` 로 내보낸다. 이름을 API 레이어에서 맞춘다 |
-| `purchase_qrs` 시드 토큰은 **열한 개** | `MCM-DEMO-2026-001` ~ `-011`, 전부 `is_used = FALSE` 로 들어간다. 지금 DB 상태는 다르다 — 소진됐다 (`backend-open-items.md` §6) |
+| `purchase_qrs` 시드 토큰은 **열한 개** | `MCM-DEMO-2026-001` ~ `-011`, 전부 `is_used = FALSE` 로 들어간다. 한 번 쓰면 소멸하지만 `POST /local/demo/reset` 이 열한 개를 되돌린다 (`backend-contract.md` §7) |

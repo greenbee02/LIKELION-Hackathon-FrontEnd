@@ -20,16 +20,32 @@ export default function NewCollectionScreen() {
   const toast = useToast();
   const [pending, setPending] = useState(false);
 
-  const submit = (name: string, cardIds: string[]) => {
+  const submit = (
+    name: string,
+    description: string,
+    coverImageUrl: string | null,
+    cardIds: string[],
+  ) => {
     setPending(true);
     void (async () => {
-      const made = await create({ name });
+      const made = await create({
+        name,
+        description: description || null,
+        coverImageUrl,
+      });
       if (!made) {
         setPending(false);
         toast('컬렉션을 만들지 못했습니다.');
         return;
       }
-      if (cardIds.length > 0) await setCards(made.id, cardIds);
+      if (cardIds.length > 0) {
+        const synced = await setCards(made.id, cardIds);
+        if (!synced) {
+          setPending(false);
+          toast('컬렉션은 만들어졌지만 카드를 담지 못했습니다.');
+          return;
+        }
+      }
       router.replace({ pathname: '/collection/[id]', params: { id: made.id } });
     })();
   };

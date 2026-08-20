@@ -1,7 +1,9 @@
+import { Image } from 'expo-image';
 import { Layers } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { CardFace } from '@/components/card/card-face';
 import { CardSelectTile } from '@/components/card/card-select-tile';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -10,7 +12,13 @@ import { NavBar } from '@/components/ui/nav-bar';
 import { allowPressOverflow } from '@/components/ui/press-scale';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
+import { TextArea } from '@/components/ui/text-area';
+import { cardArtSource } from '@/lib/card-art';
+import { assetUrl } from '@/lib/config';
 import type { Card } from '@/lib/types';
+import { TextLink } from '@/components/ui/text-link';
+import { colors } from '@/theme/colors';
+import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
 const COLUMNS = 2;
@@ -29,6 +37,8 @@ export function CollectionEditor({
   title,
   cards,
   initialName = '',
+  initialDescription = '',
+  initialCoverImageUrl = null,
   initialCardIds = [],
   submitLabel,
   pending,
@@ -37,27 +47,47 @@ export function CollectionEditor({
   title: string;
   cards: Card[];
   initialName?: string;
+  initialDescription?: string;
+  initialCoverImageUrl?: string | null;
   initialCardIds?: string[];
   submitLabel: string;
   pending?: boolean;
-  onSubmit: (name: string, cardIds: string[]) => void;
+  onSubmit: (name: string, description: string, coverImageUrl: string | null, cardIds: string[]) => void;
 }) {
   const [name, setName] = useState(initialName);
+  const [description, setDescription] = useState(initialDescription);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(initialCoverImageUrl ?? null);
+  const [coverCardId, setCoverCardId] = useState<string | null>(() =>
+    cards.find((card) => coverUrlForCard(card) === initialCoverImageUrl)?.id ?? null,
+  );
   const [picked, setPicked] = useState<string[]>(initialCardIds);
   const [touched, setTouched] = useState(false);
+  const currentCover = coverImageUrl && !coverCardId ? assetUrl(coverImageUrl) : null;
 
   const trimmed = name.trim();
   /* 비었다는 말은 저장을 눌러본 뒤에만 한다. 아직 아무것도 안 한 사람에게 틀렸다고 먼저
      말하는 화면은 무례하다. */
   const error = touched && !trimmed ? '이름을 입력해 주세요.' : null;
 
-  const toggle = (id: string) =>
-    setPicked((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  const toggle = (id: string) => {
+    const removing = picked.includes(id);
+    if (removing && coverCardId === id) {
+      setCoverCardId(null);
+      setCoverImageUrl(null);
+    }
+    setPicked((prev) => (removing ? prev.filter((c) => c !== id) : [...prev, id]));
+  };
+
+  const selectCover = (card: Card) => {
+    setCoverCardId(card.id);
+    setCoverImageUrl(coverUrlForCard(card));
+    setPicked((prev) => (prev.includes(card.id) ? prev : [...prev, card.id]));
+  };
 
   const submit = () => {
     setTouched(true);
     if (!trimmed) return;
-    onSubmit(trimmed, picked);
+    onSubmit(trimmed, description.trim(), coverImageUrl, picked);
   };
 
   /* 줄 단위로 직접 묶는다. `flexWrap` 과 `flex: 1` 은 같이 쓸 수 없고 — 감싸기 컨테이너에서
@@ -84,6 +114,73 @@ export function CollectionEditor({
         error={error}
         style={styles.field}
       />
+
+      <TextArea
+        label="컬렉션 설명"
+        value={description}
+        onChangeText={setDescription}
+        placeholder="이 컬렉션을 어떤 기준으로 모았는지 적어주세요."
+        maxLength={500}
+        style={styles.field}
+      />
+
+      <Text variant="label" tone="muted" style={styles.coverLabel}>
+        커버 이미지
+      </Text>
+      <Text variant="caption" tone="muted" style={styles.coverNote}>
+        컬렉션에 담은 카드 중 하나를 커버로 선택할 수 있습니다.
+      </Text>
+
+      {currentCover ? (
+        <Image
+          source={{ uri: currentCover }}
+          style={styles.currentCover}
+          contentFit="cover"
+          transition={200}
+          accessibilityLabel="현재 커버 이미지"
+        />
+      ) : null}
+
+      {cards.length > 0 ? (
+        <View style={styles.coverGrid}>
+          {rows.map((row, rowIndex) => (
+            <View key={`cover-${row[0]?.id ?? rowIndex}`} style={styles.row}>
+              {row.map((card, index) =>
+                card ? (
+                  <Pressable
+                    key={card.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${card.product.name} 커버로 선택`}
+                    accessibilityState={{ selected: coverCardId === card.id }}
+                    onPress={() => selectCover(card)}
+                    style={[styles.coverTile, coverCardId === card.id && styles.coverTileSelected]}
+                  >
+                    <View style={styles.coverFace}>
+                      <CardFace card={card} />
+                    </View>
+                    <Text variant="caption" numberOfLines={1} style={styles.coverName}>
+                      {card.product.name}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <View key={`cover-blank-${index}`} style={styles.blank} />
+                ),
+              )}
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {coverImageUrl ? (
+        <TextLink
+          label="커버 이미지 제거"
+          align="start"
+          onPress={() => {
+            setCoverCardId(null);
+            setCoverImageUrl(null);
+          }}
+        />
+      ) : null}
 
       <Text variant="label" tone="muted" style={styles.pickLabel}>
         {picked.length > 0 ? `담을 카드 ${picked.length}장` : '담을 카드'}
@@ -129,11 +226,38 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: space[4], paddingTop: space[2], paddingBottom: space[7] },
   field: { marginTop: space[5] },
   pickLabel: { marginTop: space[6] },
+  coverLabel: { marginTop: space[6] },
+  coverNote: { marginTop: space[1] },
+  currentCover: {
+    width: 96,
+    aspectRatio: 1,
+    marginTop: space[3],
+    borderRadius: radius.base,
+  },
   /** 줄 사이 24, 줄 안 12 — 한 줄은 하나의 선반이고 줄끼리는 다른 선반이다. */
   grid: { marginTop: space[3], gap: space[5], ...allowPressOverflow },
   row: { flexDirection: 'row', gap: space[3], ...allowPressOverflow },
   blank: { flex: 1 },
   /** 빈 상태는 `flex: 1` 부모를 요구하므로 높이를 가진 상자 안에 넣는다. */
   emptyBox: { height: 220, marginTop: space[3] },
+  coverGrid: { marginTop: space[3], gap: space[4], ...allowPressOverflow },
+  coverTile: {
+    flex: 1,
+    padding: space[2],
+    borderRadius: radius.base,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  coverTileSelected: { borderWidth: 2, borderColor: colors.borderStrong },
+  coverFace: { width: '100%' },
+  coverName: { marginTop: space[2] },
   submit: { marginTop: space[6] },
 });
+
+function coverUrlForCard(card: Card): string | null {
+  const source = cardArtSource(card);
+  if (source && typeof source === 'object' && 'uri' in source && typeof source.uri === 'string') {
+    return source.uri;
+  }
+  return card.customization?.frontImageUrl ?? card.product.imageUrl ?? null;
+}

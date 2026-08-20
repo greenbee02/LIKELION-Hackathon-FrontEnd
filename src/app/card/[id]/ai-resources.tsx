@@ -4,12 +4,14 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CandidateContent } from '@/components/customize/candidate-content';
+import { AiImagePreview } from '@/components/customize/ai-image-preview';
 import { EmptyState } from '@/components/ui/empty-state';
 import { NavBar } from '@/components/ui/nav-bar';
 import { Panel } from '@/components/ui/panel';
 import { Screen } from '@/components/ui/screen';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
+import { TextLink } from '@/components/ui/text-link';
 import {
   fetchAiResource,
   fetchAiResources,
@@ -100,6 +102,7 @@ export default function AiResourcesScreen() {
       <Text variant="body" tone="muted" style={styles.intro}>
         카드 꾸미기에서 만든 후보와 생성 옵션을 다시 확인할 수 있습니다.
       </Text>
+      <TextLink label="새로고침" onPress={history.reload} align="end" style={styles.refresh} />
 
       <View style={styles.groups}>
         {history.data.groups.map((group) => (
@@ -154,6 +157,11 @@ function ResourceGroup({
           {`프롬프트 · ${first.prompt}`}
         </Text>
       ) : null}
+      {formatOptions(first?.options) ? (
+        <Text variant="caption" tone="muted" numberOfLines={3} style={styles.prompt}>
+          {`옵션 · ${formatOptions(first?.options)}`}
+        </Text>
+      ) : null}
       <View style={styles.grid}>
         {group.candidates.map((candidate) => (
           <HistoryCandidate
@@ -206,14 +214,23 @@ function HistoryCandidate({
 
 function ResourceDetail({ resource }: { resource: AiResource }) {
   return (
-    <View style={styles.detailBody}>
+      <View style={styles.detailBody}>
       <View style={styles.detailPreview}>
-        <CandidateContent candidate={toCandidate(resource)} />
+        {resource.generatedImageUrl ? (
+          <AiImagePreview url={resource.generatedImageUrl} label="AI 리소스" />
+        ) : (
+          <CandidateContent candidate={toCandidate(resource)} />
+        )}
       </View>
       <Text variant="caption" tone="muted">
         {`${RESOURCE_LABELS[resource.resourceType]} · ${statusLabel(resource.status)}`}
       </Text>
       {resource.prompt ? <Text variant="body" style={styles.detailText}>{resource.prompt}</Text> : null}
+      {formatOptions(resource.options) ? (
+        <Text variant="body" style={styles.detailText}>
+          {`옵션 · ${formatOptions(resource.options)}`}
+        </Text>
+      ) : null}
       {resource.aiModel ? (
         <Text variant="caption" tone="muted" style={styles.detailMeta}>
           {`모델 · ${resource.aiModel}`}
@@ -226,6 +243,23 @@ function ResourceDetail({ resource }: { resource: AiResource }) {
       ) : null}
     </View>
   );
+}
+
+function formatOptions(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const entries = Object.entries(parsed as Record<string, unknown>).filter(
+      ([key, value]) => !key.startsWith('_') && value !== null && value !== '',
+    );
+    if (entries.length === 0) return null;
+    return entries
+      .map(([key, value]) => `${key} ${typeof value === 'string' ? value : JSON.stringify(value)}`)
+      .join(' · ');
+  } catch {
+    return null;
+  }
 }
 
 function statusLabel(status: AiResource['status']): string {
@@ -249,6 +283,7 @@ const styles = StyleSheet.create({
   head: { paddingTop: space[2] },
   content: { paddingHorizontal: space[4], paddingTop: space[2], paddingBottom: space[7] },
   intro: { marginTop: space[4] },
+  refresh: { marginTop: space[1] },
   loadingList: { marginTop: space[5], gap: space[4] },
   groupSkeleton: { height: 220, borderRadius: radius.base },
   groups: { marginTop: space[5], gap: space[4] },

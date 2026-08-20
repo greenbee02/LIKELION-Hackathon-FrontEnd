@@ -10,6 +10,7 @@ import {
 
 import { Text } from '@/components/ui/text';
 import { imageSource } from '@/lib/card-art';
+import { resolveCardFontFamily } from '@/lib/font-fallback';
 import type { CardFaceLayer, Frame } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { faceInk } from '@/theme/typography';
@@ -67,7 +68,7 @@ function LayerBody({ layer, faceHeight }: { layer: CardFaceLayer; faceHeight: nu
   ];
 
   if (layer.type === 'TEXT') {
-    const ink = faceTextStyle(layer.frame.height, faceHeight);
+    const ink = faceTextStyle(layer.frame.height, faceHeight, layer.style);
     if (!layer.text || !ink) return null;
     return (
       <View style={box}>
@@ -107,10 +108,25 @@ function LayerBody({ layer, faceHeight }: { layer: CardFaceLayer; faceHeight: nu
  *
  * 잴 수 없거나(높이 0) 너무 작아 읽을 수 없으면 `null` 이다. 부르는 쪽은 그리지 않는다.
  */
-export function faceTextStyle(frameHeight: number, faceHeight: number): TextStyle | null {
+export function faceTextStyle(
+  frameHeight: number,
+  faceHeight: number,
+  style?: Record<string, unknown>,
+): TextStyle | null {
   const fontSize = Math.round(frameHeight * faceHeight);
   if (fontSize < 1) return null;
-  return { ...faceStyles.ink, fontSize, lineHeight: Math.round(fontSize * 1.1) };
+  return {
+    ...faceStyles.ink,
+    fontSize,
+    lineHeight: Math.round(fontSize * 1.1),
+    ...(typeof style?.fontFamily === 'string' && {
+      fontFamily: resolveCardFontFamily(style.fontFamily),
+    }),
+    ...(typeof style?.color === 'string' && { color: style.color }),
+    ...(typeof style?.fontWeight === 'string' && { fontWeight: style.fontWeight as never }),
+    ...(typeof style?.textAlign === 'string' && { textAlign: style.textAlign as never }),
+    ...(typeof style?.letterSpacing === 'number' && { letterSpacing: style.letterSpacing }),
+  };
 }
 
 /** 0~1 을 백분율 문자열로. 이 컴포넌트가 픽셀을 몰라도 되는 이유가 이 한 줄이다. */

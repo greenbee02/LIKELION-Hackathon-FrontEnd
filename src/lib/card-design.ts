@@ -15,7 +15,7 @@ import {
 } from './api/ai-resources';
 import { selectCustomization } from './api/customizations';
 import { assetUrl } from './config';
-import { failureMessage } from './api/errors';
+import { aiFailureMessage } from './api/errors';
 import { buildComposeBody, validateComposeBody } from './card-compose';
 import {
   applyComposition,
@@ -31,8 +31,6 @@ import type {
   CardCustomization,
   CardLayer,
   CardLayerType,
-  CardTemplate,
-  TemplateResource,
   Uuid,
 } from './types';
 
@@ -59,7 +57,7 @@ import type {
  * 대체하기 때문이다. 서버의 `candidateGroupId` 는 그 대체를 **판별하는 데** 쓴다.
  */
 
-export type DesignPhase = 'choose' | 'candidates' | 'editor' | 'error';
+export type DesignPhase = 'candidates' | 'editor' | 'error';
 
 /**
  * 저장이 끝나는 세 가지 방식.
@@ -95,7 +93,7 @@ export type GroupState = {
 };
 
 /* 워커가 5초에 한 번 큐를 집으므로 그 박자에 맞춘다. 더 자주 물어도 새 답은 나오지 않는다. */
-const POLL_MS = 2_000;
+const POLL_DELAYS = [2_000, 4_000, 8_000, 16_000, 30_000] as const;
 /** 이보다 오래 걸리면 그 그룹에 한 줄이 붙는다. 붙잡아두는 화면이 아니므로 나갈 길은 늘 있다. */
 const PATIENCE_MS = 30_000;
 /** 여기까지 오면 그 그룹의 폴링을 멈춘다. 서버는 계속 만들고 있을 수 있다. */
@@ -121,11 +119,13 @@ type Selected = Partial<Record<string, Uuid>>;
  * 색이 새로 고른 템플릿의 카드에 깔리는 버그였다. 목록을 받아 여기서 찾으면 그 어긋남이
  * 존재할 수 없다.
  */
-export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
+export function useCardDesign(card: Card | null) {
   const cardId = card?.id ?? '';
+  /* AI 생성은 카드에 이미 연결된 기본 템플릿을 사용한다. 별도 선택 단계가 없으므로
+     카드 응답의 템플릿 ID만 생성 요청에 전달하고, 서버도 같은 템플릿을 검증한다. */
+  const templateId = card?.template?.id ?? null;
 
-  const [phase, setPhase] = useState<DesignPhase>('choose');
-  const [templateId, setTemplateId] = useState<Uuid | null>(null);
+  const [phase, setPhase] = useState<DesignPhase>('candidates');
   const [groups, setGroups] = useState<Groups>({});
   const [selected, setSelected] = useState<Selected>({});
   const [layers, setLayers] = useState<CardLayer[]>([]);
@@ -186,7 +186,7 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
             [type]: { ...(prev[type] ?? emptyGroup()), groupId },
           }));
         } catch (e) {
-          setError(failureMessage(e));
+          setError(aiFailureMessage(e));
           /* 그룹 하나가 실패했다고 화면 전체를 오류로 만들지 않는다 — 다른 그룹은 멀쩡하고,
              이 그룹은 '다시 만들기'로 되살릴 수 있다. */
           setGroups((prev) => ({ ...prev, [type]: { ...emptyGroup(), requestedAt: null } }));
@@ -274,11 +274,27 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
       }
     };
 
-    void ask();
-    const timer = setInterval(() => void ask(), POLL_MS);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let delayIndex = 0;
+    const schedule = () => {
+      if (!alive) return;
+      timer = setTimeout(() => {
+        void (async () => {
+          await ask();
+          if (!alive) return;
+          delayIndex = Math.min(delayIndex + 1, POLL_DELAYS.length - 1);
+          schedule();
+        })();
+      }, POLL_DELAYS[delayIndex]);
+    };
+
+    void (async () => {
+      await ask();
+      schedule();
+    })();
     return () => {
       alive = false;
-      clearInterval(timer);
+      if (timer) clearTimeout(timer);
     };
   }, [cardId, waiting]);
 
@@ -327,25 +343,13 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
     [selected, allCandidates],
   );
 
-  /* ──────────────────────────────────────────────────────────────────────────
-   * 단계 이동
-   * ────────────────────────────────────────────────────────────────────────── */
-
-  const chooseTemplate = useCallback((id: Uuid) => {
-    setTemplateId(id);
-    setPhase('candidates');
-  }, []);
-
-  const templateResource: TemplateResource | null =
-    templates.find((t) => t.id === templateId)?.resource ?? null;
-
   const openEditor = useCallback(() => {
     if (!card) return;
     /* 편집기에 처음 들어갈 때만 배치를 깐다. 두 번째부터는 고객이 옮겨둔 것을 지키는 편이
        맞다 — 후보 화면에 다녀왔다고 배치가 초기화되면 그건 왕복이 아니라 취소다. */
-    setLayers((prev) => (prev.length > 0 ? prev : initialLayers(selected, templateResource)));
+    setLayers((prev) => (prev.length > 0 ? prev : initialLayers(selected, null)));
     setPhase('editor');
-  }, [card, selected, templateResource]);
+  }, [card, selected]);
 
   const backToCandidates = useCallback(() => setPhase('candidates'), []);
 
@@ -383,13 +387,13 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
     () =>
       buildComposeBody({
         templateId,
-        templateResource,
+        templateResource: null,
         selected,
         candidates: allCandidates,
         layers,
         message,
       }),
-    [templateId, templateResource, selected, allCandidates, layers, message],
+    [templateId, selected, allCandidates, layers, message],
   );
 
   const save = useCallback(async (): Promise<SaveResult> => {
@@ -435,16 +439,15 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
       }
       return { ok: true, customization: made };
     } catch (e) {
-      setError(failureMessage(e));
+      setError(aiFailureMessage(e));
       return { ok: false };
     }
   }, [cardId, draft]);
 
-  /** 처음으로. 고른 디자인과 배치를 버리고 템플릿 목록으로 돌아간다. */
+  /** 후보 선택을 처음부터 다시 시작한다. 카드 기본 템플릿은 계속 유지한다. */
   const reset = useCallback(() => {
     requested.current.clear();
-    setPhase('choose');
-    setTemplateId(null);
+    setPhase('candidates');
     setGroups({});
     setSelected({});
     setLayers([]);
@@ -466,7 +469,6 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
     error,
     canSave: draft.ok,
     blockedReason: draft.ok ? null : draft.reason,
-    chooseTemplate,
     generate,
     select,
     openEditor,

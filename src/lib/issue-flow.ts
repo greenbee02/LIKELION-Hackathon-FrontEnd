@@ -43,10 +43,8 @@ const POLL_MS = 2_000;
 /**
  * 이보다 오래 걸리면 나갈 길을 연다.
  *
- * 발급 한 번이 만드는 그림은 **세 종류 × 후보 셋 = 아홉 장**이다(후보 수의 하한이 3이라
- * "한 종류에 하나만"은 계약상 불가능하다). 20초는 그 아홉 장이 끝나기 전에 반드시 지나가는
- * 시간이라, "예상보다 오래 걸리고 있습니다"가 예외가 아니라 기본 상태였다 — 늘 켜져 있는
- * 경고는 경고가 아니다.
+ * 발급 한 번이 만드는 그림은 **배경 한 종류 × 후보 셋**이다. 테두리와 패턴은 발급 때마다
+ * 다시 만들지 않고 브랜드가 지정한 기본 리소스를 사용한다.
  */
 const PATIENCE_MS = 45_000;
 /**
@@ -60,7 +58,7 @@ const MAX_MS = 180_000;
 
 export type IssueStage = 'previewing' | 'preview' | 'registering' | 'generating' | 'ready' | 'error';
 
-/** The three states a tile can be in. `REJECTED` is a failure to the customer, so it reads as one. */
+/** The state of an issuance resource. `REJECTED` is a failure to the customer, so it reads as one. */
 export type ResourceState = { type: IssueResourceType; status: 'PENDING' | 'COMPLETED' | 'FAILED' };
 
 export type IssueState = {

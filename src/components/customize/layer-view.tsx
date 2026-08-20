@@ -7,6 +7,7 @@ import { faceTextStyle } from '@/components/card/card-layer-stack';
 import { Text } from '@/components/ui/text';
 import { allowPressOverflow } from '@/components/ui/press-scale';
 import { imageSource } from '@/lib/card-art';
+import { resolveCardFontFamily } from '@/lib/font-fallback';
 import { clampFrame, isFullBleed, MIN_SIDE, type Size } from '@/lib/card-layers';
 import type { CardLayer, Frame } from '@/lib/types';
 import { colors } from '@/theme/colors';
@@ -192,7 +193,7 @@ function LayerBody({
 
   if (layer.type === 'TEXT') {
     const style = layer.style ?? {};
-    const ink = faceTextStyle(layer.frame.height, size.height);
+    const ink = faceTextStyle(layer.frame.height, size.height, layer.style);
     return (
       <Text
         variant="body"
@@ -201,6 +202,9 @@ function LayerBody({
           styles.text,
           ink,
           typeof style.color === 'string' && { color: style.color },
+          typeof style.fontFamily === 'string' && {
+            fontFamily: resolveCardFontFamily(style.fontFamily),
+          },
           typeof style.letterSpacing === 'number' && { letterSpacing: style.letterSpacing },
           typeof style.fontWeight === 'string' && { fontWeight: style.fontWeight as never },
           typeof style.textAlign === 'string' && { textAlign: style.textAlign as never },

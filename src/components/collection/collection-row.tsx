@@ -1,9 +1,12 @@
 import { ChevronRight } from 'lucide-react-native';
+import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { CARD_ASPECT, CardFace } from '@/components/card/card-face';
 import { allowPressOverflow, raiseWhilePressed, usePressScale } from '@/components/ui/press-scale';
+import { assetUrl } from '@/lib/config';
+import { imageSource } from '@/lib/card-art';
 import { Text } from '@/components/ui/text';
 import type { Card, UserCollection } from '@/lib/types';
 import { colors } from '@/theme/colors';
@@ -22,9 +25,8 @@ const COVER = 42;
 /**
  * 컬렉션 하나, 목록의 한 줄로.
  *
- * **표지는 담긴 첫 카드의 얼굴이다.** 컬렉션에는 자기 그림이 없고(`coverImageUrl` 은 서버가
- * 받기는 하지만 올릴 방법이 없다), 폴더 아이콘을 그리면 열두 개가 전부 같은 모양이 된다.
- * 안에 든 것이 곧 표지라는 것은 사진첩이 원래 하는 일이다.
+ * **표지는 저장된 커버 이미지가 우선이다.** 커버가 없던 기존 컬렉션은 담긴 첫 카드의 얼굴을
+ * 폴백으로 사용해 이전 데이터도 빈 표지로 바뀌지 않는다.
  *
  * 빈 컬렉션은 표지가 없다. 그 자리를 3단계 사각형으로 두는 것은 "여기 카드가 없다"는 사실의
  * 그림이지 빠진 것이 아니다.
@@ -40,6 +42,7 @@ export function CollectionRow({
   onPress: () => void;
 }) {
   const press = usePressScale();
+  const coverImage = imageSource(assetUrl(collection.coverImageUrl));
 
   return (
     <Pressable
@@ -51,7 +54,13 @@ export function CollectionRow({
     >
       <Animated.View style={[styles.inner, press.style]}>
         <View style={styles.cover}>
-          {cover ? <CardFace card={cover} /> : <View style={styles.empty} />}
+          {coverImage ? (
+            <Image source={coverImage} style={styles.coverImage} contentFit="cover" transition={200} />
+          ) : cover ? (
+            <CardFace card={cover} />
+          ) : (
+            <View style={styles.empty} />
+          )}
         </View>
 
         <View style={styles.body}>
@@ -80,6 +89,7 @@ const styles = StyleSheet.create({
   },
   /** 얼굴은 자기 모서리를 자르므로 폭만 정해주면 된다. */
   cover: { width: COVER },
+  coverImage: { width: '100%', aspectRatio: CARD_ASPECT, borderRadius: radius.small },
   empty: {
     width: COVER,
     aspectRatio: CARD_ASPECT,
