@@ -157,6 +157,11 @@ function ResourceGroup({
           {`프롬프트 · ${first.prompt}`}
         </Text>
       ) : null}
+      {formatOptions(first?.options) ? (
+        <Text variant="caption" tone="muted" numberOfLines={3} style={styles.prompt}>
+          {`옵션 · ${formatOptions(first?.options)}`}
+        </Text>
+      ) : null}
       <View style={styles.grid}>
         {group.candidates.map((candidate) => (
           <HistoryCandidate
@@ -221,6 +226,11 @@ function ResourceDetail({ resource }: { resource: AiResource }) {
         {`${RESOURCE_LABELS[resource.resourceType]} · ${statusLabel(resource.status)}`}
       </Text>
       {resource.prompt ? <Text variant="body" style={styles.detailText}>{resource.prompt}</Text> : null}
+      {formatOptions(resource.options) ? (
+        <Text variant="body" style={styles.detailText}>
+          {`옵션 · ${formatOptions(resource.options)}`}
+        </Text>
+      ) : null}
       {resource.aiModel ? (
         <Text variant="caption" tone="muted" style={styles.detailMeta}>
           {`모델 · ${resource.aiModel}`}
@@ -233,6 +243,23 @@ function ResourceDetail({ resource }: { resource: AiResource }) {
       ) : null}
     </View>
   );
+}
+
+function formatOptions(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const entries = Object.entries(parsed as Record<string, unknown>).filter(
+      ([key, value]) => !key.startsWith('_') && value !== null && value !== '',
+    );
+    if (entries.length === 0) return null;
+    return entries
+      .map(([key, value]) => `${key} ${typeof value === 'string' ? value : JSON.stringify(value)}`)
+      .join(' · ');
+  } catch {
+    return null;
+  }
 }
 
 function statusLabel(status: AiResource['status']): string {

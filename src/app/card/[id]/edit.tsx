@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CARD_ASPECT } from '@/components/card/card-face';
-import { TemplateTile } from '@/components/card/template-tile';
 import { CandidateGrid } from '@/components/customize/candidate-grid';
 import { CardStage } from '@/components/customize/card-stage';
 import { LayerInspector } from '@/components/customize/layer-inspector';
@@ -29,17 +28,13 @@ import {
   isPending,
   type AiResourceType,
 } from '@/lib/api/ai-resources';
-import { fetchCardTemplates } from '@/lib/api/card-templates';
-import { restoreOriginalCard } from '@/lib/api/customizations';
 import { useCardDesign } from '@/lib/card-design';
 import { useCard, useCards } from '@/lib/cards-store';
-import type { Card, CardTemplate } from '@/lib/types';
-import { useResource } from '@/lib/use-resource';
+import type { Card } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
-const COLUMNS = 2;
 /** 미리보기 카드의 폭. 상세보다 좁다 — 여기서는 카드가 주인공이 아니라 작업 대상이다. */
 const PREVIEW_WIDTH = 220;
 
@@ -102,15 +97,7 @@ export default function EditCardScreen() {
   const router = useRouter();
   const toast = useToast();
 
-  const load = useCallback(() => fetchCardTemplates(), []);
-  const templates = useResource<CardTemplate[]>(load);
-
-  const usable = useMemo(
-    () => (card ? usableTemplates(templates.data ?? [], card) : []),
-    [templates.data, card],
-  );
-
-  const design = useCardDesign(card, usable);
+  const design = useCardDesign(card);
 
   /**
    * **훅이 오류를 들고 있어도 아무도 읽지 않으면 화면은 조용하다.**
@@ -158,7 +145,7 @@ export default function EditCardScreen() {
     );
   }
 
-  if (!card || cardStatus === 'loading' || templates.status === 'loading') {
+  if (!card || cardStatus === 'loading') {
     return (
       <Screen contentContainerStyle={styles.head}>
         {nav}
@@ -172,19 +159,6 @@ export default function EditCardScreen() {
     );
   }
 
-  if (templates.status === 'error') {
-    return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
-        <EmptyState
-          icon={Palette}
-          title="디자인을 불러오지 못했습니다"
-          note={templates.error ?? '잠시 후 다시 시도해 주세요.'}
-        />
-      </Screen>
-    );
-  }
-
   if (design.phase === 'candidates') {
     return <CandidatesPane card={card} design={design} nav={nav} />;
   }
@@ -193,112 +167,7 @@ export default function EditCardScreen() {
     return <EditorPane card={card} design={design} nav={nav} />;
   }
 
-  return (
-    <ChoosePane
-      card={card}
-      templates={usable}
-      nav={nav}
-      onChoose={design.chooseTemplate}
-      onRestored={() => {
-        toast('원래 디자인으로 되돌렸습니다.');
-        router.replace({ pathname: '/card/[id]', params: { id: card.id } });
-      }}
-      onRestoreFailed={() => toast('되돌리지 못했습니다.')}
-    />
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────────────────
- * 1단계 — 어느 승인 디자인으로
- * ────────────────────────────────────────────────────────────────────────────── */
-
-function ChoosePane({
-  card,
-  templates,
-  nav,
-  onChoose,
-  onRestored,
-  onRestoreFailed,
-}: {
-  card: Card;
-  templates: CardTemplate[];
-  nav: React.ReactNode;
-  onChoose: (id: string) => void;
-  onRestored: () => void;
-  onRestoreFailed: () => void;
-}) {
-  const [picked, setPicked] = useState<string | null>(card.template?.id ?? null);
-
-  if (templates.length === 0) {
-    return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav}
-        <EmptyState
-          icon={Palette}
-          title="적용할 수 있는 디자인이 아직 없습니다"
-          note={`${card.brand.name} 가 승인한 카드 디자인이 준비되면\n여기에서 고르실 수 있습니다.`}
-        />
-      </Screen>
-    );
-  }
-
-  const rows: (CardTemplate | null)[][] = [];
-  for (let i = 0; i < templates.length; i += COLUMNS) {
-    const row: (CardTemplate | null)[] = templates.slice(i, i + COLUMNS);
-    while (row.length < COLUMNS) row.push(null);
-    rows.push(row);
-  }
-
-  const undo = () => {
-    void (async () => {
-      try {
-        await restoreOriginalCard(card.id);
-        onRestored();
-      } catch {
-        onRestoreFailed();
-      }
-    })();
-  };
-
-  return (
-    <Screen scroll gutter={false} contentContainerStyle={styles.content}>
-      {nav}
-
-      <Text variant="body" tone="muted" style={styles.intro}>
-        {`${card.brand.name} 가 승인한 디자인 중에서 고르시면,\n그 안에서 카드에 올릴 것들을 만들어 드립니다.`}
-      </Text>
-
-      <View style={styles.grid}>
-        {rows.map((row, rowIndex) => (
-          <View key={row[0]?.id ?? `row-${rowIndex}`} style={styles.row}>
-            {row.map((template, index) =>
-              template ? (
-                <TemplateTile
-                  key={template.id}
-                  template={template}
-                  selected={picked === template.id}
-                  current={card.template?.id === template.id}
-                  onPress={() => setPicked(template.id)}
-                />
-              ) : (
-                <View key={`blank-${index}`} style={styles.blank} />
-              ),
-            )}
-          </View>
-        ))}
-      </View>
-
-      <Button
-        label="다음"
-        disabled={!picked}
-        onPress={() => picked && onChoose(picked)}
-        style={styles.action}
-      />
-
-      {/* 이미 꾸며둔 카드에만 나온다. 되돌릴 것이 없는데 되돌리기를 두면 그 버튼은 거짓말이다. */}
-      {card.customization ? <TextLink label="원래 디자인으로 되돌리기" onPress={undo} /> : null}
-    </Screen>
-  );
+  return <CandidatesPane card={card} design={design} nav={nav} />;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────────
@@ -630,24 +499,6 @@ function EditorPane({
       </Sheet>
     </Screen>
   );
-}
-
-/**
- * 이 카드에 붙일 수 있는 디자인만.
- *
- * **브랜드가 다르면 뺀다.** 이것이 "하우스가 승인한"의 실제 뜻이고, 발급 에러코드에
- * `TEMPLATE_BRAND_MISMATCH` 가 있는 것이 그 근거다. 다른 하우스의 디자인을 입은 카드는
- * 누구의 카드도 아니게 된다.
- *
- * `allowedCardType` 이 `null` 이면 제한이 없다는 뜻이고, 지금 시드는 셋 다 그렇다. 값이 있는데
- * 카드 종류와 다르면 뺀다 — **고를 수 없는 선택지는 선택지가 아니다.**
- */
-function usableTemplates(templates: CardTemplate[], card: Card): CardTemplate[] {
-  return templates.filter((t) => {
-    if (t.brandId !== card.brand.id) return false;
-    if (t.allowedCardType && t.allowedCardType !== card.cardType) return false;
-    return true;
-  });
 }
 
 const styles = StyleSheet.create({

@@ -71,6 +71,8 @@ export type AiResource = {
    * 읽는다.
    */
   generatedData: string | null;
+  /** 생성 요청 시 입력한 옵션 JSON. 구조화된 결과가 generatedData를 대체해도 유지된다. */
+  options?: string | null;
   templateId?: string | null;
   prompt?: string | null;
   aiModel?: string | null;

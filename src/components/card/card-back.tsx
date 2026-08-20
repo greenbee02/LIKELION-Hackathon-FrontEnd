@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { CARD_ASPECT } from './card-face';
 import { Text } from '@/components/ui/text';
-import { brandMarkSource } from '@/lib/card-art';
+import { brandMarkSource, imageSource } from '@/lib/card-art';
 import { formatPurchaseDate, formatWarrantyExpiry } from '@/lib/format';
 import type { Card } from '@/lib/types';
 import { colors } from '@/theme/colors';
@@ -46,6 +46,23 @@ export function CardBack({ card }: { card: Card }) {
      않는다: 스냅샷은 값의 출처를 바꿀 뿐 무엇을 적을지는 바꾸지 않는다. */
   const snapshot = card.customization?.back ?? null;
   const serialNumber = snapshot?.serialNumber ?? card.serialNumber;
+  const generatedBack = imageSource(card.customization?.backImageUrl);
+
+  /* AI 합성은 서버가 뒷면 전체를 한 장으로 굽는다. 이미지가 있으면 텍스트형 기본 뒷면과
+     함께 그리지 않고, 저장된 합성 결과 자체를 카드의 뒷면으로 보여준다. */
+  if (generatedBack) {
+    return (
+      <View style={styles.back}>
+        <Image
+          source={generatedBack}
+          style={styles.generatedBack}
+          contentFit="cover"
+          transition={200}
+          accessibilityLabel="AI로 합성된 카드 뒷면"
+        />
+      </View>
+    );
+  }
 
   /* `warrantyMonths` 는 `GET /products/{id}` 가 주지만 null 일 수 있다. 그때 두 줄은 대시가
      아니라 **아예 그려지지 않는다** — 대시는 카드가 스스로 답하지 못한 질문을 했다고 자백하는
@@ -119,6 +136,7 @@ const styles = StyleSheet.create({
     padding: space[3],
     overflow: 'hidden',
   },
+  generatedBack: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   head: {
     flexDirection: 'row',
     alignItems: 'flex-start',

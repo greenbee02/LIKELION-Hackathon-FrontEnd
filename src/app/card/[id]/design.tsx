@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CARD_ASPECT, CardFace } from '@/components/card/card-face';
+import { CardBack } from '@/components/card/card-back';
 import { AssetGrid } from '@/components/customize/asset-grid';
 import { CardStage } from '@/components/customize/card-stage';
 import { Button } from '@/components/ui/button';
@@ -63,6 +64,7 @@ const FACE_TEXT_STYLE = {
 } as const;
 
 type Step = 'fork' | 'pick' | 'text';
+type EditSide = 'front' | 'back';
 
 /**
  * 카드 꾸미기 — 하우스가 승인해 둔 그림으로.
@@ -90,6 +92,7 @@ export default function DesignCardScreen() {
   const [text, setText] = useState<CardLayer>(() =>
     makeLayer('TEXT', { text: '', frame: SEED_TEXT_FRAME }),
   );
+  const [editSide, setEditSide] = useState<EditSide>('front');
   const [saving, setSaving] = useState(false);
 
   /**
@@ -282,35 +285,66 @@ export default function DesignCardScreen() {
       <View style={styles.editor}>
         {nav}
 
-        <View style={styles.stage}>
-          {/* 굳은 두 겹은 바닥에 깔고, 움직이는 문구 하나만 무대에 맡긴다 — 바닥이 `CardFace`
-              이므로 편집 중에 보는 것이 저장 후에 보는 것과 같은 컴포넌트에서 나온다. */}
-          <CardStage
-            card={card}
-            layers={[text]}
-            activeId={text.id}
-            interactive
-            ground={<CardFace card={card} layers={face} />}
-            imageForResource={() => null}
-            onSelect={() => undefined}
-            onCommitFrame={(_, frame) => setText((prev) => ({ ...prev, frame }))}
-          />
+        <View style={styles.sideToggle} accessibilityRole="tablist">
+          {(['front', 'back'] as const).map((side) => (
+            <Pressable
+              key={side}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: editSide === side }}
+              onPress={() => setEditSide(side)}
+              style={[styles.sideButton, editSide === side && styles.sideButtonActive]}
+            >
+              <Text
+                variant="label"
+                style={[styles.sideLabel, editSide === side && styles.sideLabelActive]}
+              >
+                {side === 'front' ? '앞면' : '뒷면'}
+              </Text>
+            </Pressable>
+          ))}
         </View>
 
-        <Input
-          label="카드에 새길 한 줄"
-          value={text.text ?? ''}
-          onChangeText={(next) => setText((prev) => ({ ...prev, text: next }))}
-          placeholder="예: 2026 SEOUL"
-          maxLength={60}
-          style={styles.field}
-        />
+        <View style={styles.stage}>
+          {editSide === 'front' ? (
+            /* 굳은 두 겹은 바닥에 깔고, 움직이는 문구 하나만 무대에 맡긴다 — 바닥이 `CardFace`
+               이므로 편집 중에 보는 것이 저장 후에 보는 것과 같은 컴포넌트에서 나온다. */
+            <CardStage
+              card={card}
+              layers={[text]}
+              activeId={text.id}
+              interactive
+              ground={<CardFace card={card} layers={face} />}
+              imageForResource={() => null}
+              onSelect={() => undefined}
+              onCommitFrame={(_, frame) => setText((prev) => ({ ...prev, frame }))}
+            />
+          ) : (
+            <CardBack card={card} />
+          )}
+        </View>
 
-        <Text variant="caption" tone="muted" style={styles.note}>
-          {content
-            ? '문구를 끌어 옮기고, 모서리를 잡아 크기를 바꿀 수 있습니다.'
-            : '카드에 새길 한 줄을 적어주세요.'}
-        </Text>
+        {editSide === 'front' ? (
+          <>
+            <Input
+              label="카드에 새길 한 줄"
+              value={text.text ?? ''}
+              onChangeText={(next) => setText((prev) => ({ ...prev, text: next }))}
+              placeholder="예: 2026 SEOUL"
+              maxLength={60}
+              style={styles.field}
+            />
+
+            <Text variant="caption" tone="muted" style={styles.note}>
+              {content
+                ? '문구를 끌어 옮기고, 모서리를 잡아 크기를 바꿀 수 있습니다.'
+                : '카드에 새길 한 줄을 적어주세요.'}
+            </Text>
+          </>
+        ) : (
+          <Text variant="caption" tone="muted" style={styles.note}>
+            카드 뒷면을 확인했습니다. 저장되는 문구는 앞면에 적용됩니다.
+          </Text>
+        )}
 
         <Button
           label="이 디자인으로 저장"
@@ -451,5 +485,17 @@ const styles = StyleSheet.create({
   /* 편집기는 스크롤하지 않는다 — 무대의 드래그와 화면의 스크롤이 같은 손짓을 두 가지 뜻으로
      쓰게 되고, 문구를 아래로 끌면 화면이 같이 내려간다. */
   editor: { flex: 1, paddingHorizontal: space[4], paddingTop: space[2] },
+  sideToggle: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    marginTop: space[4],
+    padding: 2,
+    borderRadius: radius.base,
+    backgroundColor: colors.surface,
+  },
+  sideButton: { paddingVertical: space[2], paddingHorizontal: space[4], borderRadius: radius.base },
+  sideButtonActive: { backgroundColor: colors.text },
+  sideLabel: { color: colors.text },
+  sideLabelActive: { color: colors.textInverted },
   stage: { width: '100%', maxWidth: PREVIEW_WIDTH, alignSelf: 'center', marginTop: space[4] },
 });
