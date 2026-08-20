@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { CandidateContent } from './candidate-content';
+import { GeneratingSpinner } from '@/components/ui/generating-spinner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { allowPressOverflow, raiseWhilePressed, usePressScale } from '@/components/ui/press-scale';
@@ -90,7 +91,15 @@ function CandidateTile({
   if (pending) {
     return (
       <View style={styles.cell}>
-        <Skeleton style={styles.tile} />
+        <View style={styles.tile}>
+          <Skeleton style={fill} />
+          <View style={styles.pendingOverlay}>
+            <GeneratingSpinner size={24} color={colors.text} />
+            <Text variant="caption" tone="muted">
+              생성 중
+            </Text>
+          </View>
+        </View>
       </View>
     );
   }
@@ -128,6 +137,8 @@ function CandidateTile({
   );
 }
 
+const fill = { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } as const;
+
 const styles = StyleSheet.create({
   grid: { gap: space[3], ...allowPressOverflow },
   row: { flexDirection: 'row', gap: space[3], ...allowPressOverflow },
@@ -141,6 +152,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   selected: { borderWidth: 2, borderColor: colors.borderStrong },
+  pendingOverlay: {
+    ...fill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space[2],
+  },
   failed: { alignItems: 'center', justifyContent: 'center', gap: space[1], padding: space[2] },
   failedText: { textAlign: 'center' },
   tick: {

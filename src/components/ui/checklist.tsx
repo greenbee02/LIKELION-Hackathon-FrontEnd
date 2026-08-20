@@ -1,10 +1,9 @@
 import { AlertCircle, Check } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
-import { Skeleton } from './skeleton';
+import { GeneratingSpinner } from './generating-spinner';
 import { Text } from './text';
 import { colors } from '@/theme/colors';
-import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
 export type ChecklistStatus = 'pending' | 'done' | 'failed';
@@ -52,7 +51,7 @@ export function Checklist({ items }: { items: ChecklistItem[] }) {
             <View style={styles.slot}>
               {done ? <Check size={16} color={colors.text} strokeWidth={2.5} /> : null}
               {failed ? <AlertCircle size={16} color={colors.text} /> : null}
-              {!done && !failed ? <Skeleton style={styles.dot} /> : null}
+              {!done && !failed ? <GeneratingSpinner size={16} /> : null}
             </View>
 
             <Text variant="body" tone={done || failed ? 'default' : 'muted'} style={styles.label}>
@@ -78,6 +77,5 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.borderSubtle,
   },
   slot: { width: 20, alignItems: 'center' },
-  dot: { width: 8, height: 8, borderRadius: radius.full, backgroundColor: colors.borderStrong },
   label: { flex: 1, marginLeft: space[3] },
 });
