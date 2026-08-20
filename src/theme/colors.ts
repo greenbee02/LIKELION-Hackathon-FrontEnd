@@ -15,6 +15,8 @@ import { gray, grayA, whiteA } from '@radix-ui/colors';
  * reaching into it twice.
  *
  * Light only: there is no dark mode, so `grayDark` is deliberately not imported.
+ *
+ * The scale is gray, and the one exception to that is `colors.point` — see its note below.
  */
 
 /** Raw scale, for when a role does not exist yet. Prefer `colors`. */
@@ -107,6 +109,25 @@ export const colors = {
    * has no pure black and a scrim is not the place to introduce one.
    */
   scrimInk: gray.gray12,
+
+  /**
+   * The platform's point colour. A deep wine red, and the only hue in the file.
+   *
+   * **Nothing reads this yet, on purpose.** It is defined so that the value is written once and in
+   * one place the day something needs it, rather than being pasted at a call site as a hex. Until
+   * then the app stays gray, and that is not an oversight — a point colour earns its place by
+   * marking the one thing on a screen that matters, and a screen that has not decided what that is
+   * gets nothing.
+   *
+   * Not named `accent`: `Brand.accent` already owns that word, and it means the opposite thing —
+   * a colour that belongs to a house and travels with its cards as data. This one belongs to Curio
+   * and never touches a card's face.
+   *
+   * A single value rather than a scale. It has no hover step, no border step, and no text-on-point
+   * step because none of those have been decided; when one is needed, derive it here beside this
+   * entry instead of lightening the hex at the call site.
+   */
+  point: '#7B313D',
 } as const;
 
 export type ColorToken = keyof typeof colors;

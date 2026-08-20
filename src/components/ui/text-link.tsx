@@ -33,8 +33,12 @@ export function TextLink({
   label: string;
   onPress: () => void;
   tone?: 'default' | 'muted';
-  /** 문단 안에 놓이는 링크는 왼쪽에, 화면 바닥에 홀로 서는 링크는 가운데에. */
-  align?: 'center' | 'start';
+  /**
+   * 문단 안에 놓이는 링크는 왼쪽에, 화면 바닥에 홀로 서는 링크는 가운데에, 줄의 오른쪽 끝을
+   * 차지하는 링크는 `end` 에. 세 경우 다 좌우 패딩이 만든 들여쓰기를 바깥쪽으로 상쇄해야
+   * 글자가 다른 것들과 같은 선에 선다.
+   */
+  align?: 'center' | 'start' | 'end';
   style?: ViewStyle;
 }) {
   return (
@@ -44,7 +48,7 @@ export function TextLink({
       onPress={onPress}
       style={({ pressed }) => [
         styles.link,
-        align === 'center' ? styles.center : styles.start,
+        align === 'center' ? styles.center : align === 'end' ? styles.end : styles.start,
         pressed && styles.pressed,
         style,
       ]}
@@ -66,5 +70,6 @@ const styles = StyleSheet.create({
   center: { alignSelf: 'center' },
   /* 문단에 붙는 링크는 글이 시작하는 선에 서야 하므로, 좌우 패딩이 만든 들여쓰기를 상쇄한다. */
   start: { alignSelf: 'flex-start', marginLeft: -space[4] },
+  end: { alignSelf: 'flex-end', marginRight: -space[4] },
   pressed: { backgroundColor: colors.surface },
 });
