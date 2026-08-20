@@ -6,7 +6,7 @@ import { CandidateContent } from './candidate-content';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { allowPressOverflow, raiseWhilePressed, usePressScale } from '@/components/ui/press-scale';
-import { failureLabel, isSelectable, type Candidate } from '@/lib/api/ai-resources';
+import { failureLabel, isPending, isSelectable, type Candidate } from '@/lib/api/ai-resources';
 import { CANDIDATE_SLOTS } from '@/lib/card-layers';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
@@ -81,7 +81,7 @@ function CandidateTile({
   selected: boolean;
   onPress: () => void;
 }) {
-  const pending = candidate.status === 'PENDING';
+  const pending = isPending(candidate.status);
   const failed = failureLabel(candidate.status);
   const press = usePressScale(!isSelectable(candidate));
 

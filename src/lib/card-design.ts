@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
-  CANDIDATES_PER_GROUP,
+  GENERATABLE_IMAGE_TYPES,
   composeAiResources,
   fetchAiResources,
   isArchived,
+  isPending,
   requestCandidates,
   toCandidate,
   type AiResourceType,
   type Candidate,
+  type ImageResourceType,
 } from './api/ai-resources';
 import { selectCustomization } from './api/customizations';
+import { assetUrl } from './config';
 import { failureMessage } from './api/errors';
 import { buildComposeBody, validateComposeBody } from './card-compose';
 import {
@@ -22,12 +25,6 @@ import {
   replaceLayer,
   syncSelection,
 } from './card-layers';
-import { USE_MOCK } from './config';
-import {
-  mockComposeCustomization,
-  mockFetchAiResources,
-  mockRequestCandidates,
-} from './mock/customizations';
 import type {
   Card,
   CardCustomization,
@@ -49,25 +46,41 @@ import type {
  * 있고, 무엇보다 **진행 상태를 서버가 들고 있다** — 화면을 떠났다 돌아오면 `GET /ai-resources`
  * 가 이미 끝난 것들을 그대로 돌려준다. 클라이언트가 같은 사실을 한 벌 더 들고 있을 이유가 없다.
  *
- * ## 후보라는 개념은 프론트가 만든다
+ * ## 후보 그룹은 서버가 만든다
  *
- * 백엔드에는 후보 그룹이 없다 — 응답에 `candidateGroupId` 도 `candidateIndex` 도 없고,
- * `/batch` 는 `candidateCount` 를 받지 않는다. 대신 `resources` 배열이 최대 4다. 그래서
- * **같은 `resourceType` 을 네 번 보내 후보 넷을 만들고, 그룹은 `resourceType` 이 된다.**
- * "같은 그룹에서 하나만 고른다"는 그 결과 자료구조의 성질이 된다 (`selected` 는 종류당 슬롯이
- * 하나뿐이다).
+ * V8 이후 `POST /ai-resources` 한 번이 `candidateGroupId` 하나에 `candidateCount` 개의 행을
+ * 만들고, 모든 응답이 그 id 와 `candidateIndex` 를 싣고 온다. 그래서 이 훅은 **어느 넷이 한
+ * 배치인지 추측하지 않는다** — 예전에는 요청 응답의 id 를 `useRef` 에 기억하고, 기억이 없으면
+ * `createdAt` 이 5초 안에 붙은 것들을 한 묶음으로 보는 근사가 있었다. 둘 다 사라졌다.
+ *
+ * 화면 쪽 그룹의 키는 여전히 `resourceType` 이다. "같은 종류에서 하나만 고른다"가 이 화면의
+ * 규칙이고(`selected` 는 종류당 슬롯이 하나뿐이다), 한 종류를 다시 만들면 새 그룹이 옛 그룹을
+ * 대체하기 때문이다. 서버의 `candidateGroupId` 는 그 대체를 **판별하는 데** 쓴다.
  */
 
 export type DesignPhase = 'choose' | 'candidates' | 'editor' | 'error';
 
+/**
+ * 저장이 끝나는 세 가지 방식.
+ *
+ * **실패와 "아직"을 같은 값으로 돌려주면 안 된다.** compose 는 200 으로 결과를 주기도 하고
+ * 202 로 접수만 알리기도 하는데, 둘 다 `null` 로 돌려주던 시절에는 400 을 맞은 화면이
+ * "저장을 시작했습니다"라고 말하고 카드 상세로 넘어갔다. 오류 문구는 `error` 에 이미 들어가
+ * 있으므로, 여기서는 성공했는지 아닌지만 정확히 말한다.
+ */
+export type SaveResult =
+  | { ok: true; customization: CardCustomization | null }
+  | { ok: false };
+
 export type GroupState = {
   /**
-   * 이번 배치의 id 넷 — `POST /batch` 의 응답이 알려준 것.
+   * 서버가 이번 묶음에 붙인 id.
    *
-   * 어느 넷이 한 묶음인지 아는 **확실한** 근거다. 없을 수도 있는데(앱을 다시 켠 뒤, 또는
-   * 202 가 본문 없이 왔을 때) 그때는 아래 `clusterLatest` 가 시각으로 추측한다.
+   * `null` 이면 "이 종류에 대해 서버가 가진 가장 최근 그룹"을 쓴다 — 화면을 다시 열었을 때가
+   * 그렇다. 요청 직후에는 응답이 알려준 id 를 쓰므로, 옛 그룹이 아직 목록에 남아 있어도
+   * 새로 만든 넷만 격자에 선다.
    */
-  ids: string[] | null;
+  groupId: string | null;
   requestedAt: number | null;
   candidates: Candidate[];
   slow: boolean;
@@ -80,23 +93,15 @@ export type GroupState = {
   expired: boolean;
 };
 
-const POLL_MS = 1200;
+/* 워커가 5초에 한 번 큐를 집으므로 그 박자에 맞춘다. 더 자주 물어도 새 답은 나오지 않는다. */
+const POLL_MS = 2_000;
 /** 이보다 오래 걸리면 그 그룹에 한 줄이 붙는다. 붙잡아두는 화면이 아니므로 나갈 길은 늘 있다. */
 const PATIENCE_MS = 30_000;
 /** 여기까지 오면 그 그룹의 폴링을 멈춘다. 서버는 계속 만들고 있을 수 있다. */
 const MAX_MS = 180_000;
 
-/**
- * 한 배치로 볼 시간 간격.
- *
- * 서버는 넷을 한 트랜잭션에서 만들므로 `createdAt` 이 밀리초 단위로 붙어 있다. 사람이 '다시
- * 만들기'를 누르는 최소 간격은 그보다 한참 크다. 5초는 그 사이의 넉넉한 골짜기다 —
- * **근사치이고, 위의 `ids` 가 있을 때는 쓰이지 않는다.**
- */
-const BATCH_WINDOW_MS = 5_000;
-
 const emptyGroup = (): GroupState => ({
-  ids: null,
+  groupId: null,
   requestedAt: null,
   candidates: [],
   slow: false,
@@ -127,8 +132,12 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  /** 이번 세션이 요청한 배치. 상태에 두면 폴링 콜백이 낡은 값을 보게 된다. */
-  const batches = useRef(new Map<AiResourceType, string[]>());
+  /**
+   * 이번 세션이 요청한 그룹의 id. 상태에 두면 폴링 콜백이 낡은 값을 보게 된다.
+   *
+   * 서버가 그룹을 알려주므로 id 하나면 충분하다 — 예전에는 후보 넷의 id 를 전부 기억해야 했다.
+   */
+  const requested = useRef(new Map<AiResourceType, string>());
 
   /* ──────────────────────────────────────────────────────────────────────────
    * 후보 만들기
@@ -155,23 +164,21 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
 
       void (async () => {
         try {
-          const made = USE_MOCK
-            ? mockRequestCandidates(cardId, type)
-            : await requestCandidates(cardId, type, {
-                ...(templateId && { templateId }),
-                /* 상품 각도만 원본을 필요로 한다. 서버가 밖에서 가져갈 수 있어야 하므로
-                   상대 경로면 보내지 않는다 — 보내봐야 서버가 못 읽는다. */
-                ...(type === 'PRODUCT_ANGLE' &&
-                  card?.product.imageUrl?.startsWith('http') && {
-                    sourceImageUrl: card.product.imageUrl,
-                  }),
-              });
+          /* `sourceImageUrl` 은 넘기지 않는다 — `BACKGROUND` 의 원본은 서버가 카드의
+             상품에서 직접 꺼낸다. 상품 이미지가 없으면 `PRODUCT_IMAGE_REQUIRED` (409) 이고,
+             그건 프론트가 주소를 실어 보낸다고 달라지지 않는다. */
+          const made = await requestCandidates(cardId, type, {
+            ...(templateId && { templateId }),
+          });
 
-          const ids = made.map((r) => r.id);
-          if (ids.length > 0) batches.current.set(type, ids);
+          /* 응답이 곧 이번 그룹이다. 요청 하나가 그룹 하나이므로 `groups` 는 길이 1 이지만,
+             비어 있을 수도 있어서(202 가 본문 없이 오는 경우) 그때는 폴링이 가장 최근
+             그룹을 집는다. */
+          const groupId = made?.groups?.[0]?.candidateGroupId ?? null;
+          if (groupId) requested.current.set(type, groupId);
           setGroups((prev) => ({
             ...prev,
-            [type]: { ...(prev[type] ?? emptyGroup()), ids: ids.length > 0 ? ids : null },
+            [type]: { ...(prev[type] ?? emptyGroup()), groupId },
           }));
         } catch (e) {
           setError(failureMessage(e));
@@ -181,7 +188,23 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
         }
       })();
     },
-    [cardId, templateId, card],
+    [cardId, templateId],
+  );
+
+  /**
+   * 이 카드가 실제로 만들 수 있는 그림 종류.
+   *
+   * **`BACKGROUND` 는 상품 사진이 있어야 만들어진다.** 서버가 원본을 카드의 상품에서 직접
+   * 꺼내 쓰고, 없으면 `PRODUCT_IMAGE_REQUIRED` (409) 로 거절한다. 목록에 남겨두면 고객은
+   * 「배경」을 고르고 버튼을 누른 다음에야 그 사실을 알게 되는데, 실패가 예정된 항목은
+   * 목록에 없는 것만 못하다 — `PRODUCT_ANGLE` 을 뺀 것과 같은 이유다.
+   */
+  const generatableTypes = useMemo<readonly ImageResourceType[]>(
+    () =>
+      GENERATABLE_IMAGE_TYPES.filter(
+        (t) => t !== 'BACKGROUND' || Boolean(card?.product.imageUrl),
+      ),
+    [card],
   );
 
   /* ──────────────────────────────────────────────────────────────────────────
@@ -195,7 +218,7 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
           g &&
           g.requestedAt !== null &&
           !g.expired &&
-          (g.candidates.length === 0 || g.candidates.some((c) => c.status === 'PENDING')),
+          (g.candidates.length === 0 || g.candidates.some((c) => isPending(c.status))),
       ),
     [groups],
   );
@@ -206,24 +229,33 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
 
     const ask = async () => {
       try {
-        const list = USE_MOCK ? mockFetchAiResources(cardId) : await fetchAiResources(cardId);
+        const batch = await fetchAiResources(cardId);
         if (!alive) return;
 
         setGroups((prev) => {
           const next: Groups = { ...prev };
-          const all = list.map(toCandidate).filter((c) => !isArchived(c));
 
           for (const [type, group] of Object.entries(prev) as [AiResourceType, GroupState][]) {
             if (!group?.requestedAt) continue;
-            const mine = all.filter((c) => c.type === type);
-            const ids = group.ids ?? batches.current.get(type) ?? null;
-            const candidates = ids
-              ? mine.filter((c) => ids.includes(c.id))
-              : clusterLatest(mine);
+
+            /* 이 종류의 그룹들 중 하나를 고른다. 요청한 id 가 있으면 그것, 없으면 마지막 —
+               응답은 최신순이므로 같은 종류의 첫 그룹이 가장 최근에 만든 것이다. */
+            const wanted = group.groupId ?? requested.current.get(type) ?? null;
+            const ofType = batch.groups.filter((g) => g.resourceType === type);
+            const mine = wanted
+              ? (ofType.find((g) => g.candidateGroupId === wanted) ?? null)
+              : (ofType[0] ?? null);
+
+            const candidates = (mine?.candidates ?? [])
+              .map(toCandidate)
+              .filter((c) => !isArchived(c));
 
             const waited = Date.now() - group.requestedAt;
             next[type] = {
               ...group,
+              /* 서버가 알려준 id 를 붙잡아 둔다. 다음 폴링부터는 '마지막 그룹'이 아니라
+                 '이 그룹'을 본다 — 그 사이 다른 기기에서 하나 더 만들어도 흔들리지 않는다. */
+              groupId: group.groupId ?? mine?.candidateGroupId ?? null,
               candidates,
               slow: waited > PATIENCE_MS,
               /* 여기서 멈춰도 서버는 계속 만든다 — 화면을 다시 열면 끝나 있다. */
@@ -306,7 +338,7 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
     if (!card) return;
     /* 편집기에 처음 들어갈 때만 배치를 깐다. 두 번째부터는 고객이 옮겨둔 것을 지키는 편이
        맞다 — 후보 화면에 다녀왔다고 배치가 초기화되면 그건 왕복이 아니라 취소다. */
-    setLayers((prev) => (prev.length > 0 ? prev : initialLayers(card, selected, templateResource)));
+    setLayers((prev) => (prev.length > 0 ? prev : initialLayers(selected, templateResource)));
     setPhase('editor');
   }, [card, selected, templateResource]);
 
@@ -355,32 +387,35 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
     [templateId, templateResource, selected, allCandidates, layers, message],
   );
 
-  const save = useCallback(async (): Promise<CardCustomization | null> => {
+  const save = useCallback(async (): Promise<SaveResult> => {
     if (!cardId || !draft.ok) {
       if (!draft.ok) setError(draft.reason);
-      return null;
+      return { ok: false };
     }
 
     try {
       validateComposeBody(draft.body);
-
-      if (USE_MOCK) return mockComposeCustomization(cardId, draft.body);
 
       const result = await composeAiResources(cardId, draft.body);
       const raw = result?.customization ?? null;
 
       /**
        * **응답이 비어 있을 수 있다.** compose 가 200 인지 202 인지 스펙에 없고, 202 는 본문
-       * 없이 접수만 알릴 수 있다. 그때는 실패가 아니라 "아직"이므로, 부르는 쪽이 카드를 다시
-       * 불러 확인하도록 `null` 을 돌려준다.
+       * 없이 접수만 알릴 수 있다. 그때는 실패가 아니라 "아직"이므로 `ok: true` 에
+       * `customization: null` 로 답한다 — **실패와 같은 값으로 돌려주면 부르는 쪽이 둘을
+       * 구분할 수 없고**, 실제로 그것 때문에 저장에 실패한 화면이 "저장을 시작했습니다"라고
+       * 말한 뒤 카드 상세로 넘어가고 있었다.
        */
-      if (!raw) return null;
+      if (!raw) return { ok: true, customization: null };
 
+      /* 주소는 `assetUrl()` 을 태운다. 합성 결과가 `/generated/...` 상대 경로로 오기 때문이고,
+         여기서 빠뜨리면 그 값이 그대로 `CardFace` 까지 내려가 네이티브에서 부를 수 없는
+         주소가 된다 — `cards.ts` 와 `customizations.ts` 는 처음부터 같은 변환을 지난다. */
       const made: CardCustomization = {
         id: raw.id,
         status: raw.status,
-        frontImageUrl: raw.generatedFrontImageUrl,
-        backImageUrl: raw.generatedBackImageUrl,
+        frontImageUrl: assetUrl(raw.generatedFrontImageUrl),
+        backImageUrl: assetUrl(raw.generatedBackImageUrl),
         message: raw.generatedMessage,
         createdAt: raw.createdAt,
       };
@@ -390,16 +425,16 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
       } catch {
         /* 합성은 남는다. 고르기만 다시 하면 된다 — 기록 화면에서 그 한 번을 누를 수 있다. */
       }
-      return made;
+      return { ok: true, customization: made };
     } catch (e) {
       setError(failureMessage(e));
-      return null;
+      return { ok: false };
     }
   }, [cardId, draft]);
 
   /** 처음으로. 고른 디자인과 배치를 버리고 템플릿 목록으로 돌아간다. */
   const reset = useCallback(() => {
-    batches.current.clear();
+    requested.current.clear();
     setPhase('choose');
     setTemplateId(null);
     setGroups({});
@@ -414,6 +449,7 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
     phase,
     templateId,
     groups,
+    generatableTypes,
     selected,
     candidates: allCandidates,
     layers,
@@ -439,29 +475,4 @@ export function useCardDesign(card: Card | null, templates: CardTemplate[]) {
   };
 }
 
-/**
- * 배치를 시각으로 추측한다 — `ids` 를 모를 때만.
- *
- * 가장 최근 것부터 인접 간격이 `BATCH_WINDOW_MS` 안에 있는 동안 이어 붙이고 넷에서 자른다.
- * **근사치라는 것을 숨기지 않는다**: 서버가 후보 그룹을 알려주기 시작하면 이 함수는 통째로
- * 사라지는 것이 맞다.
- */
-function clusterLatest(candidates: Candidate[]): Candidate[] {
-  const sorted = [...candidates].sort((a, b) => time(b) - time(a));
-  const batch: Candidate[] = [];
 
-  for (const candidate of sorted) {
-    if (batch.length === 0) {
-      batch.push(candidate);
-      continue;
-    }
-    if (time(batch[batch.length - 1]) - time(candidate) > BATCH_WINDOW_MS) break;
-    batch.push(candidate);
-    if (batch.length >= CANDIDATES_PER_GROUP) break;
-  }
-
-  /* 만든 순서대로 되돌린다 — 격자가 매 폴링마다 뒤섞이면 고르려던 칸이 손 밑에서 움직인다. */
-  return batch.reverse();
-}
-
-const time = (c: Candidate) => (c.createdAt ? Date.parse(c.createdAt) : 0);

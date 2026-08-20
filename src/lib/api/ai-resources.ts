@@ -1,12 +1,11 @@
 import { request } from './client';
-import { assertNever } from './parse';
 import { parseResourceData, type DataResourceType, type ResourceData } from './resource-data';
 import { assetUrl } from '../config';
 import type { CardLayer } from '../types';
 
 /**
  * `/cards/{cardId}/ai-resources` — the card's artwork, generated rather than picked.
- * See dev/active/scope-vs-backend.md §4-A.
+ * See `dev/active/backend-contract.md` §3.
  *
  * **There is no push channel.** `POST` answers 202 with `PENDING` and returns; the only way to
  * learn that a resource finished is to ask again. That is why this module exposes a plain `GET`
@@ -24,7 +23,24 @@ export type AiResourceType =
   | 'TEXT_STYLE'
   | 'COMPOSITION';
 
-export type GenerationStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REJECTED' | 'ARCHIVED';
+/**
+ * 여섯 값. `PROCESSING` 은 V9 가 더한 것으로, 워커가 집어갔지만 아직 끝나지 않은 상태다.
+ *
+ * **이 유니온으로 `assertNever` 를 하지 않는다.** 이 값은 네트워크에서 오므로 컴파일러가
+ * 보장할 수 있는 것이 아니고, 실제로 `PROCESSING` 이 늘었을 때 편집기가 렌더 도중 던졌다.
+ * 모르는 값은 "아직 아무 말도 할 수 없는 것"으로 다룬다.
+ */
+export type GenerationStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'REJECTED'
+  | 'ARCHIVED';
+
+/** 아직 만들고 있는가. 화면은 `PENDING` 과 `PROCESSING` 을 구분하지 않는다 — 할 일이 같다. */
+export const isPending = (status: GenerationStatus) =>
+  status === 'PENDING' || status === 'PROCESSING';
 
 /**
  * 백엔드의 `AiResourceGenerationResponse` 중 화면이 쓰는 부분.
@@ -36,6 +52,11 @@ export type GenerationStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REJECTED' |
 export type AiResource = {
   id: string;
   cardId: string;
+  /** V8. 같은 요청으로 만들어진 후보들이 공유하는 id — 그룹은 이제 서버가 정한다. */
+  candidateGroupId: string | null;
+  /** 1-based. 격자 순서가 폴링마다 흔들리지 않는 유일한 근거다. */
+  candidateIndex: number | null;
+  candidateCount: number | null;
   resourceType: AiResourceType;
   status: GenerationStatus;
   generatedImageUrl: string | null;
@@ -52,14 +73,28 @@ export type AiResource = {
   generatedData: string | null;
   /** 실패한 타일이 왜 실패했는지. 고객에게 보여주진 않지만 로그에는 남길 값이다. */
   failureReason?: string | null;
-  /**
-   * 만들어진 시각.
-   *
-   * **후보를 묶는 데 쓴다.** 백엔드에 후보 그룹이라는 개념이 없어서(아래 `requestCandidates`
-   * 참조) 어느 넷이 한 번에 요청된 것인지 알 방법이 응답에 없다. 요청한 쪽이 id 를 기억하는
-   * 것이 1차 근거이고, 앱을 다시 켠 뒤처럼 그 기억이 없을 때 이 값이 2차 근거가 된다.
-   */
+  /** 만들어진 시각. 그룹을 서버가 알려주므로 더 이상 묶는 데 쓰지 않는다. */
   createdAt?: string;
+};
+
+/**
+ * 한 번의 요청이 만든 후보 묶음 — 백엔드의 `AiResourceCandidateGroupResponse`.
+ *
+ * **이 모양이 V8 에서 새로 생겼고, 그전까지 응답은 평평한 배열이었다.** 프론트가 그 시절의
+ * 배열을 계속 기대한 탓에 `list.map` 이 객체를 만나 던졌고, 그 예외가 폴링의 빈 catch 에
+ * 삼켜져서 후보가 영원히 채워지지 않았다 — 오류 화면조차 뜨지 않는 침묵이었다.
+ */
+export type AiResourceGroup = {
+  candidateGroupId: string | null;
+  resourceType: AiResourceType;
+  candidateCount: number;
+  candidates: AiResource[];
+};
+
+/** `GET`·`POST` 가 공통으로 돌려주는 봉투. */
+export type AiResourceBatch = {
+  cardId: string;
+  groups: AiResourceGroup[];
 };
 
 /**
@@ -68,11 +103,11 @@ export type AiResource = {
  * 백엔드는 여덟 종류를 정의하지만 나머지 넷(장식·팔레트·텍스트 스타일·조합)은 커스텀 화면의
  * 것이다 — 아무도 요청하지 않은 장식을 기다리느라 카드 발급이 늦어질 이유가 없다.
  *
- * **`PRODUCT_ANGLE` 은 빠져 있고, 그건 결정이다.** 상품 각도 생성만이 원본 이미지를
- * 필요로 하는데(계약서 명시), 그 원본은 외부에서 접근 가능한 HTTP(S) URL 이어야 한다.
- * 지금 상품 사진은 `/images/products/prod_001.png` 라는 상대 경로인 데다 그 경로에 인증이
- * 걸려 있어서(연동 계획 §4-3), 요청해봐야 영원히 실패하는 타일이 하나 늘 뿐이다.
- * `/images/**` 가 열리면 이 배열에 한 줄 되돌리는 것으로 끝난다.
+ * **`PRODUCT_ANGLE` 은 이제 존재하지 않는다.** 백엔드가 폐지했고, 요청하면
+ * `AI_RESOURCE_TYPE_UNSUPPORTED` (400) 로 즉시 거절한다 — 상품을 다른 각도로 다시 그리는
+ * 대신 `PRODUCT` 레이어가 상품 기본 이미지를 그대로 쓴다. 아래 `AiResourceType` 유니온에는
+ * 남겨둔다: 서버의 enum 에 아직 있으므로 과거 이력이 그 값을 달고 올라올 수 있고, 화면은
+ * 그것을 읽을 수 있어야 한다. **다만 아무 데서도 요청하지 않는다.**
  */
 export const ISSUE_RESOURCE_TYPES = [
   'BACKGROUND',
@@ -85,11 +120,10 @@ export type IssueResourceType = (typeof ISSUE_RESOURCE_TYPES)[number];
 /**
  * 커스텀 화면이 요청하는 넷.
  *
- * 발급이 쓰는 셋을 뺀 나머지이고, 그 나눔은 이 파일이 처음부터 갖고 있던 것이다 — 위쪽 주석이
- * "나머지 넷(장식·팔레트·텍스트 스타일·조합)은 커스텀 화면의 것"이라고 적어두었다.
+ * 발급이 쓰는 셋을 뺀 나머지이고, 그 나눔은 이 파일이 처음부터 갖고 있던 것이다.
  *
- * **넷이 정확히 상한이다.** `AiResourceBatchGenerationRequest` 의 `resources` 가
- * `minItems: 3, maxItems: 4` 라, 셋 미만은 요청 자체가 거부되고 다섯은 보낼 수 없다.
+ * 넷인 것은 이제 계약의 상한이 아니라 우리의 선택이다 — `/batch` 의 `resources` 는 1~8 이고,
+ * 3~4 라는 제약은 그 배열이 아니라 **한 그룹의 후보 수**(`candidateCount`)로 옮겨갔다.
  */
 export const CUSTOM_RESOURCE_TYPES = [
   'DECORATION',
@@ -151,6 +185,20 @@ export const DATA_RESOURCE_TYPES = [
 
 export type ImageResourceType = (typeof IMAGE_RESOURCE_TYPES)[number];
 
+/**
+ * 그중 **실제로 만들어 달라고 할 수 있는** 것들.
+ *
+ * `IMAGE_RESOURCE_TYPES` 와 갈리는 이유는 `PRODUCT_ANGLE` 하나다. 그 값은 지난 이력에
+ * 남아 있을 수 있어 *읽을* 수는 있어야 하지만, 요청하면 400 이다. 화면이 고르게 하는 목록은
+ * 이쪽이어야 한다 — 고를 수 있는데 누르면 실패하는 항목은 목록에 없는 것만 못하다.
+ */
+export const GENERATABLE_IMAGE_TYPES = [
+  'BACKGROUND',
+  'BORDER',
+  'PATTERN',
+  'DECORATION',
+] as const satisfies readonly ImageResourceType[];
+
 export const isDataResourceType = (type: AiResourceType): type is DataResourceType =>
   (DATA_RESOURCE_TYPES as readonly string[]).includes(type);
 
@@ -159,6 +207,9 @@ type CandidateBase = {
   status: GenerationStatus;
   failureReason: string | null;
   createdAt: string | null;
+  /** 그룹 안에서의 자리. 서버가 이미 이 순서로 정렬해 주지만, 값 자체도 들고 있어야 격자가
+      다시 정렬될 일이 생겨도 순서를 되찾을 수 있다. */
+  index: number | null;
 };
 
 export type ImageCandidate = CandidateBase & {
@@ -187,6 +238,7 @@ export function toCandidate(res: AiResource): Candidate {
     status: res.status,
     failureReason: res.failureReason ?? null,
     createdAt: res.createdAt ?? null,
+    index: res.candidateIndex ?? null,
   };
 
   return isDataResourceType(res.resourceType)
@@ -228,21 +280,33 @@ export function failureLabel(status: GenerationStatus): string | null {
       return '만들지 못했습니다';
     case 'REJECTED':
       return '브랜드 기준에 맞지 않습니다';
-    case 'PENDING':
-    case 'COMPLETED':
-    case 'ARCHIVED':
-      return null;
+    /* 나머지는 실패가 아니다. 백엔드가 상태를 하나 더 늘려도 여기서 던지지 않는다 —
+       모르는 상태는 "실패라고 말할 근거가 없는 상태"이고, 그게 정확히 `null` 이다. */
     default:
-      return assertNever(status);
+      return null;
   }
 }
 
 /**
- * 여러 종류를 한 번에 요청한다.
+ * 한 그룹이 만드는 후보 수. 넷이면 격자가 2×2 로 떨어진다.
  *
- * 단건 `POST /ai-resources` 는 `{resourceType, prompt, …}` 하나만 받으므로, 셋을 보내려면
- * `/batch` 에 `{resources: [...]}` 로 보내야 한다. 202 와 `PENDING` 만 돌아오고 상태는 아래
- * `GET` 이 나른다 — 푸시 채널이 없다는 사실이 이 흐름 전체의 모양을 정한다.
+ * 4 는 계약의 상한이고 3 이 하한이다(`candidateCount` 의 `@Min(3) @Max(4)`). 두 값이 다
+ * 필요한 이유는 부르는 쪽이 둘이기 때문이다 — 편집은 고르게 하므로 넷을, 발급은 고르게 하지
+ * 않으므로 최소인 셋을 만든다.
+ */
+export const CANDIDATES_PER_GROUP = 4;
+/** 계약의 하한. 발급처럼 고르지 않는 쪽이 쓴다. */
+export const MIN_CANDIDATES = 3;
+
+/**
+ * 여러 종류를 한 번에 요청한다 — 발급이 쓰는 길.
+ *
+ * `/batch` 는 `{resources: [...]}` 를 받고 항목마다 그룹을 따로 만든다. **같은 종류를 두 번
+ * 넣으면 `AI_RESOURCE_TYPE_DUPLICATED` 로 거부되므로** 넘기는 배열은 반드시 서로 다른
+ * 종류여야 한다. 202 와 `PENDING` 만 돌아오고 상태는 아래 `GET` 이 나른다.
+ *
+ * **항목 하나가 후보 여러 개를 만든다.** `candidateCount` 의 최소가 3 이라 "한 종류에 하나만"
+ * 은 계약상 불가능하다. 발급은 고르게 하지 않으므로 최소인 3 을 명시한다 — 생략하면 4 다.
  *
  * 프롬프트는 백엔드가 정하도록 비워 둔다. 무엇이 브랜드다운 이미지인지는 카드를 발급하는
  * 쪽이 알 일이고, 프론트가 문장을 지어 보내면 그 판단이 두 곳으로 쪼개진다.
@@ -253,52 +317,51 @@ export const requestAiResources = (
   /** 어느 승인 디자인의 범위에서 만들 것인가. 발급은 넘기지 않고, 편집은 고른 것을 넘긴다. */
   templateId?: string,
 ) =>
-  request<AiResource[]>(`/cards/${cardId}/ai-resources/batch`, {
+  request<AiResourceBatch>(`/cards/${cardId}/ai-resources/batch`, {
     method: 'POST',
     body: JSON.stringify({
-      resources: types.map((resourceType) => ({ resourceType, ...(templateId && { templateId }) })),
+      resources: types.map((resourceType) => ({
+        resourceType,
+        candidateCount: MIN_CANDIDATES,
+        ...(templateId && { templateId }),
+      })),
     }),
   });
 
+/**
+ * 카드가 지금까지 만든 것 전부 — **그룹으로 묶여서** 온다.
+ *
+ * 응답에 그룹이 담기므로 부르는 쪽은 "어느 넷이 한 배치인가"를 추측하지 않는다. 서버가
+ * `candidateIndex` 오름차순으로 정렬해 주기까지 한다.
+ */
 export const fetchAiResources = (cardId: string) =>
-  request<AiResource[]>(`/cards/${cardId}/ai-resources`);
+  request<AiResourceBatch>(`/cards/${cardId}/ai-resources`);
 
 /**
  * 한 종류의 **후보 넷**을 한 번에 만든다.
  *
- * **백엔드에 후보 그룹이라는 개념이 없다.** 응답에 `candidateGroupId` 도 `candidateIndex` 도
- * 없고, `/batch` 는 `candidateCount` 를 받지 않는다 — 받는 것은 `resources` 배열이고 그 크기가
- * **최소 3, 최대 4**다. 그래서 "배경 후보 4개"는 같은 `resourceType` 을 네 번 실어 보내서
- * 만든다. 그룹은 `resourceType` 이 되고, 그것이 곧 "같은 그룹에서는 하나만 고른다"의 근거다.
+ * **단건 `POST` 하나가 그룹 하나다.** `candidateCount` 를 받아 서버가 그만큼의 행을 한
+ * `candidateGroupId` 아래 만들고, 각 행에 1-based `candidateIndex` 를 붙인다.
  *
- * 4는 우연이 아니라 계약의 상한이다. 셋 미만은 요청 자체가 거부되므로 "후보 2개"라는 선택지는
- * 존재하지 않고, 넷이면 격자가 2×2 로 떨어진다.
+ * 예전에는 이 개념이 서버에 없어서 같은 `resourceType` 을 `/batch` 에 네 번 실어 보내
+ * 후보 넷을 흉내 냈다. V8 이후 그 호출은 `AI_RESOURCE_TYPE_DUPLICATED` (400) 로 거부된다 —
+ * 흉내가 기능이 되면서 흉내는 오류가 됐다.
  *
- * **응답의 id 넷이 곧 이번 배치다.** 어느 넷이 한 묶음인지 아는 유일한 확실한 근거이므로,
- * 부르는 쪽이 그대로 기억한다.
- *
- * 프롬프트는 보내지 않는다. 무엇이 브랜드다운 이미지인지는 카드를 발급하는 쪽이 알 일이고,
- * 프론트가 문장을 지어 보내면 그 판단이 두 곳으로 쪼개진다 — 앱 어디에도 프롬프트 입력란이
- * 없는 이유다.
+ * **`sourceImageUrl` 은 보내지 않는다.** 원본이 필요한 것은 `BACKGROUND` 뿐이고, 그것은
+ * 서버가 카드의 상품에서 직접 꺼내 쓴다. 상품 이미지가 없는 카드는 `PRODUCT_IMAGE_REQUIRED`
+ * (409) 로 거부되는데, 그건 프론트가 URL 을 실어 보낸다고 달라지지 않는다.
  */
-export const CANDIDATES_PER_GROUP = 4;
-
 export const requestCandidates = (
   cardId: string,
   type: AiResourceType,
-  options: { templateId?: string; sourceImageUrl?: string } = {},
+  options: { templateId?: string } = {},
 ) =>
-  request<AiResource[]>(`/cards/${cardId}/ai-resources/batch`, {
+  request<AiResourceBatch>(`/cards/${cardId}/ai-resources`, {
     method: 'POST',
     body: JSON.stringify({
-      resources: Array.from({ length: CANDIDATES_PER_GROUP }, () => ({
-        resourceType: type,
-        ...(options.templateId && { templateId: options.templateId }),
-        /* 상품 각도만 원본을 필요로 한다. 계약이 "외부에서 접근 가능한 HTTP(S) URL" 을
-           요구하므로 상대 경로가 아니라 절대 주소를 보낸다. */
-        ...(type === 'PRODUCT_ANGLE' &&
-          options.sourceImageUrl && { sourceImageUrl: options.sourceImageUrl }),
-      })),
+      resourceType: type,
+      candidateCount: CANDIDATES_PER_GROUP,
+      ...(options.templateId && { templateId: options.templateId }),
     }),
   });
 

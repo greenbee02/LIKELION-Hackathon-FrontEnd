@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDown, Palette, Plus } from 'lucide-react-native';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CARD_ASPECT } from '@/components/card/card-face';
@@ -9,12 +9,11 @@ import { CandidateGrid } from '@/components/customize/candidate-grid';
 import { CardStage } from '@/components/customize/card-stage';
 import { LayerInspector } from '@/components/customize/layer-inspector';
 import { LayerList } from '@/components/customize/layer-list';
-import { BackButton } from '@/components/ui/back-button';
 import { Button } from '@/components/ui/button';
 import { Dropdown, type DropdownOption } from '@/components/ui/dropdown';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { PageHeader } from '@/components/ui/page-header';
+import { NavBar } from '@/components/ui/nav-bar';
 import { allowPressOverflow } from '@/components/ui/press-scale';
 import { Screen } from '@/components/ui/screen';
 import { Sheet, useSheetSpace } from '@/components/ui/sheet';
@@ -24,18 +23,15 @@ import { TextLink } from '@/components/ui/text-link';
 import { useToast } from '@/components/ui/toast';
 import {
   DATA_RESOURCE_TYPES,
-  IMAGE_RESOURCE_TYPES,
   RESOURCE_LABELS,
   RESOURCE_NOTES,
+  isPending,
   type AiResourceType,
 } from '@/lib/api/ai-resources';
 import { fetchCardTemplates } from '@/lib/api/card-templates';
 import { restoreOriginalCard } from '@/lib/api/customizations';
 import { useCardDesign } from '@/lib/card-design';
 import { useCard, useCards } from '@/lib/cards-store';
-import { USE_MOCK } from '@/lib/config';
-import { MOCK_CARD_TEMPLATES } from '@/lib/mock/card-templates';
-import { mockRestoreOriginal } from '@/lib/mock/customizations';
 import type { Card, CardTemplate } from '@/lib/types';
 import { useResource } from '@/lib/use-resource';
 import { colors } from '@/theme/colors';
@@ -67,13 +63,7 @@ export default function EditCardScreen() {
   const router = useRouter();
   const toast = useToast();
 
-  const load = useCallback(async (): Promise<CardTemplate[]> => {
-    if (USE_MOCK) {
-      await new Promise((r) => setTimeout(r, 600));
-      return MOCK_CARD_TEMPLATES;
-    }
-    return fetchCardTemplates();
-  }, []);
+  const load = useCallback(() => fetchCardTemplates(), []);
   const templates = useResource<CardTemplate[]>(load);
 
   const usable = useMemo(
@@ -83,18 +73,27 @@ export default function EditCardScreen() {
 
   const design = useCardDesign(card, usable);
 
-  const nav = (
-    <View style={styles.nav}>
-      <BackButton fallback="/" />
-    </View>
-  );
-  const header = <PageHeader title="카드 꾸미기" />;
+  /**
+   * **훅이 오류를 들고 있어도 아무도 읽지 않으면 화면은 조용하다.**
+   *
+   * 후보 생성이 400·409 로 거절당하면 `design.error` 에 서버의 한국어 문장이 들어가는데,
+   * 그것을 그리는 자리가 어디에도 없어서 버튼을 눌러도 정말 아무 일도 일어나지 않는
+   * 상태였다 — 실패한 줄도 모르는 화면은 실패하는 화면보다 나쁘다. 토스트로 받는 이유는
+   * 세 단계가 한 라우트를 나눠 쓰기 때문이다: 어느 얼굴에서 실패하든 같은 자리에서 읽힌다.
+   */
+  const { error: designError, dismissError } = design;
+  useEffect(() => {
+    if (!designError) return;
+    toast(designError);
+    dismissError();
+  }, [designError, dismissError, toast]);
+
+  const nav = <NavBar title="카드 꾸미기" fallback="/" />;
 
   if (cardStatus !== 'loading' && !card) {
     return (
       <Screen contentContainerStyle={styles.head}>
         {nav}
-        {header}
         <EmptyState
           icon={Palette}
           title="카드를 찾을 수 없습니다"
@@ -109,7 +108,6 @@ export default function EditCardScreen() {
     return (
       <Screen contentContainerStyle={styles.head}>
         {nav}
-        {header}
         <View style={styles.grid}>
           <View style={styles.row}>
             <Skeleton style={styles.tileSkeleton} />
@@ -124,7 +122,6 @@ export default function EditCardScreen() {
     return (
       <Screen contentContainerStyle={styles.head}>
         {nav}
-        {header}
         <EmptyState
           icon={Palette}
           title="디자인을 불러오지 못했습니다"
@@ -135,11 +132,11 @@ export default function EditCardScreen() {
   }
 
   if (design.phase === 'candidates') {
-    return <CandidatesPane card={card} design={design} nav={nav} header={header} />;
+    return <CandidatesPane card={card} design={design} nav={nav} />;
   }
 
   if (design.phase === 'editor') {
-    return <EditorPane card={card} design={design} nav={nav} header={header} />;
+    return <EditorPane card={card} design={design} nav={nav} />;
   }
 
   return (
@@ -147,7 +144,6 @@ export default function EditCardScreen() {
       card={card}
       templates={usable}
       nav={nav}
-      header={header}
       onChoose={design.chooseTemplate}
       onRestored={() => {
         toast('원래 디자인으로 되돌렸습니다.');
@@ -166,7 +162,6 @@ function ChoosePane({
   card,
   templates,
   nav,
-  header,
   onChoose,
   onRestored,
   onRestoreFailed,
@@ -174,7 +169,6 @@ function ChoosePane({
   card: Card;
   templates: CardTemplate[];
   nav: React.ReactNode;
-  header: React.ReactNode;
   onChoose: (id: string) => void;
   onRestored: () => void;
   onRestoreFailed: () => void;
@@ -185,7 +179,6 @@ function ChoosePane({
     return (
       <Screen contentContainerStyle={styles.head}>
         {nav}
-        {header}
         <EmptyState
           icon={Palette}
           title="적용할 수 있는 디자인이 아직 없습니다"
@@ -205,8 +198,7 @@ function ChoosePane({
   const undo = () => {
     void (async () => {
       try {
-        if (USE_MOCK) mockRestoreOriginal(card.id);
-        else await restoreOriginalCard(card.id);
+        await restoreOriginalCard(card.id);
         onRestored();
       } catch {
         onRestoreFailed();
@@ -217,7 +209,6 @@ function ChoosePane({
   return (
     <Screen scroll gutter={false} contentContainerStyle={styles.content}>
       {nav}
-      {header}
 
       <Text variant="body" tone="muted" style={styles.intro}>
         {`${card.brand.name} 가 승인한 디자인 중에서 고르시면,\n그 안에서 카드에 올릴 것들을 만들어 드립니다.`}
@@ -273,26 +264,27 @@ function CandidatesPane({
   card,
   design,
   nav,
-  header,
 }: {
   card: Card;
   design: Design;
   nav: React.ReactNode;
-  header: React.ReactNode;
 }) {
-  const [type, setType] = useState<AiResourceType>('BACKGROUND');
+  /* 첫 항목이 기본값이다. `BACKGROUND` 를 박아두면 상품 사진이 없는 카드에서 목록에 없는
+     종류가 골라진 채로 화면이 열린다. */
+  const [type, setType] = useState<AiResourceType>(design.generatableTypes[0] ?? 'DECORATION');
   const group = design.groups[type];
   const chosenCount = Object.keys(design.selected).length;
 
+  /* 고를 수 있는 것만 세운다 — `PRODUCT_ANGLE` 은 폐지돼 400 이고, `BACKGROUND` 는 상품
+     사진이 없으면 409 다. 실패가 예정된 항목을 목록에 두는 것은 목록이 아니라 함정이다. */
   const options: DropdownOption[] = [
-    ...IMAGE_RESOURCE_TYPES.map((t) => option(t, design, '그림')),
+    ...design.generatableTypes.map((t) => option(t, design, '그림')),
     ...DATA_RESOURCE_TYPES.map((t) => option(t, design, '스타일')),
   ];
 
   return (
     <Screen scroll gutter={false} contentContainerStyle={styles.content}>
       {nav}
-      {header}
 
       <View style={styles.pickerRow}>
         <Dropdown
@@ -328,8 +320,10 @@ function CandidatesPane({
             </Text>
           ) : null}
 
-          {/* 만드는 중에는 다시 만들 수 없다 — 누를 수 없는 버튼을 두는 대신 버튼을 두지 않는다. */}
-          {group.candidates.every((c) => c.status !== 'PENDING') ? (
+          {/* 만드는 중에는 다시 만들 수 없다 — 누를 수 없는 버튼을 두는 대신 버튼을 두지 않는다.
+              **빈 목록도 "만드는 중"이다.** `[].every()` 는 참이라, 이 검사만으로는 요청을
+              보내고 첫 후보가 도착하기 전까지 다시 만들기가 떠 있었다. */}
+          {group.candidates.length > 0 && group.candidates.every((c) => !isPending(c.status)) ? (
             <TextLink label="다시 만들기" onPress={() => design.generate(type)} />
           ) : null}
         </>
@@ -370,7 +364,7 @@ function option(type: AiResourceType, design: Design, group: string): DropdownOp
     ? '고름'
     : !state
       ? '아직'
-      : state.candidates.some((c) => c.status === 'PENDING')
+      : state.candidates.some((c) => isPending(c.status))
         ? '만드는 중'
         : `${state.candidates.filter((c) => c.status === 'COMPLETED').length}개`;
 
@@ -385,12 +379,10 @@ function EditorPane({
   card,
   design,
   nav,
-  header,
 }: {
   card: Card;
   design: Design;
   nav: React.ReactNode;
-  header: React.ReactNode;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -411,12 +403,25 @@ function EditorPane({
   const save = () => {
     setSaving(true);
     void (async () => {
-      const made = await design.save();
+      const result = await design.save();
+
+      /* **실패하면 여기 남는다.** 문구는 화면 위쪽의 토스트가 이미 `design.error` 로 띄우고
+         있으므로 여기서 한 번 더 말하지 않는다 — 고칠 수 있는 화면에 그대로 서 있는 것이
+         "저장했다"고 말하며 나가버리는 것보다 언제나 낫다. */
+      if (!result.ok) {
+        setSaving(false);
+        return;
+      }
+
       /* 응답이 비어 있어도(202) 카드를 다시 불러 확인한다 — 서버가 이미 만들었을 수 있고,
          아직이라면 카드 상세가 그때의 상태를 보여준다. */
       await loadCard(card.id);
       setSaving(false);
-      toast(made ? '카드에 반영되었습니다' : '저장을 시작했습니다. 완료되면 카드에 반영됩니다.');
+      toast(
+        result.customization
+          ? '카드에 반영되었습니다'
+          : '저장을 시작했습니다. 완료되면 카드에 반영됩니다.',
+      );
       router.replace({ pathname: '/card/[id]', params: { id: card.id } });
     })();
   };
@@ -425,7 +430,6 @@ function EditorPane({
     <Screen gutter={false}>
       <View style={[styles.editor, { paddingBottom: bottomSpace }]}>
         {nav}
-        {header}
 
         <View style={styles.stage}>
           <CardStage
@@ -520,7 +524,6 @@ function usableTemplates(templates: CardTemplate[], card: Card): CardTemplate[] 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: space[4], paddingTop: space[2], paddingBottom: space[7] },
   head: { paddingTop: space[2] },
-  nav: { flexDirection: 'row' },
   intro: { marginTop: space[4] },
   grid: { marginTop: space[5], gap: space[5], ...allowPressOverflow },
   gridBlock: { marginTop: space[5], ...allowPressOverflow },

@@ -1,11 +1,11 @@
 import { CANDIDATES_PER_GROUP } from './api/ai-resources';
 import type { CompositionData } from './api/resource-data';
-import type { Card, CardLayer, CardLayerType, Frame, TemplateResource } from './types';
+import type { CardLayer, CardLayerType, Frame, TemplateResource } from './types';
 
 /**
  * 레이어가 어디에 있고 어떻게 쌓이는가 — 순수 함수만.
  *
- * 상태도 훅도 없다. 편집기(`card-editor.ts`)가 이 함수들을 부르고, 이 파일은 무엇도 기억하지
+ * 상태도 훅도 없다. 편집 상태를 들고 있는 `card-design.ts` 가 이 함수들을 부르고, 이 파일은 무엇도 기억하지
  * 않는다. 테스트 러너가 없는 저장소에서 **가장 틀리기 쉬운 계산을 가장 검증하기 쉬운 모양으로
  * 떼어 놓는 것**이 요점이다 — 좌표 변환이 틀리면 화면에서 알아채기 전에 서버로 나간다.
  */
@@ -126,9 +126,15 @@ export function makeLayer(type: CardLayerType, patch: Partial<CardLayer> = {}): 
  * 처음 쌓기
  * ──────────────────────────────────────────────────────────────────────────── */
 
-/** 아래에서 위로. 배열 순서가 곧 `zIndex` 이므로 이 순서가 그대로 쌓임 순서가 된다. */
+/**
+ * 아래에서 위로. 배열 순서가 곧 `zIndex` 이므로 이 순서가 그대로 쌓임 순서가 된다.
+ *
+ * **`BASE_CARD` 는 여기 없다.** 백엔드가 그 레이어를 폐지했고(`CARD_BASE_LAYER_DEPRECATED`,
+ * 400), 카드 바탕은 이제 레이어가 아니라 합성의 밑바닥이다 — 템플릿 위에 올리는 것이지
+ * 템플릿을 레이어로 다시 놓는 것이 아니다. `CardLayerType` 에는 남아 있는데, 서버 enum 이
+ * 아직 갖고 있고 지난 커스텀 이력이 그 값을 달고 올라올 수 있기 때문이다.
+ */
 const STACK_ORDER: CardLayerType[] = [
-  'BASE_CARD',
   'BACKGROUND',
   'PATTERN',
   'PRODUCT',
@@ -145,24 +151,19 @@ const STACK_ORDER: CardLayerType[] = [
  * 것이 왜 거기 있는지 알 수 없고, 그 칸은 서버로도 나간다.
  *
  * `PRODUCT` 만 예외로 늘 놓는다 — 카드의 주인공이고, AI 리소스 없이 상품 사진만으로 성립한다.
- * `PRODUCT_ANGLE` 을 골랐으면 그 그림이 대신 들어간다.
+ * 예전에는 `PRODUCT_ANGLE` 을 골랐으면 그 그림이 대신 들어갔는데, 그 종류가 폐지되면서
+ * 상품 레이어는 언제나 상품 기본 이미지다 — 백엔드도 `PRODUCT` 레이어에 리소스를 붙이는 것을
+ * 거부한다.
  */
 export function initialLayers(
-  card: Card,
   selected: Partial<Record<string, string>>,
   template: TemplateResource | null,
 ): CardLayer[] {
   const layers: CardLayer[] = [];
 
   for (const type of STACK_ORDER) {
-    if (type === 'BASE_CARD') {
-      if (card.template?.frontImageUrl) layers.push(makeLayer('BASE_CARD'));
-      continue;
-    }
-
     if (type === 'PRODUCT') {
-      const angle = selected.PRODUCT_ANGLE;
-      layers.push(makeLayer('PRODUCT', angle ? { resourceId: angle } : {}));
+      layers.push(makeLayer('PRODUCT'));
       continue;
     }
 
