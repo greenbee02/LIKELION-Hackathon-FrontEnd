@@ -102,6 +102,29 @@ export const colors = {
   glassShadow: gray.gray12,
 
   /**
+   * 색 면 위의 빈 자리.
+   *
+   * 리워드 카드가 컬렉션 색으로 꽉 찬 면이 되면서, **그 위에 놓이는 빈 칸을 그릴 회색이
+   * 없어졌다** — 어느 단계를 써도 색 위에서는 얼룩이고, 아무것도 안 그리면 구멍이 된다.
+   * 흰색을 아주 옅게 깐 것만이 "여기 자리가 있고 아직 비어 있다"를 색을 건드리지 않고
+   * 말한다. `glassFill` 과 같은 이유로 흰색 알파이고, 다른 점은 겹치는 것이 사진이 아니라
+   * 우리가 고른 색이라 훨씬 옅어도 된다는 것이다.
+   */
+  wellOnColor: whiteA.whiteA3,
+
+  /**
+   * 색 면 위의 구분선.
+   *
+   * `borderSubtle`(6단계)이 흰 페이지에서 하던 일 — 여기부터 저기까지가 다른 것이라고,
+   * 밝기는 건드리지 않고 말하는 것 — 을 색 위에서 하는 값이다. 회색 단계로는 안 된다:
+   * 어느 단계를 골라도 색 위에서는 선이 아니라 때처럼 보인다.
+   *
+   * `wellOnColor` 보다 한 걸음 진하다. 면은 넓어서 옅어도 자리가 보이지만 선은 1픽셀이라,
+   * 같은 값으로는 그어 놓고도 그은 티가 나지 않는다.
+   */
+  ruleOnColor: whiteA.whiteA4,
+
+  /**
    * 12 — the ink a scrim is made of, over artwork the app did not choose.
    *
    * Only the colour lives here; how dark the scrim gets is the scrim's own business, since that

@@ -50,8 +50,7 @@ export default function SitemapScreen() {
   const collectionsLoading = collectionsStatus === 'loading';
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
-      <NavBar title="사이트맵" fallback="/" />
+    <Screen scroll header={<NavBar title="사이트맵" fallback="/" />} contentContainerStyle={styles.content}>
       <Text variant="body" tone="muted" style={styles.intro}>
         개발용 임시 화면입니다. 앱의 모든 경로를 여기서 열 수 있습니다.
       </Text>
@@ -382,7 +381,7 @@ function TargetPicker({
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: space[2], paddingBottom: space[7] },
+  content: { paddingBottom: space[7] },
   intro: { marginTop: space[4] },
   section: { marginTop: space[6] },
   sectionNote: { marginTop: space[1] },

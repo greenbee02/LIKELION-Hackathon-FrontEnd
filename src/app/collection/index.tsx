@@ -44,8 +44,7 @@ export default function CollectionListScreen() {
 
   if (status === 'error') {
     return (
-      <Screen contentContainerStyle={styles.content}>
-        {nav}
+      <Screen header={nav}>
         <EmptyState
           icon={FolderOpen}
           title="컬렉션을 불러오지 못했습니다"
@@ -57,8 +56,7 @@ export default function CollectionListScreen() {
 
   if (status === 'loading') {
     return (
-      <Screen contentContainerStyle={styles.content}>
-        {nav}
+      <Screen header={nav}>
         <View style={styles.list}>
           {['s1', 's2', 's3'].map((key) => (
             <Skeleton key={key} style={styles.rowSkeleton} />
@@ -70,8 +68,7 @@ export default function CollectionListScreen() {
 
   if (collections.length === 0) {
     return (
-      <Screen contentContainerStyle={styles.content}>
-        {nav}
+      <Screen header={nav}>
         <EmptyState
           icon={FolderOpen}
           title="아직 만든 컬렉션이 없습니다"
@@ -82,9 +79,7 @@ export default function CollectionListScreen() {
   }
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
-      {nav}
-
+    <Screen scroll header={nav}>
       <View style={styles.list}>
         {collections.map((collection) => (
           <CollectionRow
@@ -104,7 +99,6 @@ export default function CollectionListScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: space[2] },
   /** 행 사이는 간격이 아니라 각자의 세로 여백이 만든다 — `CollectionRow` 가 12씩 갖고 있다. */
   list: { marginTop: space[4], ...allowPressOverflow },
   rowSkeleton: { height: 56, borderRadius: radius.base, marginVertical: space[3] },

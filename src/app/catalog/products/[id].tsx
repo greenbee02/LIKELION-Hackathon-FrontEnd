@@ -47,8 +47,7 @@ export default function ProductDetailScreen() {
   }, [id]);
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
-      <NavBar title="상품 상세" fallback="/catalog/products" />
+    <Screen scroll header={<NavBar title="상품 상세" fallback="/catalog/products" />} contentContainerStyle={styles.content}>
       {status === 'loading' ? <ProductDetailSkeleton /> : null}
       {status === 'error' ? (
         <EmptyState icon={Grid2X2} title="상품을 불러오지 못했습니다" note={error ?? '잠시 후 다시 시도해 주세요.'} action={{ label: '상품 목록으로', onPress: () => router.replace('/catalog/products') }} />

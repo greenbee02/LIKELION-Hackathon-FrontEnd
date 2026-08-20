@@ -98,8 +98,7 @@ export default function CollectionDetailScreen() {
   if (!collection) {
     if (status === 'loading') {
       return (
-        <Screen contentContainerStyle={styles.head}>
-          {nav('')}
+        <Screen header={nav('')}>
           <View style={styles.grid}>
             {['s1', 's2'].map((key) => (
               <View key={key} style={styles.row}>
@@ -112,8 +111,7 @@ export default function CollectionDetailScreen() {
       );
     }
     return (
-      <Screen contentContainerStyle={styles.head}>
-        {nav('컬렉션')}
+      <Screen header={nav('컬렉션')}>
         <EmptyState
           icon={FolderOpen}
           title="컬렉션을 찾을 수 없습니다"
@@ -146,7 +144,15 @@ export default function CollectionDetailScreen() {
   };
 
   return (
-    <Screen gutter={false}>
+    <Screen
+      gutter={false}
+      header={nav(collection.name, {
+        icon: Pencil,
+        onPress: () =>
+          router.push({ pathname: '/collection/[id]/edit', params: { id: collection.id } }),
+        accessibilityLabel: '컬렉션 편집',
+      })}
+    >
       <ScrollView
         contentContainerStyle={[
           styles.gutter,
@@ -155,13 +161,6 @@ export default function CollectionDetailScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {nav(collection.name, {
-          icon: Pencil,
-          onPress: () =>
-            router.push({ pathname: '/collection/[id]/edit', params: { id: collection.id } }),
-          accessibilityLabel: '컬렉션 편집',
-        })}
-
         {held.length === 0 ? (
           <View style={styles.emptyBox}>
             <EmptyState
@@ -227,8 +226,7 @@ export default function CollectionDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  gutter: { paddingHorizontal: space[4], paddingTop: space[2] },
-  head: { paddingTop: space[2] },
+  gutter: { paddingHorizontal: space[4] },
   grid: { marginTop: space[5], gap: space[5], ...allowPressOverflow },
   row: { flexDirection: 'row', gap: space[3], ...allowPressOverflow },
   blank: { flex: 1 },

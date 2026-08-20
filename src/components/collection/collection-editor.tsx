@@ -102,9 +102,12 @@ export function CollectionEditor({
   }
 
   return (
-    <Screen scroll gutter={false} contentContainerStyle={styles.content}>
-      <NavBar title={title} fallback="/collection" />
-
+    <Screen
+      scroll
+      gutter={false}
+      header={<NavBar title={title} fallback="/collection" />}
+      contentContainerStyle={styles.content}
+    >
       <Input
         label="컬렉션 이름"
         required
@@ -223,7 +226,7 @@ export function CollectionEditor({
 const styles = StyleSheet.create({
   /* 거터를 내용이 진다 — 타일이 눌리면 자라는데, 스크롤 뷰는 자기 가장자리에서 자르므로
      가장자리에 붙은 타일은 자랄 곳이 없다. `Screen gutter={false}` 가 이것을 위해 있다. */
-  content: { paddingHorizontal: space[4], paddingTop: space[2], paddingBottom: space[7] },
+  content: { paddingHorizontal: space[4], paddingBottom: space[7] },
   field: { marginTop: space[5] },
   pickLabel: { marginTop: space[6] },
   coverLabel: { marginTop: space[6] },

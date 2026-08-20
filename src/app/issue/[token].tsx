@@ -48,6 +48,16 @@ export default function IssueScreen() {
     return () => subscription.remove();
   }, [holding]);
 
+  /*
+   * **이 화면의 `NavBar` 는 `Screen header` 로 올라가지 않는다.**
+   *
+   * 다른 화면에서 그 줄은 화면의 것이라 어느 상태에서나 같지만, 여기서는 **단계의 것**이다 —
+   * 발급이 돌고 있는 동안에는 뒤로 갈 문이 아예 없어야 하고(`holding` 이 안드로이드 하드웨어
+   * 뒤로 가기까지 막는다) 그래서 어떤 단계에는 줄이 있고 어떤 단계에는 없다. 화면 수준으로
+   * 올리면 그 구분이 사라진다.
+   *
+   * 스크롤하지 않는 화면이라 지금도 줄은 고정이다 — 옮겨서 얻을 것이 없다.
+   */
   return (
     <Screen>
       <Stack.Screen options={{ headerShown: false, gestureEnabled: !holding }} />

@@ -7,7 +7,7 @@ import {
 } from './api/rewards';
 import { fetchCollectionIndex, type CollectionIndex } from './api/product-collections';
 import { colors } from '@/theme/colors';
-import type { Reward, RewardKind, RewardStatus } from './types';
+import type { Reward, RewardKind, RewardProduct, RewardStatus } from './types';
 
 /**
  * 백엔드의 두 리스트를 화면 하나가 읽는 목록으로 합친다.
@@ -26,9 +26,20 @@ import type { Reward, RewardKind, RewardStatus } from './types';
  * 고객은 퍼센트로 세지 않는다. 조건이 66.67% 이고 필수 상품이 3개면 그건 "2장"이고,
  * 화면에는 그렇게 적혀야 한다. 올림하는 이유는 66.67% 가 2장을 **넘겨야** 한다는 뜻이 아니라
  * 2장으로 **닿는다**는 뜻이기 때문이다 — 2/3 = 66.67%.
+ *
+ * **그런데 그대로 올리면 3장이 나온다.** `required_percentage` 는 NUMERIC(5,2) 라 2/3 이
+ * 66.6666… 이 아니라 66.67 로 저장되고, 66.67% × 3 = 2.0001 이며, 올림은 그 0.0001 을
+ * 한 장으로 센다. 화면에는 "3장 중 0장"과 "모두 모으면 열립니다"가 뜨는데 실제로는 두 장이면
+ * 열린다 — 하우스가 만든 포스터가 "필수 상품 3개 중 2개"라고 적고 있으니 화면이 그 옆에서
+ * 다른 말을 하고 있었던 셈이다.
+ *
+ * 그래서 **올리기 전에 소수 셋째 자리에서 정리한다.** 2 자리 반올림이 만드는 오차는 상품
+ * 100개까지도 0.005 를 넘지 못하므로 이 정리가 진짜 조건을 지우는 일은 없고, 반대로 정말
+ * 2.01 장을 요구하는 조건(67% × 3)은 그대로 3장으로 남는다.
  */
 function requiredCards(target: UnlockTarget, requiredProductCount: number): number {
-  const needed = Math.ceil((target.requiredPercentage / 100) * requiredProductCount);
+  const exact = (target.requiredPercentage / 100) * requiredProductCount;
+  const needed = Math.ceil(Number(exact.toFixed(3)));
   // 조건이 0%보다 크다는 것은 DB 가 보장하므로(V6 CHECK), 최소 한 장은 있어야 열린다.
   return Math.max(1, needed);
 }
@@ -45,6 +56,23 @@ const kindOf = (type: UnlockTarget['type']): RewardKind =>
 
 const statusOf = (mine: UserRewardResponse | undefined): RewardStatus =>
   mine ? (mine.status as RewardStatus) : 'LOCKED';
+
+/**
+ * 컬렉션을 채우는 필수 상품들, 화면 순서대로.
+ *
+ * `is_required` 가 아닌 상품은 달성률에 들어가지 않으므로(운영 정책) 여기서도 뺀다 — 세는
+ * 것과 보여주는 것이 다르면 그림이 진행도를 거짓말한다.
+ */
+function requiredProducts(index: CollectionIndex, collectionId: string): RewardProduct[] {
+  return (index.byCollection.get(collectionId) ?? [])
+    .filter((item) => item.required)
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+    .map((item) => ({
+      id: item.product.id,
+      name: item.product.name,
+      imageUrl: item.product.imageUrl ?? null,
+    }));
+}
 
 function toReward(
   entry: RewardProgressResponse,
@@ -70,7 +98,13 @@ function toReward(
     kind: kindOf(target.type),
     status: statusOf(mine),
     title: mine?.name ?? target.name,
-    collection: { id: entry.collectionId, name: entry.collectionName },
+    collection: {
+      id: entry.collectionId,
+      name: entry.collectionName,
+      // 리워드 목록의 색이 이 값에서 나온다. 색인이 없으면 색도 없다 — `collection-accents.ts`.
+      theme: collection?.theme ?? null,
+    },
+    products: requiredProducts(index, entry.collectionId),
     progress,
     total,
     claimCode: mine?.claimCode ?? undefined,
