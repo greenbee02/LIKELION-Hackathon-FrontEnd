@@ -80,18 +80,22 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <CardsProvider>
-            <CollectionsProvider>
-              <ToastProvider>
+        {/* 토스트가 store 보다 바깥에 있는 이유: `CollectionsProvider` 의 뒤늦은 동기화가
+            실패하면 그 사실을 말해야 하는데, 안쪽에 있으면 store 가 토스트를 부를 수 없다.
+            화면이 이미 다른 곳으로 넘어간 뒤에 실패가 도착하므로 화면이 대신 말해줄 수도
+            없다 — 그때 조용히 되돌리는 것이 "담은 카드가 1초 뒤 사라진다"의 정체였다. */}
+        <ToastProvider>
+          <AuthProvider>
+            <CardsProvider>
+              <CollectionsProvider>
                 <SessionGate fontsReady={fontsLoaded || Boolean(fontError)}>
                   <Stack screenOptions={{ headerShown: false }} />
                 </SessionGate>
                 <PortalHost />
-              </ToastProvider>
-            </CollectionsProvider>
-          </CardsProvider>
-        </AuthProvider>
+              </CollectionsProvider>
+            </CardsProvider>
+          </AuthProvider>
+        </ToastProvider>
       </SafeAreaProvider>
       <StatusBar style="dark" />
     </GestureHandlerRootView>

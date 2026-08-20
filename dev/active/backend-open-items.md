@@ -45,12 +45,22 @@ GET  https://curio-xi-lovat.vercel.app/images/…/prod_001.png  Origin 없음 �
 `http://1.201.117.14`. iOS 개발 빌드는 ATS 예외가 필요하고, 앱 스토어 심사는 통과하지 못한다.
 데모 범위에서는 감수하되, 도메인 + TLS 가 붙으면 `.env` 와 `vercel.json` **두 곳**을 고쳐야 한다.
 
-## 3. 🔴 데모 QR 토큰이 소진됐다
+## 3. 🔴 데모 QR 토큰이 소진됐다 — 새 계정은 카드를 한 장도 가질 수 없다
 
 시드(`V7`)에 `MCM-DEMO-2026-001` ~ `-011` 열한 개가 `is_used = FALSE` 로 들어 있지만, 지금
 DB 상태는 다르다 — 스캔하면 `QR_ALREADY_USED` 가 돌아온다. 토큰은 한 번 쓰면 소멸한다.
 
+2026-08-20 실측, 열한 개 전부 `GET /purchase-qrs/preview` 가 `status: "USED"` ·
+`usable: false`. QR 을 새로 만드는 엔드포인트는 `/v3/api-docs` 전체에 **없다** — 카드에
+이르는 길은 `POST /cards/registrations` 하나뿐이고 그 입구가 닫혀 있다.
+
 `POST /api/v1/local/demo/reset` 이 있지만 `@Profile({"local","test"})` 라 **실서버에 없다.**
+
+**프론트는 이것을 가짜 카드로 가리고 있었고, 그 가림막을 걷어냈다.** `mock/demo-cards.ts` 가
+세운 `c1`·`c2`·`c3` 은 서버에 없는 id 라서, 그 카드를 컬렉션에 담으면
+`POST /collections/{id}/cards` 가 `400 Invalid UUID string: c1` 로 답했다. 낙관적 갱신이
+먼저 그려지고 실패가 뒤늦게 되돌리는 구조라, 증상은 **"담은 카드가 1초 뒤 사라진다"** 였다.
+목을 지운 지금 카드가 없는 계정은 빈 화면을 본다 — 그게 서버의 진실이다.
 
 **요청:** 데모 전에 `purchase_qrs` 를 리셋하거나 새 토큰을 발급해 줄 것. 아니면 그 리셋
 엔드포인트를 prod 프로필에도 열어주되 인증/권한을 걸 것.
@@ -69,7 +79,8 @@ DB 상태는 다르다 — 스캔하면 `QR_ALREADY_USED` 가 돌아온다. 토�
 엔티티에만 있고 DTO 에는 없다.
 
 프론트는 하우스의 마크를 **데이터로** 받는 것을 원칙으로 삼고 있고(AGENTS.md), 지금은 번들된
-파일로 대신하고 있다. 브랜드가 둘 이상이 되는 순간 이 임시방편이 무너진다.
+파일(`mock/brand-marks.ts`, 브랜드 UUID 로 키를 잡는다)로 대신하고 있다. 브랜드가 둘 이상이
+되는 순간 이 임시방편이 무너진다.
 
 **요청:** `ProductResponse` 또는 브랜드 DTO 에 `logoUrl` 노출.
 

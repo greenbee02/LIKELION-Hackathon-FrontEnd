@@ -18,9 +18,27 @@ import {
   updateCollection,
   type CollectionInput,
 } from './api/collections';
-import { failureCopy } from './api/errors';
+import { ApiError } from './api/client';
+import { failureCopy, failureMessage } from './api/errors';
 import { useAuth } from './auth-store';
+import { useToast } from '@/components/ui/toast';
 import type { UserCollection } from './types';
+
+/**
+ * 이미 그렇게 되어 있는 것은 실패가 아니다.
+ *
+ * 담으려는 카드가 이미 담겨 있으면 409, 빼려는 카드가 이미 없으면 404 가 온다. 둘 다
+ * **원하던 결말**이라 여기서 삼킨다. 삼키지 않으면 그 한 장이 나머지 열 장의 동기화를
+ * 통째로 중단시키고, 되돌리기가 멀쩡히 담긴 카드까지 걷어간다.
+ */
+async function settle(work: Promise<unknown>, benign: (e: ApiError) => boolean) {
+  try {
+    await work;
+  } catch (e) {
+    if (e instanceof ApiError && benign(e)) return;
+    throw e;
+  }
+}
 
 /**
  * 개인 컬렉션이 사는 곳.
@@ -63,6 +81,9 @@ export function CollectionsProvider({ children }: { children: ReactNode }) {
   const [epoch, setEpoch] = useState(0);
   /* 카드 쪽과 같은 이유로 세션을 기다린다 — `cards-store` 의 같은 자리 주석 참고. */
   const { status: authStatus } = useAuth();
+  /* 뒤늦게 도착하는 실패를 말할 창구. `ToastProvider` 가 이 Provider 보다 바깥에 있는
+     이유이기도 하다 — `_layout.tsx` 참고. */
+  const notify = useToast();
 
   const signedIn = authStatus === 'signed-in';
 
@@ -159,16 +180,24 @@ export function CollectionsProvider({ children }: { children: ReactNode }) {
 
       void (async () => {
         try {
-          for (const cardId of added) await addCardToCollection(id, cardId);
-          for (const cardId of removed) await removeCardFromCollection(id, cardId);
-        } catch {
+          for (const cardId of added) {
+            await settle(addCardToCollection(id, cardId), (err) => err.httpStatus === 409);
+          }
+          for (const cardId of removed) {
+            await settle(removeCardFromCollection(id, cardId), (err) => err.httpStatus === 404);
+          }
+        } catch (e) {
+          /* **되돌리기 전에 말한다.** 화면은 이미 컬렉션 상세로 넘어가 있고, 고객이 보는
+             것은 방금 담은 카드가 잠시 뒤 이유 없이 사라지는 장면이다. 낙관적 갱신을
+             조용히 거두는 것은 버그와 구별되지 않는다. */
+          notify(failureMessage(e));
           reload();
         }
       })();
 
       return true;
     },
-    [reload],
+    [notify, reload],
   );
 
   /* 카드 쪽과 같다 — 로그아웃한 뒤의 목록은 지우는 것이 아니라 내보내지 않는 것으로 감춘다. */

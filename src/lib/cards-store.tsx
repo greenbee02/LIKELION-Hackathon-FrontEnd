@@ -9,13 +9,8 @@ import {
   type ReactNode,
 } from 'react';
 
-import { fetchCards } from './api/cards';
-// ⚠️ 임시 — 데모 카드의 단건 조회만 우회한다. 되돌리려면 위 줄에 `fetchCard` 를 도로 넣는다.
-import { fetchCard } from './mock/demo-ai-resources';
+import { fetchCard, fetchCards } from './api/cards';
 import { failureCopy } from './api/errors';
-// ⚠️ 임시 — 서버에 카드가 없을 때만 세우는 가짜 카드. 이 줄과 아래 한 줄, 그리고
-// `mock/demo-cards.ts` 를 지우면 원래대로 돌아온다.
-import { DEMO_CARDS } from './mock/demo-cards';
 import { useAuth } from './auth-store';
 import { claimReward } from './api/rewards';
 import { fetchRewards } from './rewards';
@@ -88,8 +83,7 @@ export function CardsProvider({ children }: { children: ReactNode }) {
         // 오래 걸리는데, 그것 때문에 카드 그리드가 늦게 뜰 이유가 없다.
         const [live, earned] = await Promise.all([fetchCards(), fetchRewards()]);
         if (!alive) return;
-        // ⚠️ 임시 — 서버가 빈 목록을 주면 가짜 카드를 세운다.
-        setCards(live.length > 0 ? live : DEMO_CARDS);
+        setCards(live);
         setRewards(earned);
         if (alive) setStatus('ready');
       } catch (e) {
