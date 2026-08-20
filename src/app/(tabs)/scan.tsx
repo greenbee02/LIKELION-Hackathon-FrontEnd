@@ -1,6 +1,6 @@
 import { BlurView } from 'expo-blur';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useIsFocused, useRouter } from 'expo-router';
 import { Zap, ZapOff } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -46,6 +46,20 @@ export default function ScanScreen() {
   const tabBarSpace = useTabBarSpace();
 
   /**
+   * **A tab is never unmounted.** Moving to 컬렉션, or pushing 발급 over this screen, leaves the
+   * scanner mounted with its capture session open — which is what kept iOS's green indicator lit
+   * while the customer was looking at something else entirely. So focus, not mounting, decides
+   * whether the camera exists: everything below hangs off `live`, and unmounting the preview is
+   * what actually closes the session, on every platform rather than only the one with an
+   * `active` prop.
+   *
+   * It sits beside `useFocusEffect` below rather than replacing it, because the two answer
+   * different questions — this one is read during render, that one runs the reset once per
+   * arrival. A reset written as a plain effect would be a `setState` inside an effect body.
+   */
+  const focused = useIsFocused();
+
+  /**
    * Asked for on arrival rather than behind a button: the customer pressed a tab called 스캔 to
    * get here, so a second "may we?" control in front of the camera asks the same question twice.
    * `canAskAgain` going false is what stops this repeating.
@@ -57,8 +71,9 @@ export default function ScanScreen() {
 
   /**
    * A camera fires `onBarcodeScanned` many times a second while a code is in frame; without this
-   * one receipt stacks up a pile of issuance screens. Released on focus, so coming back from an
-   * issuance makes the viewfinder live again.
+   * one receipt stacks up a pile of issuance screens. Released whenever focus returns, so coming
+   * back from an issuance makes the viewfinder live again. The torch is reset with it because the
+   * lamp went out with the session, and a control that says 켜짐 over a dark lamp is a lie.
    */
   const handled = useRef(false);
   useFocusEffect(
@@ -68,7 +83,7 @@ export default function ScanScreen() {
     }, []),
   );
 
-  const live = Boolean(permission?.granted);
+  const live = Boolean(permission?.granted) && focused;
 
   return (
     <Screen gutter={false}>
