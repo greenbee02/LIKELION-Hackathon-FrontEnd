@@ -22,6 +22,12 @@ import type { ImageSourcePropType } from 'react-native';
  * fits whatever is in the file, so a mark floating in a square of padding would be fitted padding
  * and all, and drawn at a fraction of the size it was given.
  */
+/**
+ * 키는 실서버의 브랜드 UUID 다 — `GET /products/{id}` 의 `brandId`, 그리고 `hydrateCard()` 가
+ * `Brand.id` 에 얹는 값. 한때 `'mcm'` 이라는 사람이 읽는 이름이었는데, 그 키는 어떤 카드와도
+ * 만나지 못했다: 실카드의 브랜드 id 는 언제나 UUID 다.
+ */
 export const MOCK_BRAND_MARKS: Record<string, ImageSourcePropType> = {
-  mcm: require('../../../assets/brand-marks/mcm.png'),
+  /** MCM */
+  '20000000-0000-0000-0000-000000000001': require('../../../assets/brand-marks/mcm.png'),
 };
