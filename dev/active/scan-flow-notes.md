@@ -142,7 +142,7 @@
 시드(`V7`)의 `MCM-DEMO-2026-001` ~ `-011` 열한 개가 전부다. **한 번 쓰면 소멸하고**, 지금은
 소진된 상태라 스캔하면 `QR_ALREADY_USED` 가 돌아온다. 되살릴 방법은 프론트에 없다 —
 `POST /local/demo/reset` 은 `@Profile({"local","test"})` 라 실서버에 존재하지 않는다.
-`backend-open-items.md` §3.
+`backend-open-items.md` §6.
 
 목 계층은 없다. `src/lib/mock/` 에 남은 것은 카드 그림과 브랜드 마크 두 파일뿐이고, 그것은
 데이터가 아니라 **폴백 에셋**이다 — 서버가 주소를 주면 그쪽이 이긴다.

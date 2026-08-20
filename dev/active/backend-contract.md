@@ -1,8 +1,17 @@
 # 백엔드 계약 — 지금 API가 무엇인가
 
-기준: `greenbee02/LIKELION-Hackathon-BackEnd` @ `a76ac03` (2026-08-20 04:03 KST) · 마이그레이션 V1~V9
+기준: `greenbee02/LIKELION-Hackathon-BackEnd` @ `9188d7d` (2026-08-20 21:14 KST) · 마이그레이션 V1~V12
 확인: `http://1.201.117.14` · Base `/api/v1` · OpenAPI `http://1.201.117.14/v3/api-docs`
 갱신일: 2026-08-20
+
+> **실서버가 저장소보다 뒤에 있다 — 이 문서에서 처음 벌어진 일이다.** 배포된 빌드는
+> `c99def4`(06:18Z) 이상 `b5f9690`(06:42Z) 미만이다: 새 정적 이미지는 서빙되는데
+> (`/images/templates/common_back_black_info.png` 200, 이름을 고치기 전의 `…blank…` 은 404)
+> `/v3/api-docs` 에 새 엔드포인트 둘이 없다. 정적 리소스는 jar 에 구워지므로 이 두 사실이
+> 배포 시점을 24분 폭으로 좁힌다.
+>
+> 그래서 아래 표는 엔드포인트마다 **어디에 있는지**를 적는다 — 🟢 실서버 실측 · 🟡 저장소에만.
+> 표시가 없는 절은 전부 🟢 다.
 
 > **이 문서에는 계획이 없다.** 지금 서버가 무엇을 받고 무엇을 돌려주는지만 적는다. 막힌 것과
 > 백엔드에 요청할 것은 `backend-open-items.md`, 컬럼 수준의 사실은 `db-schema-draft.md`.
@@ -42,7 +51,7 @@
 
 **CORS 는 이제 존재한다.** `Access-Control-Allow-Origin` 을 오리진별로 돌려준다. 다만 허용
 목록이 `CORS_ALLOWED_ORIGINS` 환경변수이고 실서버는 기본값(`localhost:3000,localhost:8081`)
-그대로다 — Vercel 오리진은 **403**. `backend-open-items.md` §1.
+그대로다 — Vercel 오리진은 **403**. `backend-open-items.md` §4.
 
 ---
 
@@ -75,15 +84,17 @@ UserResponse   { id, email, name, role }        // role 은 UserRole enum
 
 ## 2. card — `/api/v1/cards`
 
-| Method | Path | 인증 | 성공 |
-|---|---|---|---|
-| POST | `/registrations` | ✓ | 201 |
-| GET | `/cards` | ✓ | 200 |
-| GET | `/cards/{cardId}` | ✓ | 200 |
-| POST | `/{cardId}/customizations` | ✓ | 202 |
-| GET | `/{cardId}/customizations` | ✓ | 200 |
-| POST | `/{cardId}/customizations/{customizationId}/select` | ✓ | 200 |
-| POST | `/{cardId}/restore-original` | ✓ | 200 |
+| Method | Path | 인증 | 성공 | 어디에 |
+|---|---|---|---|---|
+| POST | `/registrations` | ✓ | 201 | 🟢 |
+| GET | `/cards` | ✓ | 200 | 🟢 |
+| GET | `/cards/{cardId}` | ✓ | 200 | 🟢 |
+| GET | `/{cardId}/customization-options` | ✓ | 200 | 🟡 |
+| POST | `/{cardId}/customizations` | ✓ | 202 | 🟢 |
+| POST | `/{cardId}/customizations/layers` | ✓ | 201 | 🟡 |
+| GET | `/{cardId}/customizations` | ✓ | 200 | 🟢 |
+| POST | `/{cardId}/customizations/{customizationId}/select` | ✓ | 200 | 🟢 |
+| POST | `/{cardId}/restore-original` | ✓ | 200 | 🟢 |
 
 ### CardResponse
 
@@ -108,6 +119,11 @@ CustomizationSummary  { id, status, generatedFrontImageUrl, generatedBackImageUr
 하나의 브랜드를 알려면 `GET /products/{id}` 를 한 번 더 불러야 한다 — 프론트의 `hydrateCard()`
 가 그것이다. `brands.logo_url` 은 스키마에 있지만 **어느 DTO 에도 노출되지 않는다** (저장소
 전체 grep 결과 `Brand.java` 엔티티에만 존재).
+
+**`CustomizationSummary` 에는 레이어가 없다** — `b5f9690` 이후에도 그대로다. 레이어로 꾸민
+카드는 여기서 `generatedFrontImageUrl: null` 로만 보이므로, `GET /cards` 하나로는 꾸민 얼굴을
+그릴 수 없다. `GET /{cardId}/customizations` 를 카드마다 한 번 더 부르는 수밖에 없다
+(`backend-open-items.md` §2).
 
 ### 발급 오류 — 9개 그대로
 
@@ -139,17 +155,131 @@ PurchaseQrPreviewResponse {
 `/issue/[token]` 으로 넘기고 거기서 바로 발급을 시도하므로, 실패든 성공이든 되돌릴 수 없다.
 `usable` 을 먼저 물으면 "쓸 수 없는 코드"를 토큰을 태우지 않고 가려낼 수 있다.
 
-### 커스터마이징
+### 커스터마이징 (1) — AI 경로 🟢
 
 ```
 CustomizationCreateRequest { templateId, inputImageUrl, inputText }
 CardCustomizationResponse  { id, cardId, templateId, inputImageUrl, inputText,
                              generatedFrontImageUrl, generatedBackImageUrl,
-                             generatedMessage, customizationData, aiModel, status, createdAt }
+                             generatedMessage, customizationData, aiModel, status,
+                             frontLayers[], back, createdAt }
 ```
+
+`frontLayers` 와 `back` 은 저장소에만 있다 (🟡) — 실서버의 `CardCustomizationResponse` 는
+`status` 다음이 바로 `createdAt` 이다. 아래 (2) 로 만든 커스텀을 이 목록으로 읽을 때만 채워진다.
 
 오류: `CUSTOMIZATION_NOT_FOUND` (404) · `CUSTOMIZATION_NOT_COMPLETED` (409) ·
 `CARD_NOT_ACTIVE` (409)
+
+### 커스터마이징 (2) — 승인 에셋 레이어 경로 🟡 **새로 생겼다**
+
+`b5f9690` (2026-08-20 15:42 KST). **AI 가 아니고, 비동기도 아니다.** 브랜드가 승인해 DB 에
+넣어둔 정적 PNG 세 겹을 고객이 고르면 그 선택을 그대로 저장한다 — 202 도 폴링도 없고,
+`POST` 한 번이 201 로 끝나며 **저장과 동시에 그 커스텀이 선택되어 카드가 `CUSTOMIZE` 가 된다**
+(`card.selectCustomization(saved)`). `generationStatus` 는 처음부터 `COMPLETED`,
+`aiModel` 은 `"approved-assets-v1"` 이라는 상수다.
+
+**결과물은 이미지가 아니라 레이어 목록이다.** `generatedFrontImageUrl` 은 끝까지 `null` 로
+남는다 — 앞면은 서버가 합성하지 않고 **클라이언트가 세 겹을 겹쳐 그린다.**
+
+#### `GET /{cardId}/customization-options` — 고를 수 있는 것
+
+카드 소유자만, `ACTIVE` 카드만.
+
+```
+CardCustomizationOptionsResponse {
+  cardId, productId,
+  front: {
+    productBackgrounds: DesignAsset[],   // 이 카드 상품의 활성 PRODUCT_BACKGROUND
+    borders:            DesignAsset[]    // 같은 브랜드의 활성 BORDER
+  },
+  back: { layoutId, baseImageUrl, layoutData }
+}
+
+DesignAsset { id, assetKey, type, name, variantCode, imageUrl,
+              transparent, width, height, metadata }
+```
+
+- `type` = `PRODUCT_BACKGROUND` · `BORDER` · `BACK_BASE`
+- 시드(V11)는 상품 11개 × 배경 A/B/C = 33장, 테두리 3장, 공통 뒷면 1장. 전부 1024×1536.
+- 경로는 `/images/templates/prod_005_A.png` · `border_01.png` ·
+  `common_back_black_info.png` 꼴이고 **셋 다 실서버에서 이미 200 으로 뜬다.**
+- `metadata.recommendedZIndex` 는 배경 10, 테두리 20. 문구는 요청이 정한다.
+- 오류: `CARD_NOT_FOUND` (404) · `CARD_NOT_ACTIVE` (409) · `CARD_BACK_LAYOUT_NOT_FOUND` (409)
+
+`back.layoutData` 는 뒷면 **글자를 어디에 찍을지**를 좌표로 준다. 이미지에 글자가 구워져 있지
+않다는 뜻이다:
+
+```
+layoutData {
+  version: 1, coordinateSystem: "NORMALIZED",
+  canvas: { width: 1024, height: 1536 },
+  safeArea:   { left, right, top, bottom },
+  labelStyle: { fontFamily, fontSize, fontWeight, letterSpacing, color, textAlign },
+  valueStyle: { fontFamily, fontSize, fontWeight, lineHeight, color, textAlign },
+  fields: [ { key, label, source, format?, labelX, valueX, y, width, maxLines } ]
+}
+```
+
+`fields` 다섯: `STORE`(`store.name`) · `DATE`(`purchaseDate`, `yyyy.MM.dd`) ·
+`LOCATION`(`store.city,store.country` → `{city}, {country}`) · `PRODUCT`(`product.name`) ·
+`SERIAL_NUMBER`(`serialNumber`). **값의 출처는 `CardResponse` 자신이다.**
+`labelStyle.color` 는 `#B8AA99`, `valueStyle.color` 는 `#D8CEC1`, 폰트는 `Pretendard`.
+
+#### `POST /{cardId}/customizations/layers` — 고른 것을 저장
+
+```
+LayeredCustomizationCreateRequest {
+  productBackgroundAssetId, borderAssetId, backLayoutId,   // 전부 UUID, 전부 필수
+  text: { content,                    // NotBlank, 저장 시 trim
+          x, y,                       // 0~1
+          width, height,              // 0 초과 1 이하
+          rotation,                   // -360~360
+          opacity,                    // 0~1
+          zIndex,                     // 0 이상 정수
+          style }                     // 자유 JSON 객체, 생략 가능
+}
+```
+
+```
+LayeredCustomizationResponse {
+  id, cardId, status,                 // status 는 항상 "COMPLETED"
+  frontLayers: [ { type, assetId, imageUrl, textContent, layerOrder,
+                   x, y, width, height, rotation, opacity, zIndex, styleData } ],
+  back: { layoutId, baseImageUrl, layoutData, contentData },
+  createdAt
+}
+```
+
+- `frontLayers` 는 항상 세 줄이고 순서가 정해져 있다: `PRODUCT_BACKGROUND`(order 0, z 10) →
+  `BORDER`(order 1, z 20) → `TEXT`(order 2, z 는 요청값). DB 가 `(customization_id, layer_type)`
+  과 `(customization_id, layer_order)` 에 UNIQUE 를 걸어 **한 커스텀에 같은 종류는 한 겹뿐**이다.
+- **배경과 테두리는 옮길 수 없다.** 요청이 좌표를 받지 않고, 서버가 `(0, 0, 1, 1)` · 회전 0 ·
+  불투명도 1 로 굳혀 저장한다 (`CardCustomizationLayer.base`). 고객이 배치하는 것은 문구
+  하나뿐이고, 나머지 둘은 **고르기만 한다.**
+- 이미지 레이어는 `textContent` 가 `null`, 문구 레이어는 `assetId`·`imageUrl` 이 `null`.
+- `back.contentData` 는 **발급 당시 표시값의 스냅샷**이다 —
+  `{ store, date, location, product, serialNumber }`. 나중에 상점 이름이 바뀌어도 카드에 적힌
+  것은 그날의 값으로 남는다. 날짜는 서버가 `yyyy.MM.dd` 로, **UTC 기준**으로 굳혀서 준다.
+- 요청의 `style` 은 검증 없이 그대로 되돌아온다 (`styleData`). 계약이 정한 키는 없다 —
+  백엔드 예시가 `{ "fontFamily": "SERIF", "color": "#E8DFD2" }` 를 쓴다.
+
+오류 — 전부 새 코드다:
+
+| 코드 | HTTP | 언제 |
+|---|---|---|
+| `CARD_NOT_FOUND` | 404 | 내 카드가 아니거나 없다 |
+| `CARD_NOT_ACTIVE` | 409 | `ACTIVE` 가 아닌 카드 |
+| `CARD_DESIGN_ASSET_NOT_FOUND` | 404 | 배경·테두리 id 가 없다 |
+| `CARD_DESIGN_ASSET_INACTIVE` | 409 | 비활성 에셋 |
+| `CARD_DESIGN_ASSET_TYPE_MISMATCH` | 400 | 배경 자리에 테두리를 넣는 등 |
+| `CARD_DESIGN_ASSET_PRODUCT_MISMATCH` | 409 | 다른 상품의 배경 |
+| `CARD_DESIGN_ASSET_BRAND_MISMATCH` | 409 | 다른 브랜드의 에셋 |
+| `CARD_BACK_LAYOUT_NOT_FOUND` | 404 | 레이아웃 id 가 없다 |
+| `CARD_BACK_LAYOUT_INACTIVE` | 409 | 비활성 레이아웃, 또는 베이스 에셋이 비활성 |
+| `CARD_BACK_LAYOUT_BRAND_MISMATCH` | 409 | 다른 브랜드의 레이아웃 |
+| `CARD_BACK_LAYOUT_INVALID` | 409 | 베이스 에셋이 `BACK_BASE` 가 아니다 |
+| `CARD_CUSTOMIZATION_DATA_INVALID` | 400 | `style` 을 JSON 으로 못 쓴다 |
 
 ---
 
@@ -309,6 +439,17 @@ CardTemplateResponse { id, brandId, brandName, name, description,
 
 `resourceData` 는 **JSON 문자열 한 덩어리**다. 파싱은 `src/lib/api/card-templates.ts` 한 곳에서만.
 
+🟡 **V11·V12 가 이 둘을 바꾼다 — 실서버는 아직 옛 값이다.**
+
+- V11 이 세 템플릿의 `resourceData` 에 `basicRenderMode: "FIXED_IMAGE_PAIR"` 와
+  `customization: { frontRenderMode: "THREE_LAYER", frontLayerOrder: [PRODUCT_BACKGROUND,
+  BORDER, TEXT], backRenderMode: "COMMON_LAYOUT", backLayoutId }` 를 덧붙인다. 즉 **기본
+  카드는 앞뒤 이미지 한 쌍 그대로, 꾸민 카드만 세 겹**이라는 구분이 데이터로 온다.
+- V12 가 세 템플릿의 `backImageUrl` 을 전부 `/images/templates/common_back_black_info.png`
+  하나로 모은다. 뒷면이 템플릿마다 다르던 것이 브랜드 공통 한 장이 된다는 뜻이고,
+  **이미 발급된 카드도 템플릿을 참조하므로 함께 바뀐다.** 실측(2026-08-20)으로는 셋 다
+  아직 `template_00X_back.png` 다.
+
 오류: `PRODUCT_NOT_FOUND` (404)
 
 ---
@@ -381,3 +522,4 @@ UserRewardResponse { id, targetType, targetId, name, status,
 - **케어·수선 엔드포인트 없음.**
 - **`/api/v1/local/demo/reset` 은 `@Profile({"local","test"})`** — 실서버에 존재하지 않는다.
   소진된 데모 QR 을 앱에서 되살릴 방법은 없다.
+- **레이어 커스터마이징 엔드포인트 둘은 실서버에 아직 없다** (§2 의 🟡). 저장소에는 있다.

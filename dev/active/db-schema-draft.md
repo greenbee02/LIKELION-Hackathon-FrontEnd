@@ -1,6 +1,6 @@
 # DB 스키마 — 마이그레이션 기준
 
-기준: `greenbee02/LIKELION-Hackathon-BackEnd` @ `a76ac03` · `src/main/resources/db/migration/` **V1 ~ V9**
+기준: `greenbee02/LIKELION-Hackathon-BackEnd` @ `9188d7d` · `src/main/resources/db/migration/` **V1 ~ V12**
 갱신일: 2026-08-20
 
 > **이 문서의 근거가 바뀌었다.** 이전 판은 백엔드 팀이 공유한 **MySQL 초안**을 그대로 옮긴
@@ -28,6 +28,9 @@
 | `V7__insert_demo_seed_data.sql` | 데모 시드 — 브랜드·매장·상품·컬렉션·QR·템플릿·리워드·이벤트 |
 | `V8__add_ai_resource_candidate_groups.sql` | `ai_resource_generations` 에 후보 그룹 3컬럼 |
 | `V9__add_ai_resource_worker_operability.sql` | 같은 표에 `PROCESSING` 상태와 워커용 3컬럼 |
+| `V10__add_card_customization_layer_domain.sql` | `card_design_assets` `card_back_layouts` `card_customization_layers` + `card_customizations` 에 2컬럼 |
+| `V11__insert_card_customization_asset_seed.sql` | 승인 에셋 시드 — 배경 33 · 테두리 3 · 공통 뒷면 1 · 뒷면 레이아웃 1 |
+| `V12__use_common_back_for_basic_card_templates.sql` | 기본 템플릿 3개의 `back_image_url` 을 공통 뒷면 한 장으로 |
 
 ---
 
@@ -86,6 +89,74 @@ ADD   CHECK (generation_status IN
 
 ---
 
+## V10·V11·V12 — 승인 에셋과 레이어 (2026-08-20)
+
+**AI 없이 카드를 꾸미는 두 번째 길이 DB 에 생겼다.** 브랜드가 미리 승인해 넣어둔 PNG 를
+고객이 고르고, 고른 조합을 레이어 세 줄로 저장한다. `ai_resource_generations` 쪽과는 표를
+공유하지 않는다 — 같은 `card_customizations` 한 행에 붙되, 그 행이 AI 로 만들어졌는지
+에셋 조합인지는 `ai_model` 이 가른다 (`"approved-assets-v1"` 이면 후자).
+
+### `card_design_assets` — 브랜드가 승인한 그림 카탈로그
+
+| 컬럼 | 뜻 |
+|---|---|
+| `asset_type` | `PRODUCT_BACKGROUND` · `BORDER` · `BACK_BASE` — CHECK 로 셋만 |
+| `product_id` | **배경만 상품에 묶인다.** 테두리·뒷면은 반드시 NULL (CHECK) |
+| `brand_id` | 전부 브랜드에 묶인다. 카드 상품과 다른 브랜드면 저장이 409 |
+| `asset_key` | UNIQUE. `PROD_005_A` · `BORDER_01` · `COMMON_BACK_BLACK_INFO` |
+| `variant_code` | 배경은 `A`/`B`/`C`, 테두리는 `01`~`03`. 정렬 키로 쓰인다 |
+| `is_transparent` | **`BORDER` 는 TRUE 가 강제된다** (CHECK) — 테두리는 알파 PNG 여야 한다 |
+| `width_px` `height_px` | 시드 전부 1024×1536. 카드 비율의 근거가 DB 에 있다 |
+| `metadata` | JSONB. `layerRole` · `recommendedZIndex`(배경 10 / 테두리 20) |
+
+### `card_back_layouts` — 뒷면 글자 자리
+
+베이스 이미지 한 장(`BACK_BASE`)과 `layout_data` JSONB 한 덩어리. **뒷면 이미지에 글자가
+구워져 있지 않다** — 상점·날짜·도시·상품명·시리얼을 0~1 정규화 좌표로 어디에 찍을지만 적혀
+있고, 값은 `CardResponse` 에서 온다. 좌표계와 필드 목록은 `backend-contract.md` 쪽.
+
+`(brand_id, name)` UNIQUE. 브랜드당 여러 레이아웃이 가능하지만 조회는
+`findByBrandIdAndActiveTrueOrderByCreatedAtAsc` 의 **첫 줄만** 쓴다 — 지금은 브랜드당 하나다.
+
+### `card_customization_layers` — 저장된 조합
+
+| 제약 | 뜻 |
+|---|---|
+| `layer_type` CHECK = `PRODUCT_BACKGROUND` `BORDER` `TEXT` | 세 종류뿐 |
+| UNIQUE `(customization_id, layer_type)` | **한 커스텀에 같은 종류는 한 겹.** 배경 두 장은 불가능 |
+| UNIQUE `(customization_id, layer_order)` | 순서도 겹칠 수 없다 |
+| CHECK `content` | 이미지 레이어는 `asset_id` 필수·`text_content` NULL, 문구 레이어는 그 반대에 공백 문자열 금지 |
+| `position_x/y` `0~1`, `width/height` `0 초과 1 이하` | NUMERIC(8,6) 정규화 좌표 |
+| `rotation` `-360~360`, `opacity` `0~1` | NUMERIC |
+| `style_data` JSONB, 객체만 | 요청의 `style` 이 검증 없이 그대로 들어간다 |
+
+`ON DELETE CASCADE` — 커스텀이 지워지면 레이어도 함께. 에셋 쪽은 `RESTRICT` 라 **쓰이고 있는
+에셋은 삭제되지 않는다** (비활성화만 가능).
+
+### `card_customizations` 에 붙은 2컬럼
+
+`back_layout_id` (FK, NULL 허용) · `back_content_data` (JSONB, 객체만). 후자는 **발급 당시
+표시값의 스냅샷**이다 — 상점 이름이 나중에 바뀌어도 카드에 적힌 것은 그날의 값으로 남는다.
+
+### V11 시드 — id 가 규칙적이다
+
+- 배경 `a1000000-…-0000000000NN`, NN = `(상품번호-1)*3 + variantOrder` (1~33)
+- 테두리 34·35·36, 공통 뒷면 37
+- 뒷면 레이아웃 `a2000000-0000-0000-0000-000000000001`
+- 브랜드는 전부 MCM `20000000-…-000000000001`
+
+**규칙적이지만 프론트가 조립해서는 안 된다.** 계약 문서가 명시적으로 그렇게 적었다 —
+`GET /customization-options` 가 돌려주는 `id` 와 `imageUrl` 을 쓴다.
+
+### 실서버 반영 여부
+
+V10·V11 은 **적용된 것으로 본다** — 배포된 빌드가 V10·V11 을 담은 커밋보다 뒤이므로 기동 시
+Flyway 가 돌았을 것이고, 시드가 가리키는 33+3+1 장이 실제로 200 으로 서빙된다. 다만 그것을
+읽는 API 가 아직 없어 **DB 에 있는 것을 확인할 방법이 그 이미지들뿐**이다.
+V12 는 **적용되지 않았다** — `GET /card-templates` 가 아직 `template_00X_back.png` 를 준다.
+
+---
+
 ## 프론트가 실제로 기대고 있는 것
 
 마이그레이션에서 확인한 사실만 적는다.
@@ -111,4 +182,4 @@ ADD   CHECK (generation_status IN
 | `users.name` 이 NOT NULL, `nickname` 컬럼은 **없다** | 회원가입이 닉네임을 안 받는 설계와 맞는다. 이메일에서 시드해 `name` 으로 보낸다 |
 | `users.deleted_at` (V3) | 소프트 탈퇴. **인증 필터는 이 값을 읽는데 로그인은 읽지 않는다** — 실측 확인 |
 | `ai_resource_generations.generation_status` | 컬럼명은 `generation_status` 인데 DTO 는 `status` 로 내보낸다. 이름을 API 레이어에서 맞춘다 |
-| `purchase_qrs` 시드 토큰은 **열한 개** | `MCM-DEMO-2026-001` ~ `-011`, 전부 `is_used = FALSE` 로 들어간다. 지금 DB 상태는 다르다 — 소진됐다 (`backend-open-items.md` §3) |
+| `purchase_qrs` 시드 토큰은 **열한 개** | `MCM-DEMO-2026-001` ~ `-011`, 전부 `is_used = FALSE` 로 들어간다. 지금 DB 상태는 다르다 — 소진됐다 (`backend-open-items.md` §6) |
