@@ -9,6 +9,7 @@ import { ShareFrame, offstage } from '@/components/card/share-frame';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { NavBar } from '@/components/ui/nav-bar';
+import { TextLink } from '@/components/ui/text-link';
 import { Screen } from '@/components/ui/screen';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
@@ -160,6 +161,11 @@ export default function CardDetailScreen() {
           loading={sharing}
           style={styles.share}
         />
+
+        {/* 뒤로 가기와 겹치지 않는다 — 저 화살표는 "직전 화면"이고 이쪽은 "처음"이다. 꾸미기를
+            마치고 돌아오면 스택에 꾸미기 전의 이 화면이 한 장 더 남아 있어, 화살표를 두 번
+            눌러야 컬렉션에 닿는다. 끝맺은 사람에게 필요한 것은 그 두 번이 아니다. */}
+        <TextLink label="컬렉션으로 가기" onPress={() => router.replace('/')} />
       </View>
 
       {/* 찍히는 것. 화면 밖에 서 있고, 카드가 뒤집혀 있든 말든 언제나 앞면이다. */}

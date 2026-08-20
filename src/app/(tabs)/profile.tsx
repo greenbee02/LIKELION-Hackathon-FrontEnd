@@ -53,9 +53,17 @@ export default function ProfileScreen() {
   const router = useRouter();
   const toast = useToast();
 
-  /* 이름이 비면 이메일의 앞부분이 대신 선다 — 백엔드가 `users.name` 을 NOT NULL 로 두지만
-     그 값이 이메일에서 시드된 경우가 있어, 둘 다 없을 때만 자리를 비운다. */
-  const name = user?.name?.trim() || user?.email?.split('@')[0] || null;
+  /**
+   * **주소 앞부분은 이름이 아니다.**
+   *
+   * `users.name` 이 NOT NULL 이라 가입 화면이 `sss@test.com` 에서 `sss` 를 심어 둔다
+   * (`sign-up.tsx`). 그것을 이름 줄에 세우면 같은 말이 두 줄에 겹쳐, 고르지 않은 이름이
+   * 고른 것처럼 보인다. 심어둔 값과 주소 앞부분이 같으면 아직 이름이 없는 것으로 보고
+   * 주소만 남긴다 — 없는 줄은 그리지 않는다는 규약 그대로다.
+   */
+  const localPart = user?.email?.split('@')[0];
+  const chosenName = user?.name?.trim();
+  const name = chosenName && chosenName !== localPart ? chosenName : null;
   const unlocked = rewards.filter((r) => r.status === 'UNLOCKED').length;
   const counting = status === 'loading' || collectionsStatus === 'loading';
 
@@ -78,8 +86,15 @@ export default function ProfileScreen() {
                 {name}
               </Text>
             ) : null}
+            {/* 이름이 없으면 주소가 그 자리를 대신한다 — 작은 글씨 한 줄만 남은 칸은
+                비어 보인다. */}
             {user?.email ? (
-              <Text variant="caption" tone="muted" numberOfLines={1} style={styles.email}>
+              <Text
+                variant={name ? 'caption' : 'body'}
+                tone={name ? 'muted' : 'default'}
+                numberOfLines={1}
+                style={name ? styles.email : undefined}
+              >
                 {user.email}
               </Text>
             ) : null}

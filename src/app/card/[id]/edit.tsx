@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronDown, History, Palette, Plus } from 'lucide-react-native';
+import { Palette, Plus } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -9,7 +9,7 @@ import { CardStage } from '@/components/customize/card-stage';
 import { LayerInspector } from '@/components/customize/layer-inspector';
 import { LayerList } from '@/components/customize/layer-list';
 import { Button } from '@/components/ui/button';
-import { Dropdown, type DropdownOption } from '@/components/ui/dropdown';
+import { ChipGroup } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { NavBar } from '@/components/ui/nav-bar';
@@ -18,16 +18,9 @@ import { Screen } from '@/components/ui/screen';
 import { Sheet, useSheetSpace } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
-import { TextArea } from '@/components/ui/text-area';
 import { TextLink } from '@/components/ui/text-link';
 import { useToast } from '@/components/ui/toast';
-import {
-  DATA_RESOURCE_TYPES,
-  RESOURCE_LABELS,
-  RESOURCE_NOTES,
-  isPending,
-  type AiResourceType,
-} from '@/lib/api/ai-resources';
+import { isPending, type AiResourceType } from '@/lib/api/ai-resources';
 import { useCardDesign } from '@/lib/card-design';
 import { useCard, useCards } from '@/lib/cards-store';
 import type { Card } from '@/lib/types';
@@ -38,41 +31,155 @@ import { space } from '@/theme/spacing';
 /** 미리보기 카드의 폭. 상세보다 좁다 — 여기서는 카드가 주인공이 아니라 작업 대상이다. */
 const PREVIEW_WIDTH = 220;
 
-type AiOptionField = { key: string; label: string; placeholder: string };
+type AiOptionField = {
+  key: string;
+  label: string;
+  placeholder: string;
+  /** 눌러서 고를 수 있는 말들. 그대로 서버로 가는 값이라 라벨과 값이 같다. */
+  choices: readonly string[];
+};
 
+/**
+ * 한 번에 만드는 후보 수 — 셋으로 굳었고, 화면에는 나오지 않는다.
+ *
+ * 고르라고 물어봤을 때 얻는 것이 없는 질문이었다. 셋과 넷 사이에는 고객이 고를 만한 차이가
+ * 없고(둘 다 "몇 개 중에 고른다"이다), 대신 넷은 눈에 띄게 오래 걸린다. 물어보지 않는 편이
+ * 빠르고, 화면도 한 줄 가벼워진다.
+ */
+const CANDIDATE_COUNT = 3 as const;
+
+/**
+ * 종류마다 물어보는 것들.
+ *
+ * **고르는 것이 기본이고 적는 것이 예외다.** 빈 상자 다섯 개를 세워두면 대충 만들어보려던
+ * 사람이 할 일이 다섯 번 생각하는 것이 되고, 그러면 대개 아무것도 적지 않은 채로 만들기를
+ * 누른다. 서넛의 말이 놓이면 고르는 데 한 번의 손짓이 들고, 그 말들이 동시에 "이 칸은 이런
+ * 것을 묻습니다"라는 설명이 된다. 그래도 자기 말을 쓰고 싶은 사람을 위해 마지막 칩이
+ * 「직접 입력」이다.
+ */
 const AI_OPTION_FIELDS: Record<AiResourceType, readonly AiOptionField[]> = {
   BACKGROUND: [
-    { key: 'mood', label: '분위기', placeholder: '예: 차분한 밤, 따뜻한 오후' },
-    { key: 'color', label: '색감', placeholder: '예: 딥 네이비, 모노톤' },
-    { key: 'texture', label: '질감', placeholder: '예: 종이 질감, 부드러운 그라데이션' },
+    {
+      key: 'mood',
+      label: '분위기',
+      placeholder: '예: 차분한 밤, 따뜻한 오후',
+      choices: ['차분한 밤', '따뜻한 오후', '도시의 새벽'],
+    },
+    {
+      key: 'color',
+      label: '색감',
+      placeholder: '예: 딥 네이비, 모노톤',
+      choices: ['딥 네이비', '모노톤', '웜 베이지'],
+    },
+    {
+      key: 'texture',
+      label: '질감',
+      placeholder: '예: 종이 질감, 부드러운 그라데이션',
+      choices: ['종이 질감', '부드러운 그라데이션', '매끄러운 광택'],
+    },
   ],
   BORDER: [
-    { key: 'shape', label: '모양', placeholder: '예: 얇은 선, 둥근 모서리' },
-    { key: 'color', label: '색감', placeholder: '예: 실버, 따뜻한 브라운' },
+    {
+      key: 'shape',
+      label: '모양',
+      placeholder: '예: 얇은 선, 둥근 모서리',
+      choices: ['얇은 선', '둥근 모서리', '각진 프레임'],
+    },
+    {
+      key: 'color',
+      label: '색감',
+      placeholder: '예: 실버, 따뜻한 브라운',
+      choices: ['실버', '따뜻한 브라운', '샴페인 골드'],
+    },
   ],
   PATTERN: [
-    { key: 'motif', label: '모티프', placeholder: '예: 기하학, 잎사귀' },
-    { key: 'density', label: '밀도', placeholder: '예: 여백 많게, 촘촘하게' },
-    { key: 'color', label: '색감', placeholder: '예: 흑백, 낮은 채도' },
+    {
+      key: 'motif',
+      label: '모티프',
+      placeholder: '예: 기하학, 잎사귀',
+      choices: ['기하학', '잎사귀', '물결'],
+    },
+    {
+      key: 'density',
+      label: '밀도',
+      placeholder: '예: 여백 많게, 촘촘하게',
+      choices: ['여백 많게', '촘촘하게', '균일하게'],
+    },
+    {
+      key: 'color',
+      label: '색감',
+      placeholder: '예: 흑백, 낮은 채도',
+      choices: ['흑백', '낮은 채도', '톤온톤'],
+    },
   ],
   PRODUCT_ANGLE: [],
   DECORATION: [
-    { key: 'subject', label: '주제', placeholder: '예: 작은 별, 리본' },
-    { key: 'mood', label: '분위기', placeholder: '예: 우아하게, 장난스럽게' },
-    { key: 'color', label: '색감', placeholder: '예: 골드, 파스텔' },
+    {
+      key: 'subject',
+      label: '주제',
+      placeholder: '예: 작은 별, 리본',
+      choices: ['작은 별', '리본', '꽃잎'],
+    },
+    {
+      key: 'mood',
+      label: '분위기',
+      placeholder: '예: 우아하게, 장난스럽게',
+      choices: ['우아하게', '장난스럽게', '담백하게'],
+    },
+    {
+      key: 'color',
+      label: '색감',
+      placeholder: '예: 골드, 파스텔',
+      choices: ['골드', '파스텔', '모노톤'],
+    },
   ],
   COLOR_PALETTE: [
-    { key: 'mood', label: '분위기', placeholder: '예: 고요한 새벽, 빈티지' },
-    { key: 'temperature', label: '색온도', placeholder: '예: 따뜻하게, 차갑게' },
+    {
+      key: 'mood',
+      label: '분위기',
+      placeholder: '예: 고요한 새벽, 빈티지',
+      choices: ['고요한 새벽', '빈티지', '선명한 대비'],
+    },
+    {
+      key: 'temperature',
+      label: '색온도',
+      placeholder: '예: 따뜻하게, 차갑게',
+      choices: ['따뜻하게', '차갑게', '중성적으로'],
+    },
   ],
   TEXT_STYLE: [
-    { key: 'fontStyle', label: '글꼴 분위기', placeholder: '예: 클래식 세리프, 모던 산세리프' },
-    { key: 'weight', label: '굵기', placeholder: '예: 가볍게, 또렷하게' },
-    { key: 'alignment', label: '정렬', placeholder: '예: 가운데, 왼쪽' },
+    {
+      key: 'fontStyle',
+      label: '글꼴 분위기',
+      placeholder: '예: 클래식 세리프, 모던 산세리프',
+      choices: ['클래식 세리프', '모던 산세리프', '손글씨'],
+    },
+    {
+      key: 'weight',
+      label: '굵기',
+      placeholder: '예: 가볍게, 또렷하게',
+      choices: ['가볍게', '또렷하게', '굵게'],
+    },
+    {
+      key: 'alignment',
+      label: '정렬',
+      placeholder: '예: 가운데, 왼쪽',
+      choices: ['가운데', '왼쪽', '오른쪽'],
+    },
   ],
   COMPOSITION: [
-    { key: 'layout', label: '배치', placeholder: '예: 중앙 집중, 비대칭' },
-    { key: 'emphasis', label: '강조 대상', placeholder: '예: 상품을 크게, 여백을 강조' },
+    {
+      key: 'layout',
+      label: '배치',
+      placeholder: '예: 중앙 집중, 비대칭',
+      choices: ['중앙 집중', '비대칭', '위아래 분할'],
+    },
+    {
+      key: 'emphasis',
+      label: '강조 대상',
+      placeholder: '예: 상품을 크게, 여백을 강조',
+      choices: ['상품을 크게', '여백을 강조', '문구를 앞으로'],
+    },
   ],
 };
 
@@ -114,22 +221,7 @@ export default function EditCardScreen() {
     dismissError();
   }, [designError, dismissError, toast]);
 
-  const nav = (
-    <NavBar
-      title="카드 꾸미기"
-      fallback="/"
-      action={
-        card
-          ? {
-              icon: History,
-              accessibilityLabel: 'AI 리소스 기록',
-              onPress: () =>
-                router.push({ pathname: '/card/[id]/ai-resources', params: { id: card.id } }),
-            }
-          : undefined
-      }
-    />
-  );
+  const nav = <NavBar title="카드 꾸미기" fallback="/" />;
 
   if (cardStatus !== 'loading' && !card) {
     return (
@@ -190,120 +282,100 @@ function CandidatesPane({
   design: Design;
   nav: React.ReactNode;
 }) {
-  /* 첫 항목이 기본값이다. `BACKGROUND` 를 박아두면 상품 사진이 없는 카드에서 목록에 없는
-     종류가 골라진 채로 화면이 열린다. */
-  const [type, setType] = useState<AiResourceType>(design.generatableTypes[0] ?? 'DECORATION');
-  const [prompt, setPrompt] = useState('');
+  /**
+   * **무엇을 만들지는 묻지 않는다.**
+   *
+   * 여덟 종류를 늘어놓고 고르게 하던 자리였는데, 고르는 사람에게 그 목록은 선택지가 아니라
+   * 숙제였다 — 무엇을 고르든 그 다음에 할 일(분위기·색감을 고르고 만들기를 누르는 것)이
+   * 똑같고, 정작 카드에서 눈에 들어오는 것은 얼굴을 통째로 채우는 그림 한 겹이다. 그래서
+   * 이 화면은 그 한 겹만 만든다.
+   *
+   * 첫 항목을 쓰는 이유는 `BACKGROUND` 를 박아둘 수 없기 때문이다 — 상품 사진이 없는
+   * 카드에서는 서버가 409 로 거절하므로, 그런 카드에서는 목록의 다음 것이 온다.
+   */
+  const type: AiResourceType = design.generatableTypes[0] ?? 'DECORATION';
   const [optionValues, setOptionValues] = useState<Record<string, string>>({});
-  const [candidateCount, setCandidateCount] = useState<3 | 4>(4);
+  /* 어느 칸이 「직접 입력」으로 열려 있는지. 값만으로는 알 수 없다 — 직접 입력을 고르고 아직
+     아무것도 적지 않은 상태와, 애초에 고르지 않은 상태가 둘 다 빈 문자열이기 때문이다. */
+  const [customFields, setCustomFields] = useState<Record<string, boolean>>({});
   const group = design.groups[type];
-  const chosenCount = Object.keys(design.selected).length;
-  const promptError = prompt.length > 2000 ? '프롬프트는 2000자 이하여야 합니다.' : null;
   const optionFields = AI_OPTION_FIELDS[type];
   const generationOptions = useMemo(
     () => ({
-      prompt: prompt.trim() || undefined,
-      candidateCount,
+      candidateCount: CANDIDATE_COUNT,
       options: Object.fromEntries(
         optionFields
           .map(({ key }) => [key, optionValues[`${type}:${key}`] ?? ''] as const)
           .filter(([, value]) => value.trim().length > 0),
       ),
     }),
-    [candidateCount, optionFields, optionValues, prompt, type],
+    [optionFields, optionValues, type],
   );
-  const generateCurrent = () => {
-    if (promptError) return;
-    design.generate(type, generationOptions);
-  };
-
-  /* 고를 수 있는 것만 세운다 — `PRODUCT_ANGLE` 은 폐지돼 400 이고, `BACKGROUND` 는 상품
-     사진이 없으면 409 다. 실패가 예정된 항목을 목록에 두는 것은 목록이 아니라 함정이다. */
-  const options: DropdownOption[] = [
-    ...design.generatableTypes.map((t) => option(t, design, '그림')),
-    ...DATA_RESOURCE_TYPES.map((t) => option(t, design, '스타일')),
-  ];
+  const generateCurrent = () => design.generate(type, generationOptions);
 
   return (
     <Screen scroll gutter={false} header={nav} contentContainerStyle={styles.content}>
-      <TextArea
-        label="AI 프롬프트"
-        value={prompt}
-        onChangeText={setPrompt}
-        maxLength={2000}
-        error={promptError}
-        placeholder="원하는 분위기나 표현을 입력해 주세요."
-        style={styles.field}
-      />
-      <Text variant="caption" tone="muted" style={styles.counter}>
-        {`${prompt.length}/2000`}
-      </Text>
+      {optionFields.map((field) => {
+        const valueKey = `${type}:${field.key}`;
+        const value = optionValues[valueKey] ?? '';
+        const custom = customFields[valueKey] ?? false;
 
-      {optionFields.map((field) => (
-        <Input
-          key={field.key}
-          label={field.label}
-          value={optionValues[`${type}:${field.key}`] ?? ''}
-          onChangeText={(value) =>
-            setOptionValues((prev) => ({ ...prev, [`${type}:${field.key}`]: value }))
-          }
-          placeholder={field.placeholder}
-          style={styles.field}
-        />
-      ))}
+        return (
+          <View key={field.key} style={styles.field}>
+            <Text variant="label" tone="muted" style={styles.fieldLabel}>
+              {field.label}
+            </Text>
 
-      <View style={styles.optionRow}>
-        <Text variant="label" tone="muted" style={styles.optionLabel}>
-          후보 개수
-        </Text>
-        <Dropdown
-          value={String(candidateCount)}
-          onValueChange={(value) => setCandidateCount(value === '3' ? 3 : 4)}
-          options={[
-            { value: '3', label: '후보 3개' },
-            { value: '4', label: '후보 4개' },
-          ]}
-          accessibilityLabel="AI 후보 개수 고르기"
-        >
-          <View style={styles.optionPicker}>
-            <Text variant="body">{`후보 ${candidateCount}개`}</Text>
-            <ChevronDown size={18} color={colors.text} />
+            <ChipGroup
+              accessibilityLabel={`${field.label} 고르기`}
+              items={field.choices.map((choice) => ({ key: choice, label: choice }))}
+              selected={custom ? null : value || null}
+              onSelect={(key) => {
+                setCustomFields((prev) => ({ ...prev, [valueKey]: false }));
+                /* 고른 것을 다시 누르면 고르지 않은 상태로 — 이 칸들은 전부 선택 사항이다. */
+                setOptionValues((prev) => ({
+                  ...prev,
+                  [valueKey]: prev[valueKey] === key ? '' : key,
+                }));
+              }}
+              custom={{
+                label: '직접 입력',
+                value: custom ? value : '',
+                active: custom,
+                placeholder: field.placeholder,
+                onActivate: () => {
+                  setCustomFields((prev) => ({ ...prev, [valueKey]: true }));
+                  setOptionValues((prev) => ({ ...prev, [valueKey]: '' }));
+                },
+                onChangeText: (next) =>
+                  setOptionValues((prev) => ({ ...prev, [valueKey]: next })),
+              }}
+            />
           </View>
-        </Dropdown>
-      </View>
-
-      <View style={styles.pickerRow}>
-        <Dropdown
-          value={type}
-          onValueChange={(next) => setType(next as AiResourceType)}
-          options={options}
-          accessibilityLabel="만들 종류 고르기"
-        >
-          <View style={styles.picker}>
-            <Text variant="heading">{RESOURCE_LABELS[type]}</Text>
-            <ChevronDown size={18} color={colors.text} />
-          </View>
-        </Dropdown>
-      </View>
-
-      <Text variant="caption" tone="muted" style={styles.note}>
-        {RESOURCE_NOTES[type]}
-      </Text>
+        );
+      })}
 
       {group ? (
         <>
           <View style={styles.gridBlock}>
+            {/* **고르는 것이 곧 다음 단계다.** 고른 뒤에 「카드에 배치하기」를 한 번 더
+                누르게 하던 자리였는데, 그 버튼은 방금 한 선택을 확인만 하고 아무것도 더
+                묻지 않았다 — 되돌릴 길(편집기의 「후보 다시 고르기」)이 있으므로 확인을
+                받을 이유도 없다. */}
             <CandidateGrid
               candidates={group.candidates}
-              candidateCount={Math.max(candidateCount, group.candidates.length)}
+              candidateCount={Math.max(CANDIDATE_COUNT, group.candidates.length)}
               selectedId={design.selected[type]}
-              onSelect={(candidate) => design.select(type, candidate.id)}
+              onSelect={(candidate) => {
+                design.select(type, candidate.id);
+                design.openEditor();
+              }}
             />
           </View>
 
           {group.slow && !group.expired ? (
             <Text variant="caption" tone="muted" style={styles.note}>
-              예상보다 오래 걸리고 있습니다. 계속 만들고 있으니 다른 종류를 먼저 골라도 됩니다.
+              예상보다 오래 걸리고 있습니다. 계속 만들고 있으니 잠시만 기다려 주세요.
             </Text>
           ) : null}
 
@@ -315,49 +387,12 @@ function CandidatesPane({
           ) : null}
         </>
       ) : (
-        <Button
-          label={`${RESOURCE_LABELS[type]} 후보 만들기`}
-          onPress={generateCurrent}
-          disabled={Boolean(promptError)}
-          style={styles.action}
-        />
+        <Button label="카드 그림 만들기" onPress={generateCurrent} style={styles.action} />
       )}
-
-      <View style={styles.footer}>
-        <Text variant="caption" tone="muted">
-          {chosenCount > 0 ? `${chosenCount}가지를 골랐습니다` : '고른 것이 없습니다'}
-        </Text>
-        <Button
-          label="카드에 배치하기"
-          disabled={chosenCount === 0}
-          onPress={design.openEditor}
-          style={styles.action}
-        />
-        <TextLink label="디자인 다시 고르기" onPress={design.reset} />
-      </View>
-
-      <Text variant="caption" tone="muted" style={styles.brandNote}>
-        {`${card.brand.name} 가 승인한 범위 안에서 만들어집니다.`}
-      </Text>
     </Screen>
   );
 }
 
-/** 드롭다운 한 줄. `hint` 가 그 그룹의 지금 상태를 말한다. */
-function option(type: AiResourceType, design: Design, group: string): DropdownOption {
-  const state = design.groups[type];
-  const chosen = design.selected[type];
-
-  const hint = chosen
-    ? '고름'
-    : !state
-      ? '아직'
-      : state.candidates.some((c) => isPending(c.status))
-        ? '만드는 중'
-        : `${state.candidates.filter((c) => c.status === 'COMPLETED').length}개`;
-
-  return { value: type, label: RESOURCE_LABELS[type], hint, group };
-}
 
 /* ──────────────────────────────────────────────────────────────────────────────
  * 3단계 — 카드 위에 놓기
@@ -504,31 +539,11 @@ const styles = StyleSheet.create({
   blank: { flex: 1 },
   tileSkeleton: { flex: 1, aspectRatio: CARD_ASPECT, borderRadius: radius.base },
   field: { marginTop: space[4] },
-  counter: { marginTop: space[1], textAlign: 'right' },
+  fieldLabel: { marginBottom: space[2] },
+  customField: { marginTop: space[3] },
   action: { marginTop: space[4] },
   note: { marginTop: space[3] },
-  brandNote: { marginTop: space[5], textAlign: 'center' },
 
-  pickerRow: { marginTop: space[5], flexDirection: 'row' },
-  picker: { flexDirection: 'row', alignItems: 'center', gap: space[2] },
-  optionRow: {
-    marginTop: space[4],
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  optionLabel: { marginBottom: 0 },
-  optionPicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space[2],
-    paddingVertical: space[2],
-    paddingHorizontal: space[3],
-    borderRadius: radius.base,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  footer: { marginTop: space[6] },
 
   /* 편집기는 스크롤하지 않는다 — 무대의 드래그와 화면의 스크롤이 같은 손짓을 두 가지 뜻으로
      쓰게 되고, 레이어를 아래로 끌면 화면이 같이 내려간다. */

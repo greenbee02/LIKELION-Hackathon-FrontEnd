@@ -1,7 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Layers, Palette, Sparkles } from 'lucide-react-native';
+import { Palette, Sparkles } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { CARD_ASPECT, CardFace } from '@/components/card/card-face';
 import { CardBack } from '@/components/card/card-back';
@@ -11,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { NavBar } from '@/components/ui/nav-bar';
-import { allowPressOverflow } from '@/components/ui/press-scale';
+import { allowPressOverflow, raiseWhilePressed, usePressScale } from '@/components/ui/press-scale';
 import { Screen } from '@/components/ui/screen';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
@@ -220,63 +221,61 @@ export default function DesignCardScreen() {
 
   if (step === 'pick') {
     return (
-      <Screen scroll gutter={false} header={nav} contentContainerStyle={styles.content}>
-        {loadFailed ? (
-          <EmptyState
-            icon={Palette}
-            title="디자인을 불러오지 못했습니다"
-            note={loadFailed}
-            action={{ label: '다시 시도', onPress: () => setLoadFailed(null) }}
-          />
-        ) : !options ? (
-          <View style={styles.grid}>
-            <View style={styles.row}>
-              <Skeleton style={styles.tileSkeleton} />
-              <Skeleton style={styles.tileSkeleton} />
-              <Skeleton style={styles.tileSkeleton} />
+      <Screen gutter={false} header={nav} edges={['top', 'left', 'right', 'bottom']}>
+        <View style={styles.pickPane}>
+          {loadFailed ? (
+            <EmptyState
+              icon={Palette}
+              title="디자인을 불러오지 못했습니다"
+              note={loadFailed}
+              action={{ label: '다시 시도', onPress: () => setLoadFailed(null) }}
+            />
+          ) : !options ? (
+            <View style={styles.grid}>
+              <View style={styles.row}>
+                <Skeleton style={styles.tileSkeleton} />
+                <Skeleton style={styles.tileSkeleton} />
+                <Skeleton style={styles.tileSkeleton} />
+              </View>
             </View>
-          </View>
-        ) : options.backgrounds.length === 0 || options.borders.length === 0 ? (
-          <EmptyState
-            icon={Palette}
-            title="이 상품에는 아직 승인된 디자인이 없습니다"
-            note={`${card.brand.name} 가 이 상품의 카드 디자인을 준비하면\n여기에서 고르실 수 있습니다.`}
-          />
-        ) : (
-          <>
-            <Text variant="body" tone="muted" style={styles.intro}>
-              {`${card.brand.name} 가 승인한 배경과 테두리 중에서 고르시면,\n그 위에 새길 한 줄을 직접 놓으실 수 있습니다.`}
-            </Text>
-
-            <Text variant="heading" style={styles.section}>
-              배경
-            </Text>
-            <AssetGrid assets={options.backgrounds} selectedId={background?.id} onSelect={setBackground} />
-
-            <Text variant="heading" style={styles.section}>
-              테두리
-            </Text>
-            <AssetGrid
-              assets={options.borders}
-              selectedId={border?.id}
-              onSelect={setBorder}
-              underlayUrl={background?.imageUrl}
+          ) : options.backgrounds.length === 0 || options.borders.length === 0 ? (
+            <EmptyState
+              icon={Palette}
+              title="이 상품에는 아직 승인된 디자인이 없습니다"
+              note={`${card.brand.name} 가 이 상품의 카드 디자인을 준비하면\n여기에서 고르실 수 있습니다.`}
             />
+          ) : (
+            <>
+              <Text variant="heading" style={styles.section}>
+                배경
+              </Text>
+              <AssetGrid assets={options.backgrounds} selectedId={background?.id} onSelect={setBackground} />
 
-            <Button
-              label="다음"
-              disabled={!background || !border}
-              onPress={() => setStep('text')}
-              style={styles.action}
-            />
-          </>
-        )}
+              <Text variant="heading" style={styles.section}>
+                테두리
+              </Text>
+              <AssetGrid
+                assets={options.borders}
+                selectedId={border?.id}
+                onSelect={setBorder}
+                underlayUrl={background?.imageUrl}
+              />
+
+              <Button
+                label="다음"
+                disabled={!background || !border}
+                onPress={() => setStep('text')}
+                style={styles.pickAction}
+              />
+            </>
+          )}
+        </View>
       </Screen>
     );
   }
 
   return (
-    <Screen gutter={false} header={nav}>
+    <Screen gutter={false} header={nav} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.editor}>
         <View style={styles.sideToggle} accessibilityRole="tablist">
           {(['front', 'back'] as const).map((side) => (
@@ -327,11 +326,13 @@ export default function DesignCardScreen() {
               style={styles.field}
             />
 
-            <Text variant="caption" tone="muted" style={styles.note}>
-              {content
-                ? '문구를 끌어 옮기고, 모서리를 잡아 크기를 바꿀 수 있습니다.'
-                : '카드에 새길 한 줄을 적어주세요.'}
-            </Text>
+            {/* 적기 전에만 나온다. 무대에서 무엇을 할 수 있는지는 문구가 놓이는 순간
+                손이 알아내는 일이지, 화면이 계속 일러줄 일이 아니다. */}
+            {content ? null : (
+              <Text variant="caption" tone="muted" style={styles.note}>
+                카드에 새길 한 줄을 적어주세요.
+              </Text>
+            )}
           </>
         ) : (
           <Text variant="caption" tone="muted" style={styles.note}>
@@ -357,11 +358,16 @@ export default function DesignCardScreen() {
  * ────────────────────────────────────────────────────────────────────────────── */
 
 /**
- * 두 갈래를 나란히 세운다.
+ * 두 갈래를 화면 한가운데, 나란히 두 칸으로.
  *
  * 버튼 둘이 아니라 타일 둘인 이유가 있다. 같은 크기로 외치는 버튼 두 개는 화면이 무엇을 위한
  * 것인지 정하지 못했다는 뜻이지만, **여기서는 정하지 못한 것이 아니라 물어보는 것이다** —
  * 고객이 고를 것이 두 가지이고 둘 다 유효하다.
+ *
+ * **설명도, 스크롤도 없다.** 화면에 물음 하나와 답 둘밖에 없으면 타일의 이름이 이미 그
+ * 답이고, 두 칸이 화면 가운데에 정사각형으로 서므로 넘칠 것도 없다. 높이를 끝까지 늘리지
+ * 않는 이유는, 세로로 긴 칸 두 개는 고르라는 뜻보다 화면을 채우겠다는 뜻으로 읽히기
+ * 때문이다.
  */
 function ForkPane({
   card,
@@ -377,28 +383,16 @@ function ForkPane({
   onUndo: () => void;
 }) {
   return (
-    <Screen scroll gutter={false} header={nav} contentContainerStyle={styles.content}>
-      <Text variant="body" tone="muted" style={styles.intro}>
-        {`${card.brand.name} 의 카드를 두 가지 방법으로 꾸미실 수 있습니다.`}
-      </Text>
+    <Screen gutter={false} header={nav}>
+      <View style={styles.forkPane}>
+        <View style={styles.forks}>
+          <ForkTile icon={Palette} title="템플릿으로 꾸미기" onPress={onStatic} />
+          <ForkTile icon={Sparkles} title="AI로 커스텀하기" onPress={onAi} />
+        </View>
 
-      <View style={styles.forks}>
-        <ForkTile
-          icon={Layers}
-          title="승인된 디자인으로"
-          note={`하우스가 준비한 배경과 테두리를 고르고\n한 줄을 새깁니다. 바로 반영됩니다.`}
-          onPress={onStatic}
-        />
-        <ForkTile
-          icon={Sparkles}
-          title="AI 로 만들기"
-          note={`이 카드만을 위한 그림을 새로 만듭니다.\n만드는 데 시간이 걸립니다.`}
-          onPress={onAi}
-        />
+        {/* 이미 꾸며둔 카드에만 나온다. 되돌릴 것이 없는데 되돌리기를 두면 그 버튼은 거짓말이다. */}
+        {card.customization ? <TextLink label="원래 디자인으로 되돌리기" onPress={onUndo} /> : null}
       </View>
-
-      {/* 이미 꾸며둔 카드에만 나온다. 되돌릴 것이 없는데 되돌리기를 두면 그 버튼은 거짓말이다. */}
-      {card.customization ? <TextLink label="원래 디자인으로 되돌리기" onPress={onUndo} /> : null}
     </Screen>
   );
 }
@@ -406,23 +400,31 @@ function ForkPane({
 function ForkTile({
   icon: Icon,
   title,
-  note,
   onPress,
 }: {
-  icon: typeof Layers;
+  icon: typeof Palette;
   title: string;
-  note: string;
   onPress: () => void;
 }) {
+  /* 누르는 동안 자란다 — 이 칸은 글자가 아니라 손가락 아래 있는 물건이다. 자람이 지나가는
+     길목(`forkPane`, `forks`)은 넘침을 허용해야 웹에서 모서리가 잘리지 않는다. */
+  const press = usePressScale();
+
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.fork}>
-      <Icon size={20} color={colors.text} strokeWidth={1.5} />
-      <View style={styles.forkText}>
-        <Text variant="action">{title}</Text>
-        <Text variant="caption" tone="muted" style={styles.forkNote}>
-          {note}
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      {...press.handlers}
+      style={({ pressed }) => [styles.forkCell, pressed && raiseWhilePressed]}
+    >
+      <Animated.View style={[styles.fork, press.style]}>
+        <Icon size={40} color={colors.text} strokeWidth={1.25} />
+        {/* 정사각형 한 칸 안에서 이름은 한 줄로 선다 — 두 줄로 접힌 이름은 두 가지를 고르라는
+            화면에서 둘의 무게를 다르게 보이게 한다. */}
+        <Text variant="action" numberOfLines={1} style={styles.forkTitle}>
+          {title}
         </Text>
-      </View>
+      </Animated.View>
     </Pressable>
   );
 }
@@ -447,8 +449,10 @@ function assetLayer(
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: space[4], paddingBottom: space[7] },
-  intro: { marginTop: space[4] },
+  /* 고를 화면도 스크롤하지 않는다 — 배경 셋과 테두리 셋은 한 화면에 다 서고, 그래야 고르는
+     일이 곧 비교가 된다. `다음` 은 그 아래 남는 자리를 전부 밀고 바닥에 붙는다. */
+  pickPane: { flex: 1, paddingHorizontal: space[4], paddingBottom: space[4] },
+  pickAction: { marginTop: 'auto' },
   section: { marginTop: space[5], marginBottom: space[3] },
   grid: { marginTop: space[5], gap: space[3], ...allowPressOverflow },
   row: { flexDirection: 'row', gap: space[2] },
@@ -456,25 +460,37 @@ const styles = StyleSheet.create({
   faceSkeleton: { width: '100%', aspectRatio: CARD_ASPECT, borderRadius: radius.base },
   field: { marginTop: space[4] },
   note: { marginTop: space[3] },
-  action: { marginTop: space[4] },
+  /* 저장은 화면 바닥에 붙는다 — 위쪽에 남는 자리는 무대의 것이지 버튼의 것이 아니다. */
+  action: { marginTop: 'auto' },
 
-  forks: { marginTop: space[5], gap: space[3] },
+  /* 갈래는 스크롤하지 않는다 — 고를 것이 둘뿐이면 화면 밖에 남는 것이 없다. */
+  forkPane: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: space[4],
+    paddingBottom: space[6],
+    gap: space[5],
+    ...allowPressOverflow,
+  },
+  forks: { flexDirection: 'row', gap: space[3], ...allowPressOverflow },
+  forkCell: { flex: 1, ...allowPressOverflow },
   /* 패널과 같은 규약 — 칠하지 않고 6단계 실선으로 가른다. 페이지의 밝기를 지킨다. */
   fork: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    width: '100%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: space[3],
-    padding: space[4],
+    padding: space[2],
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     borderRadius: radius.base,
   },
-  forkText: { flex: 1, gap: space[1] },
-  forkNote: { lineHeight: 18 },
+  forkTitle: { textAlign: 'center' },
 
   /* 편집기는 스크롤하지 않는다 — 무대의 드래그와 화면의 스크롤이 같은 손짓을 두 가지 뜻으로
      쓰게 되고, 문구를 아래로 끌면 화면이 같이 내려간다. */
-  editor: { flex: 1, paddingHorizontal: space[4] },
+  editor: { flex: 1, paddingHorizontal: space[4], paddingBottom: space[4] },
   sideToggle: {
     flexDirection: 'row',
     alignSelf: 'center',
