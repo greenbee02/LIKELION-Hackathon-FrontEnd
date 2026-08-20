@@ -103,15 +103,10 @@ The face carries **two lines of type along the top and nothing else** — the ci
 
 ## Deployment
 
-**A push to `main` ships it.** `.github/workflows/deploy.yml` runs `vercel deploy --prod` for the project `curio`, live at `https://curio-xi-lovat.vercel.app`. `npx vercel --prod` from the repo root still works and is the way to ship without pushing.
+**A push to `main` ships it** — `.github/workflows/deploy.yml` runs `vercel deploy --prod` for the project `curio`, live at `https://curio-xi-lovat.vercel.app`. Why it is built the way it is, is commented in the workflow itself. `npx vercel --prod` from the repo root is the way to ship without pushing.
 
-**A GitHub App cannot connect this repo, but Actions never needed one.** The App installs on an *account*, never on a repo, and this repo belongs to someone else's personal account — `vercel link` attempts the connection and is refused, which is expected and harmless. Actions authenticates with a `VERCEL_TOKEN` secret instead, and that token is ours, so the owner's account is never involved. Three repo secrets carry it: `VERCEL_TOKEN` · `VERCEL_ORG_ID` · `VERCEL_PROJECT_ID`, the latter two being what `.vercel/project.json` holds locally and gitignores.
-
+- **`vercel link` is refused, and that is expected.** The Vercel GitHub App installs on an *account*, never on a repo, and this one belongs to someone else's — which is why the workflow carries a `VERCEL_TOKEN` of ours instead. Three repo secrets hold it: `VERCEL_TOKEN` · `VERCEL_ORG_ID` · `VERCEL_PROJECT_ID`, the last two being what `.vercel/project.json` keeps locally and gitignores.
 - **Write access is enough to set repo secrets here**, though the Settings UI that would show them is admin-only — `gh secret set` is the way in.
-- **The workflow uploads source and lets Vercel build**, which is the same path `npx vercel --prod` takes, so a build cannot break on the runner alone. `.vercelignore` applies identically.
-- **The token goes in `env:`, never in `--token=`**, which would print it in the runner's process list.
-- **Doc-only commits are skipped** (`paths-ignore`), and `concurrency` cancels a running deploy when the next push arrives — only the last one needs to become production.
-
 - **`web.output` is `single`, not `static`.** Static rendering spells a dynamic segment `dist/card/[id].html`, which static hosting cannot resolve; the deep link then falls through the catch-all onto the wrong screen's markup.
 - **`api/proxy.mjs` is the web's only route to the backend** — `/api/`, `/images/`, `/generated/`, the same three prefixes `metro.config.js` proxies in dev, each rewritten to it with `?upstream=`. So `src/lib/config.ts` proxies on web unconditionally, with no `__DEV__` in the condition.
 - **A rewrite cannot dodge CORS, because it does not strip `Origin`.** A browser attaches `Origin` to a POST even when it is same-origin, and the backend's allow-list has no deploy origin, so login answers `403 Invalid CORS request` while GETs pass. The proxy is a **function** for that one reason: a function can drop the header. Delete it the day the backend adds the origin (`backend-open-items.md` §1).
