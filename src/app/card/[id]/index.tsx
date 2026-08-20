@@ -34,10 +34,9 @@ import { space } from '@/theme/spacing';
  * gesture holds what, and it is why neither surface repeats a row from the other.
  *
  * The hero is the same `CardFace` the grid drew, not a larger variant of it — the customer tapped
- * a specific object and has to land on that object rather than on a page about it. Held to 280:
- * wider than the issuance screen's 220, since this is the one screen whose subject is a single
- * card, and narrower than the gutter, since a 3:4 face at full width is a poster and a
- * collectible is not.
+ * a specific object and has to land on that object rather than on a page about it. The detail
+ * view uses the real card proportion (`1000 × 1586`) and expands to a generous 360px ceiling so
+ * the image is large enough to inspect without making the card wider than a phone-sized layout.
  *
  * Only the product's name stays off both — it is the screen's title, and it has to be readable
  * while the front is showing and the sheet is closed.
@@ -185,7 +184,7 @@ const styles = StyleSheet.create({
      `Screen`'s own gutter instead and take `head` alone — applying both would pad them twice. */
   gutter: { paddingHorizontal: space[4], paddingTop: space[2] },
   head: { paddingTop: space[2] },
-  hero: { width: '100%', maxWidth: 236, alignSelf: 'center', marginTop: space[5] },
+  hero: { width: '100%', maxWidth: 360, alignSelf: 'center', marginTop: space[5] },
   heroFace: { width: '100%', aspectRatio: CARD_ASPECT, borderRadius: radius.base },
   title: { marginTop: space[5] },
   /** 32 — the control is a separate subject from the name above it. */
