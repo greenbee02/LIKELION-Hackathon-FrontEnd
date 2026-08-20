@@ -11,6 +11,7 @@ import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AppFrame } from '@/components/ui/app-frame';
 import { ToastProvider } from '@/components/ui/toast';
 import { AuthProvider, useAuth } from '@/lib/auth-store';
 import { CardsProvider } from '@/lib/cards-store';
@@ -80,22 +81,27 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
+        {/* 넓은 창에서 앱이 폰만 한 폭으로 선다 — `AppFrame`. providers 보다 바깥이 아니라
+            안쪽인 이유: 틀은 그리는 것이라 그릴 것을 다 감싸야 하고, `PortalHost` 까지 그
+            안에 들어와야 다이얼로그와 시트도 같은 폭에서 뜬다. */}
         {/* 토스트가 store 보다 바깥에 있는 이유: `CollectionsProvider` 의 뒤늦은 동기화가
             실패하면 그 사실을 말해야 하는데, 안쪽에 있으면 store 가 토스트를 부를 수 없다.
             화면이 이미 다른 곳으로 넘어간 뒤에 실패가 도착하므로 화면이 대신 말해줄 수도
             없다 — 그때 조용히 되돌리는 것이 "담은 카드가 1초 뒤 사라진다"의 정체였다. */}
-        <ToastProvider>
-          <AuthProvider>
-            <CardsProvider>
-              <CollectionsProvider>
-                <SessionGate fontsReady={fontsLoaded || Boolean(fontError)}>
-                  <Stack screenOptions={{ headerShown: false }} />
-                </SessionGate>
-                <PortalHost />
-              </CollectionsProvider>
-            </CardsProvider>
-          </AuthProvider>
-        </ToastProvider>
+        <AppFrame>
+          <ToastProvider>
+            <AuthProvider>
+              <CardsProvider>
+                <CollectionsProvider>
+                  <SessionGate fontsReady={fontsLoaded || Boolean(fontError)}>
+                    <Stack screenOptions={{ headerShown: false }} />
+                  </SessionGate>
+                  <PortalHost />
+                </CollectionsProvider>
+              </CardsProvider>
+            </AuthProvider>
+          </ToastProvider>
+        </AppFrame>
       </SafeAreaProvider>
       <StatusBar style="dark" />
     </GestureHandlerRootView>
