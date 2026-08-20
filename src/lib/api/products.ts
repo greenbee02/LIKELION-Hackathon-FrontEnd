@@ -52,6 +52,45 @@ export type ProductResponse = {
  */
 const cache = new Map<string, Promise<ProductResponse>>();
 
+export type ProductPage = {
+  items: ProductResponse[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+};
+
+export type ProductQuery = {
+  offeringType?: string;
+  category?: string;
+  theme?: string;
+  season?: string;
+  region?: string;
+  limited?: boolean;
+  page?: number;
+  size?: number;
+};
+
+export function fetchProducts(query: ProductQuery = {}) {
+  const params = new URLSearchParams();
+  const values: Record<string, string | number | boolean | undefined> = {
+    offeringType: query.offeringType,
+    category: query.category,
+    theme: query.theme,
+    season: query.season,
+    region: query.region,
+    limited: query.limited,
+    page: query.page ?? 0,
+    size: query.size ?? 20,
+  };
+
+  Object.entries(values).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') params.set(key, String(value));
+  });
+
+  return request<ProductPage>(`/products?${params.toString()}`);
+}
+
 export function fetchProduct(id: string): Promise<ProductResponse> {
   const hit = cache.get(id);
   if (hit) return hit;

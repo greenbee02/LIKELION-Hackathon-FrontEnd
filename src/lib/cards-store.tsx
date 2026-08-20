@@ -32,6 +32,7 @@ type CardsValue = {
   cards: Card[];
   rewards: Reward[];
   error: string | null;
+  reload: () => void;
   addCard: (card: Card) => void;
   /**
    * 카드 한 장을 서버에서 다시 받아 목록에 반영한다.
@@ -58,6 +59,7 @@ export function CardsProvider({ children }: { children: ReactNode }) {
   const [cards, setCards] = useState<Card[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [epoch, setEpoch] = useState(0);
   /**
    * **누구인지 정해지기 전에는 아무것도 부르지 않는다.**
    *
@@ -78,6 +80,8 @@ export function CardsProvider({ children }: { children: ReactNode }) {
 
     let alive = true;
     const load = async () => {
+      setError(null);
+      setStatus('loading');
       try {
         // 카드와 리워드는 서로를 기다리지 않는다. 리워드 쪽이 컬렉션 색인까지 만드느라 더
         // 오래 걸리는데, 그것 때문에 카드 그리드가 늦게 뜰 이유가 없다.
@@ -98,7 +102,9 @@ export function CardsProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, [signedIn]);
+  }, [epoch, signedIn]);
+
+  const reload = useCallback(() => setEpoch((n) => n + 1), []);
 
   /**
    * 코드를 발급받고, 돌아온 값을 그 리워드에 얹는다.
@@ -169,11 +175,12 @@ export function CardsProvider({ children }: { children: ReactNode }) {
       cards: signedIn ? cards : [],
       rewards: signedIn ? rewards : [],
       error: signedIn ? error : null,
+      reload,
       addCard: (card) => setCards((prev) => [card, ...prev]),
       loadCard,
       claim,
     }),
-    [signedIn, status, cards, rewards, error, loadCard, claim],
+    [signedIn, status, cards, rewards, error, reload, loadCard, claim],
   );
 
   return <CardsContext.Provider value={value}>{children}</CardsContext.Provider>;

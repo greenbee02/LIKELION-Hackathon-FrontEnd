@@ -44,7 +44,10 @@ export type CollectionItemResponse = {
 export const fetchProductCollections = () =>
   request<ProductCollectionResponse[]>('/product-collections');
 
-const fetchCollectionItems = (id: string) =>
+export const fetchProductCollection = (id: string) =>
+  request<ProductCollectionResponse>(`/product-collections/${id}`);
+
+export const fetchCollectionProducts = (id: string) =>
   request<CollectionItemResponse[]>(`/product-collections/${id}/products`);
 
 export type CollectionIndex = {
@@ -85,7 +88,7 @@ export function fetchCollectionIndex(): Promise<CollectionIndex> {
     // 컬렉션 하나가 실패해도 나머지 색인은 살린다 — 시트의 한 줄 때문에 카드 화면 전체가
     // 비는 것은 균형이 맞지 않는다.
     const lists = await Promise.all(
-      collections.map((c) => fetchCollectionItems(c.id).catch(() => [] as CollectionItemResponse[])),
+      collections.map((c) => fetchCollectionProducts(c.id).catch(() => [] as CollectionItemResponse[])),
     );
 
     collections.forEach((collection, i) => {

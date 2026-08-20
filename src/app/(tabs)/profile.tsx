@@ -11,6 +11,9 @@ import { Screen } from '@/components/ui/screen';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { TextLink } from '@/components/ui/text-link';
+import { useToast } from '@/components/ui/toast';
+import { resetLocalDemo } from '@/lib/api/local-demo';
+import { failureCopy } from '@/lib/api/errors';
 import { useAuth } from '@/lib/auth-store';
 import { useCards } from '@/lib/cards-store';
 import { useCollections } from '@/lib/collections-store';
@@ -41,11 +44,15 @@ import { space } from '@/theme/spacing';
  */
 export default function ProfileScreen() {
   const { user, signOut, withdraw, pending } = useAuth();
-  const { status, cards, rewards } = useCards();
-  const { status: collectionsStatus, collections } = useCollections();
+  const { status, cards, rewards, reload: reloadCards } = useCards();
+  const { status: collectionsStatus, collections, reload: reloadCollections } = useCollections();
   const [confirming, setConfirming] = useState(false);
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const bottomSpace = useTabBarSpace();
   const router = useRouter();
+  const toast = useToast();
+  const demoResetEnabled = typeof __DEV__ !== 'undefined' && __DEV__;
 
   /* 이름이 비면 이메일의 앞부분이 대신 선다 — 백엔드가 `users.name` 을 NOT NULL 로 두지만
      그 값이 이메일에서 시드된 경우가 있어, 둘 다 없을 때만 자리를 비운다. */
@@ -104,6 +111,17 @@ export default function ProfileScreen() {
         />
       </Panel>
 
+      {demoResetEnabled ? (
+        <View style={styles.demoTools}>
+          <Button
+            label="QR 초기화 (데모)"
+            variant="outline"
+            onPress={() => setConfirmingReset(true)}
+            loading={resetting}
+          />
+        </View>
+      ) : null}
+
       <View style={styles.foot}>
         <Button label="로그아웃" variant="outline" onPress={signOut} loading={pending} />
         {/* 버튼이 아니라 링크다. 버튼 무게의 컨트롤이 이 바닥에 셋이면 화면이 메뉴로 납작해지고,
@@ -123,8 +141,36 @@ export default function ProfileScreen() {
         }}
         pending={pending}
       />
+
+      <Dialog
+        open={confirmingReset}
+        onOpenChange={setConfirmingReset}
+        title="데모 QR 초기화"
+        description={'사용한 QR을 다시 사용할 수 있도록 초기화합니다.\n현재 데모 데이터에만 적용됩니다.'}
+        confirmLabel="초기화하기"
+        onConfirm={() => {
+          void handleDemoReset();
+        }}
+        pending={resetting}
+      />
     </Screen>
   );
+
+  async function handleDemoReset() {
+    setResetting(true);
+    try {
+      const result = await resetLocalDemo();
+      reloadCards();
+      reloadCollections();
+      setConfirmingReset(false);
+      toast(`${result.resetPurchaseQrCount}개의 QR이 초기화되었습니다.`);
+    } catch (error) {
+      setConfirmingReset(false);
+      toast(failureCopy(error).note);
+    } finally {
+      setResetting(false);
+    }
+  }
 }
 
 /**
@@ -190,6 +236,7 @@ const styles = StyleSheet.create({
   email: { marginTop: space[1] },
 
   counts: { marginTop: space[3], flexDirection: 'row', alignItems: 'center' },
+  demoTools: { marginTop: space[4] },
   count: { flex: 1, alignItems: 'center', paddingVertical: space[2], borderRadius: radius.small },
   countLabel: { marginTop: space[1] },
   countSkeleton: { width: 28, height: 24, borderRadius: radius.small },

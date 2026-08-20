@@ -77,6 +77,15 @@ export default function SitemapScreen() {
         <RouteRow path="/profile" title="프로필" onPress={() => router.push('/profile')} />
       </Section>
 
+      <Section title="상품 탐색" note="브랜드 상품·공식 컬렉션·카드 템플릿">
+        <RouteRow path="/catalog" title="둘러보기" onPress={() => router.push('/catalog')} />
+        <RouteRow path="/catalog/products" title="상품 목록" onPress={() => router.push('/catalog/products')} />
+        <RouteRow path="/catalog/products/[id]" title="상품 상세" note="상품 목록에서 선택" />
+        <RouteRow path="/catalog/collections" title="공식 컬렉션 목록" onPress={() => router.push('/catalog/collections')} />
+        <RouteRow path="/catalog/collections/[id]" title="공식 컬렉션 상세" note="공식 컬렉션 목록에서 선택" />
+        <RouteRow path="/catalog/templates" title="카드 템플릿 목록" onPress={() => router.push('/catalog/templates')} />
+      </Section>
+
       <Section
         title="카드 발급"
         note="영수증에 인쇄된 실제 코드가 필요합니다. 토큰 하나는 한 번만 쓸 수 있어, 이미 쓴 코드로 들어가면 오류 화면이 나옵니다."
