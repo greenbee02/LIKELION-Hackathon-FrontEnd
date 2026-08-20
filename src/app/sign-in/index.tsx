@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { useToast } from '@/components/ui/toast';
+import { Wordmark } from '@/components/ui/wordmark';
 import { useAuth } from '@/lib/auth-store';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
@@ -70,7 +71,7 @@ export default function SignInScreen() {
           phone and a large one, and a hardcoded top margin only lands on the device it was
           measured against. */}
       <View style={styles.hero}>
-        <Text variant="wordmark">Curio</Text>
+        <Wordmark />
       </View>
 
       <View style={styles.body}>

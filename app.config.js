@@ -33,7 +33,7 @@ const host = cleartextHost();
  * 설정이기도 하다.
  */
 const ios = {
-  icon: './assets/expo.icon',
+  icon: './assets/images/icon.png',
   /* 번들 ID 를 여기 못 박는 이유: 비워두면 prebuild 가 `com.anonymous.curio` 를 쓰는데,
      무료 Apple ID 는 남이 먼저 등록한 ID 를 서명하지 못한다. 흔한 기본값일수록 이미
      누군가 갖고 있어서, 증상은 빌드 막바지의 provisioning 실패로만 나타난다. */
@@ -55,7 +55,7 @@ const ios = {
 /** 안드로이드에는 도메인 단위 설정이 없어 평문 허용은 전역이다. HTTP 일 때만 켠다. */
 const android = {
   adaptiveIcon: {
-    backgroundColor: '#E6F4FE',
+    backgroundColor: '#000000',
     foregroundImage: './assets/images/android-icon-foreground.png',
     backgroundImage: './assets/images/android-icon-background.png',
     monochromeImage: './assets/images/android-icon-monochrome.png',
@@ -89,9 +89,9 @@ module.exports = {
       [
         'expo-splash-screen',
         {
-          backgroundColor: '#208AEF',
+          backgroundColor: '#000000',
           image: './assets/images/splash-icon.png',
-          imageWidth: 76,
+          imageWidth: 200,
         },
       ],
       [

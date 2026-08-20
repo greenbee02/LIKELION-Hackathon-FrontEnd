@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo-google-fonts/cormorant-garamond": "^0.4.1",
-    "@expo-google-fonts/titillium-web": "^0.4.1",
+    "@expo-google-fonts/jost": "^0.4.2",
     "@radix-ui/colors": "^3.0.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@rn-primitives/dialog": "^1.5.2",
