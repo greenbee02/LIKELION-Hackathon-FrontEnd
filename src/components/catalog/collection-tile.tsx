@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/ui/text';
 import { assetUrl } from '@/lib/config';
+import { officialCollectionCover } from '@/lib/catalog/official-collection-covers';
 import type { ProductCollectionResponse } from '@/lib/api/product-collections';
 import { colors } from '@/theme/colors';
 import { radius } from '@/theme/radius';
@@ -19,6 +20,7 @@ export function CollectionTile({
   onPress: () => void;
 }) {
   const image = assetUrl(collection.coverImageUrl);
+  const fallbackCover = officialCollectionCover(collection.name);
 
   return (
     <Pressable
@@ -29,7 +31,8 @@ export function CollectionTile({
     >
       <View style={styles.imageBox}>
         {image ? <Image source={{ uri: image }} style={styles.image} contentFit="cover" transition={200} /> : null}
-        {!image ? <View style={styles.fallback} /> : null}
+        {!image && fallbackCover ? <Image source={fallbackCover} style={styles.image} contentFit="cover" transition={200} /> : null}
+        {!image && !fallbackCover ? <View style={styles.fallback} /> : null}
       </View>
       <View style={styles.copy}>
         <Text variant="caption" tone="muted" numberOfLines={1}>{collection.brandName}</Text>

@@ -13,6 +13,7 @@ import { Text } from '@/components/ui/text';
 import { failureCopy } from '@/lib/api/errors';
 import { fetchCollectionProducts, fetchProductCollection, type CollectionItemResponse, type ProductCollectionResponse } from '@/lib/api/product-collections';
 import { assetUrl } from '@/lib/config';
+import { officialCollectionCover } from '@/lib/catalog/official-collection-covers';
 import { radius } from '@/theme/radius';
 import { space } from '@/theme/spacing';
 
@@ -64,11 +65,13 @@ function CollectionDetail({
   onProductPress: (id: string) => void;
 }) {
   const image = assetUrl(collection.coverImageUrl);
+  const fallbackCover = officialCollectionCover(collection.name);
   return (
     <>
       <View style={styles.hero}>
         <View style={styles.cover}>
           {image ? <Image source={{ uri: image }} style={styles.image} contentFit="cover" transition={200} /> : null}
+          {!image && fallbackCover ? <Image source={fallbackCover} style={styles.image} contentFit="cover" transition={200} /> : null}
         </View>
         <Text variant="caption" tone="muted" style={styles.brand}>{collection.brandName}</Text>
         <Text variant="title" style={styles.title}>{collection.name}</Text>
